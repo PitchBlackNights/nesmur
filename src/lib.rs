@@ -1,5 +1,9 @@
 pub mod memory;
+
+pub mod apu;
+pub mod bus;
 pub mod cpu;
+pub mod ppu;
 
 pub mod cli_parser;
 pub mod setup;

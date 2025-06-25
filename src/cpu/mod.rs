@@ -1,5 +1,5 @@
 mod cpu;
-pub mod register;
-pub mod instruction;
+mod register;
+mod instruction;
 
-pub use self::cpu::*;
+// pub use self::cpu::*;
