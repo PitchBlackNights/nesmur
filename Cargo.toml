@@ -1,0 +1,19 @@
+[package]
+name = "nesmur"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+env_logger = "0.11"
+log = "0.4"
+colored = "3.0"
+chrono = "0.4"
+clap = { version = "4.5", features = ["cargo"] }
+once_cell = "1.21"
+phf = { version = "0.12" }
+bitflags = "2.9"
+
+[build-dependencies]
+vergen-git2 = { version = "1.0.7", features = ["build", "cargo", "rustc", "si", "emit_and_set"]}
+phf = { version = "0.12", default-features = false }
+phf_codegen = "0.12"
