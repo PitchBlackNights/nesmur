@@ -1,5 +1,3 @@
-pub mod memory;
-
 pub mod apu;
 pub mod bus;
 pub mod cpu;

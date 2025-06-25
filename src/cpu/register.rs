@@ -28,7 +28,19 @@ impl FlagArgs {
 }
 
 bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    /// # Status Register (P) http://wiki.nesdev.com/w/index.php/Status_flags
+    ///
+    ///  7 6 5 4 3 2 1 0
+    ///  N V _ B D I Z C
+    ///  | |   | | | | +--- Carry Flag
+    ///  | |   | | | +----- Zero Flag
+    ///  | |   | | +------- Interrupt Disable
+    ///  | |   | +--------- Decimal Mode (not used on NES)
+    ///  | |   +----------- Break Command
+    ///  | +--------------- Overflow Flag
+    ///  +----------------- Negative Flag
+    ///
+    #[derive(Clone, Debug)]
     pub struct Flags: u8 {
         const NEGATIVE_RESULT   = 0b1000_0000;
         const OVERFLOW          = 0b0100_0000;
@@ -82,18 +94,6 @@ impl Flags {
         }
 
         out
-    }
-
-    pub fn and(&mut self, rhs: Flags) {
-        *self &= rhs;
-    }
-
-    pub fn or(&mut self, rhs: Flags) {
-        *self |= rhs;
-    }
-
-    pub fn set_with_mask(&mut self, mask: Flags, rhs: Flags) {
-        *self = (*self & !mask) | rhs;
     }
 }
 
