@@ -1,21 +1,18 @@
-#![allow(unused_assignments)]
-
-use clap::{ArgMatches, Command, arg, crate_authors, value_parser};
-use once_cell::sync::Lazy;
-use std::{cmp, env, error::Error, process};
 use crate::ENV_VARS;
+use clap::{arg, crate_authors, value_parser, ArgMatches, Command};
+use std::{cmp, env, error::Error, process};
 
-static LONG_VERSION: Lazy<String> = Lazy::new(|| {
-    format!(
+lazy_static::lazy_static! {
+    static ref LONG_VERSION: String = format!(
         " v{}\nAuthor(s): {}\nDescription: {}\nRepository: {}",
         env!("CARGO_PKG_VERSION"),
         crate_authors!(", "),
         env!("CARGO_PKG_DESCRIPTION"),
         env!("CARGO_PKG_REPOSITORY")
-    )
-});
+    );
 
-static SHORT_VERSION: Lazy<String> = Lazy::new(|| format!(" v{}", env!("CARGO_PKG_VERSION"),));
+    static ref SHORT_VERSION: String = format!(" v{}", env!("CARGO_PKG_VERSION"));
+}
 
 /// Struct to describe passed command-line arguments
 #[derive(Debug)]
@@ -115,7 +112,7 @@ impl Args {
                     } else {
                         format!("{} = NOT_SET\n", trunc_environ)
                     }
-                },
+                }
             };
 
             info_text.push_str(&concat_string);

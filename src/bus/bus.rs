@@ -42,7 +42,7 @@ impl Mem for Bus {
             RAM..=RAM_MIRRORS_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 let byte: u8 = self.cpu_vram[mirror_down_addr as usize];
-                trace!("Read {:02x} from {:04x}", byte, mirror_down_addr);
+                trace!("Read {:#02X} from {:#04X}", byte, mirror_down_addr);
                 byte
             }
             PPU_REGISTERS..=PPU_REGISTERS_MIRRORS_END => {
@@ -61,7 +61,7 @@ impl Mem for Bus {
             RAM..=RAM_MIRRORS_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 self.cpu_vram[mirror_down_addr as usize] = data;
-                trace!("Wrote {:02x} to {:04x}", data, mirror_down_addr);
+                trace!("Wrote {:#02X} to {:#04X}", data, mirror_down_addr);
             }
             PPU_REGISTERS..=PPU_REGISTERS_MIRRORS_END => {
                 let _mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;

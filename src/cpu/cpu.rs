@@ -1,5 +1,6 @@
 use crate::bus::{Bus, Mem};
-use crate::cpu::instruction::{self, Instruction, AddressingMode};
+use crate::cpu::instruction::{self, AddressingMode, OpCode};
+use crate::prelude::*;
 use bitflags::bitflags;
 
 bitflags! {
@@ -126,91 +127,20 @@ impl CPU {
     }
 
     pub fn step(&mut self) {
-        let opcode: u8 = self.mem_read(self.program_counter);
+        let code: u8 = self.mem_read(self.program_counter);
         self.program_counter += 1;
         let program_counter_state: u16 = self.program_counter;
-        let (instruct, addr_mode, opcode_len) = instruction::decode_opcode(opcode);
+        let opcode: &'static OpCode = instruction::decode_opcode(code);
 
-        match instruct {
-            Instruction::LDA => todo!(),
-            Instruction::LDX => todo!(),
-            Instruction::LDY => todo!(),
-            Instruction::STA => todo!(),
-            Instruction::STX => todo!(),
-            Instruction::STY => todo!(),
-            Instruction::TAX => todo!(),
-            Instruction::TAY => todo!(),
-            Instruction::TXA => todo!(),
-            Instruction::TYA => todo!(),
-            Instruction::TSX => todo!(),
-            Instruction::TXS => todo!(),
-            Instruction::PHA => todo!(),
-            Instruction::PHP => todo!(),
-            Instruction::PLA => todo!(),
-            Instruction::PLP => todo!(),
-            Instruction::AND => todo!(),
-            Instruction::EOR => todo!(),
-            Instruction::ORA => todo!(),
-            Instruction::BIT => todo!(),
-            Instruction::ADC => todo!(),
-            Instruction::SBC => todo!(),
-            Instruction::CMP => todo!(),
-            Instruction::CPX => todo!(),
-            Instruction::CPY => todo!(),
-            Instruction::INC => todo!(),
-            Instruction::INX => todo!(),
-            Instruction::INY => todo!(),
-            Instruction::DEC => todo!(),
-            Instruction::DEX => todo!(),
-            Instruction::DEY => todo!(),
-            Instruction::ASL => todo!(),
-            Instruction::LSR => todo!(),
-            Instruction::ROL => todo!(),
-            Instruction::ROR => todo!(),
-            Instruction::JMP => todo!(),
-            Instruction::JSR => todo!(),
-            Instruction::RTS => todo!(),
-            Instruction::BCC => todo!(),
-            Instruction::BCS => todo!(),
-            Instruction::BEQ => todo!(),
-            Instruction::BMI => todo!(),
-            Instruction::BNE => todo!(),
-            Instruction::BPL => todo!(),
-            Instruction::BVC => todo!(),
-            Instruction::BVS => todo!(),
-            Instruction::CLC => todo!(),
-            Instruction::CLD => todo!(),
-            Instruction::CLI => todo!(),
-            Instruction::CLV => todo!(),
-            Instruction::SEC => todo!(),
-            Instruction::SED => todo!(),
-            Instruction::SEI => todo!(),
-            Instruction::BRK => todo!(),
-            Instruction::NOP => todo!(),
-            Instruction::RTI => todo!(),
-            Instruction::SLO => todo!(),
-            Instruction::RLA => todo!(),
-            Instruction::SRE => todo!(),
-            Instruction::RRA => todo!(),
-            Instruction::SAX => todo!(),
-            Instruction::LAX => todo!(),
-            Instruction::DCP => todo!(),
-            Instruction::ISC => todo!(),
-            Instruction::ANC => todo!(),
-            Instruction::ALR => todo!(),
-            Instruction::ARR => todo!(),
-            Instruction::XAA => todo!(),
-            Instruction::AXS => todo!(),
-            Instruction::SBC_NOP => todo!(),
-            Instruction::AHX => todo!(),
-            Instruction::SHY => todo!(),
-            Instruction::SHX => todo!(),
-            Instruction::TAS => todo!(),
-            Instruction::LAS => todo!(),
-        }
+        debug!("==== Executed Operation ====");
+        debug!("  Byte: {:#02X},", opcode.byte);
+        debug!("  Instruction: {:?},", opcode.instruction);
+        debug!("  Mnemonic: \"{}\"", opcode.mnemonic);
+        debug!("  Len: {}", opcode.len);
+        debug!("  Mode: {:?}", opcode.mode);
 
         if program_counter_state == self.program_counter {
-            self.program_counter += opcode_len - 1
+            self.program_counter += opcode.len as u16 - 1
         }
     }
 }

@@ -624,7 +624,6 @@ dependencies = [
  "env_logger",
  "lazy_static",
  "log",
- "once_cell",
  "phf",
  "phf_codegen",
  "vergen-git2",

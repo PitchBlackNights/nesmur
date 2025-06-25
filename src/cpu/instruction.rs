@@ -1,187 +1,6 @@
-// http://www.6502.org/users/obelisk/6502/instructions.html
-#[derive(Copy, Clone, Debug)]
-#[allow(non_camel_case_types)]
-pub enum Instruction {
-    // ===== Load/Store Operations =====
-    /// Load Accumulator
-    LDA,
-    /// Load X register
-    LDX,
-    /// Load Y register
-    LDY,
-    /// Store Accumulator
-    STA,
-    /// Store X register
-    STX,
-    /// Store Y register
-    STY,
+use std::collections::HashMap;
 
-    // ===== Register Transfers =====
-    /// Transfer Accumulator to X
-    TAX,
-    /// Transfer Accumulator to Y
-    TAY,
-    /// Transfer X to Accumulator
-    TXA,
-    /// Transfer Y to Accumulator
-    TYA,
-
-    // ===== Stack Operations =====
-    /// Transfer Stack Pointer to X
-    TSX,
-    /// Transfer X to Stack Pointer
-    TXS,
-    /// Push Accumulator on Stack
-    PHA,
-    /// Push Processor Status on Stack
-    PHP,
-    /// Pull Accumulator from Stack
-    PLA,
-    /// Pull Processor Status from Stack
-    PLP,
-
-    // ===== Logical =====
-    /// Logical AND
-    AND,
-    /// Exclusive OR
-    EOR,
-    /// Logical Inclusive OR
-    ORA,
-    /// Bit Test
-    BIT,
-
-    // ===== Arithmetic =====
-    /// Add with Carry
-    ADC,
-    /// Subtract with Carry
-    SBC,
-    /// Compare Accumulator
-    CMP,
-    /// Compare X register
-    CPX,
-    /// Compare Y register
-    CPY,
-
-    // ===== Increment & Decrements =====
-    /// Increment a memory location
-    INC,
-    /// Increment the X register
-    INX,
-    /// Increment the Y register
-    INY,
-    /// Decrement a memory location
-    DEC,
-    /// Decrement the X register
-    DEX,
-    /// Decrement the Y register
-    DEY,
-
-    // ===== Shifts =====
-    /// Arithmetic Shift Left
-    ASL,
-    /// Logical Shift Right
-    LSR,
-    /// Rotate Left
-    ROL,
-    /// Rotate Right
-    ROR,
-
-    // ===== Jumps & Calls =====
-    /// Jump to another location
-    JMP,
-    /// Jump to subroutine
-    JSR,
-    /// Return from subroutine
-    RTS,
-
-    // ===== Branches =====
-    /// Branch if Carry flag clear
-    BCC,
-    /// Branch if Carry flag set
-    BCS,
-    /// Branch if Zero flag set
-    BEQ,
-    /// Branch if Negative flag set
-    BMI,
-    /// Branch if Zero flag clear
-    BNE,
-    /// Branch if Negative flag clear
-    BPL,
-    /// Branch if Overflow flag clear
-    BVC,
-    /// Branch if Overflow flag set
-    BVS,
-
-    // ===== Status Flag Changes =====
-    /// Clear Carry flag
-    CLC,
-    /// Clear Decimal Mode flag
-    CLD,
-    /// Clear Interrupt Disable flag
-    CLI,
-    /// Clear Overflow flag
-    CLV,
-    /// Set Carry flag
-    SEC,
-    /// Set Decimal Mode flag
-    SED,
-    /// Set Interrupt Disable flag
-    SEI,
-
-    // ===== System Functions =====
-    /// Force an Interrupt
-    BRK,
-    /// No Operation
-    NOP,
-    /// Return from Interrupt
-    RTI,
-
-    // ===== Illegal Opcodes =====
-    // https://www.oxyron.de/html/opcodes02.html
-    // https://www.nesdev.org/wiki/CPU_unofficial_opcodes
-    // https://www.nesdev.org/wiki/Programming_with_unofficial_opcodes
-    /// Equivalent to `ASL value` then `ORA value`
-    SLO,
-    /// Equivalent to `ROL value` then `AND value`
-    RLA,
-    /// Equivalent to `LSR value` then `EOR value`
-    SRE,
-    /// Equivalent to `ROR value` then `ADC value`
-    RRA,
-    /// Stores `A & X` into `{adr}`
-    SAX,
-    /// Shortcut for `LDA value` then `TAX`
-    LAX,
-    /// Equivalent to `DEC value` then `CMP value`
-    DCP,
-    /// Equivalent to `INC value` then `SBC value`
-    ISC,
-    /// Does `AND #i` then copies `N` to `C`
-    ANC,
-    /// Equivalent to `AND #i` then `LSR A`
-    ALR,
-    /// Similar to `AND #i`, but `C` is `bit 6` and `V` is `bit 6 XOR bit 5`
-    ARR,
-    /// Unpredictable behavior - https://www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE)
-    XAA,
-    /// Sets `X` to `A & X - #{imm}`
-    AXS,
-    /// Equivalent to `SBC #i` then `NOP`
-    SBC_NOP,
-    /// An incorrectly-implemented version of `SAX value`
-    AHX,
-    /// An incorrectly-implemented version of `STY a,X`
-    SHY,
-    /// An incorrectly-implemented version of `STX a,Y`
-    SHX,
-    /// Stores `A & X` into `S` then `AHX a,Y`
-    TAS,
-    /// Stores `{adr} & S` into `A`, `X`, and `S`
-    LAS,
-}
-
-// http://www.6502.org/users/obelisk/6502/addressing.html
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
 pub enum AddressingMode {
     Implicit,
@@ -200,375 +19,576 @@ pub enum AddressingMode {
 }
 
 impl AddressingMode {
-    pub const fn extra_bytes(self) -> u16 {
+    pub const fn opcode_bytes(self) -> u8 {
         match self {
-            AddressingMode::Accumulator => 0,
-            AddressingMode::Implicit => 0,
-            AddressingMode::Immediate => 1,
-            AddressingMode::ZeroPage => 1,
-            AddressingMode::ZeroPage_X => 1,
-            AddressingMode::ZeroPage_Y => 1,
-            AddressingMode::Relative => 1,
-            AddressingMode::Absolute => 2,
-            AddressingMode::Absolute_X => 2,
-            AddressingMode::Absolute_Y => 2,
-            AddressingMode::Indirect => 2,
-            AddressingMode::Indirect_X => 1,
-            AddressingMode::Indirect_Y => 1,
+            AddressingMode::Implicit => 1,
+            AddressingMode::Accumulator => 1,
+            AddressingMode::Immediate => 2,
+            AddressingMode::ZeroPage => 2,
+            AddressingMode::ZeroPage_X => 2,
+            AddressingMode::ZeroPage_Y => 2,
+            AddressingMode::Relative => 2,
+            AddressingMode::Absolute => 3,
+            AddressingMode::Absolute_X => 3,
+            AddressingMode::Absolute_Y => 3,
+            AddressingMode::Indirect => 3,
+            AddressingMode::Indirect_X => 2,
+            AddressingMode::Indirect_Y => 2,
         }
     }
 }
 
-// http://www.6502.org/users/obelisk/6502/reference.html
-pub fn decode_opcode(opcode: u8) -> (Instruction, AddressingMode, u16) {
-    let (instr, addr_mode) = match opcode {
-        // ===== Load/Store Operations =====
-        // Load Accumulator
-        0xA9 => (Instruction::LDA, AddressingMode::Immediate),
-        0xA5 => (Instruction::LDA, AddressingMode::ZeroPage),
-        0xB5 => (Instruction::LDA, AddressingMode::ZeroPage_X),
-        0xAD => (Instruction::LDA, AddressingMode::Absolute),
-        0xBD => (Instruction::LDA, AddressingMode::Absolute_X),
-        0xB9 => (Instruction::LDA, AddressingMode::Absolute_Y),
-        0xA1 => (Instruction::LDA, AddressingMode::Indirect_X),
-        0xB1 => (Instruction::LDA, AddressingMode::Indirect_Y),
-        // Load X register
-        0xA2 => (Instruction::LDX, AddressingMode::Immediate),
-        0xA6 => (Instruction::LDX, AddressingMode::ZeroPage),
-        0xB6 => (Instruction::LDX, AddressingMode::ZeroPage_Y),
-        0xAE => (Instruction::LDX, AddressingMode::Absolute),
-        0xBE => (Instruction::LDX, AddressingMode::Absolute_Y),
-        // Load Y register
-        0xA0 => (Instruction::LDY, AddressingMode::Immediate),
-        0xA4 => (Instruction::LDY, AddressingMode::ZeroPage),
-        0xB4 => (Instruction::LDY, AddressingMode::ZeroPage_X),
-        0xAC => (Instruction::LDY, AddressingMode::Absolute),
-        0xBC => (Instruction::LDY, AddressingMode::Absolute_X),
-        // Store Accumulator
-        0x85 => (Instruction::STA, AddressingMode::ZeroPage),
-        0x95 => (Instruction::STA, AddressingMode::ZeroPage_X),
-        0x8D => (Instruction::STA, AddressingMode::Absolute),
-        0x9D => (Instruction::STA, AddressingMode::Absolute_X),
-        0x99 => (Instruction::STA, AddressingMode::Absolute_Y),
-        0x81 => (Instruction::STA, AddressingMode::Indirect_X),
-        0x91 => (Instruction::STA, AddressingMode::Indirect_Y),
-        // Store X register
-        0x86 => (Instruction::STX, AddressingMode::ZeroPage),
-        0x96 => (Instruction::STX, AddressingMode::ZeroPage_Y),
-        0x8E => (Instruction::STX, AddressingMode::Absolute),
-        // Store Y register
-        0x84 => (Instruction::STY, AddressingMode::ZeroPage),
-        0x94 => (Instruction::STY, AddressingMode::ZeroPage_Y),
-        0x8C => (Instruction::STY, AddressingMode::Absolute),
-
-        // ===== Register Transfers =====
-        // Transfer Accumulator to X
-        0xAA => (Instruction::TAX, AddressingMode::Implicit),
-        // Transfer Accumulator to Y
-        0xA8 => (Instruction::TAY, AddressingMode::Implicit),
-        // Transfer X to Accumulator
-        0x8A => (Instruction::TXA, AddressingMode::Implicit),
-        // Transfer Y to Accumulator
-        0x98 => (Instruction::TYA, AddressingMode::Implicit),
-
-        // ===== Stack Operations =====
-        // Transfer Stack Pointer to X
-        0xBA => (Instruction::TSX, AddressingMode::Implicit),
-        // Transfer X to Stack Pointer
-        0x9A => (Instruction::TXS, AddressingMode::Implicit),
-        // Push Accumulator on Stack
-        0x48 => (Instruction::PHA, AddressingMode::Implicit),
-        // Push Processor Status on Stack
-        0x08 => (Instruction::PHP, AddressingMode::Implicit),
-        // Pull Accumulator from Stack
-        0x68 => (Instruction::PLA, AddressingMode::Implicit),
-        // Pull Processor Status from Stack
-        0x28 => (Instruction::PLP, AddressingMode::Implicit),
-
-        // ===== Logical =====
-        // Logical AND
-        0x29 => (Instruction::AND, AddressingMode::Immediate),
-        0x25 => (Instruction::AND, AddressingMode::ZeroPage),
-        0x35 => (Instruction::AND, AddressingMode::ZeroPage_X),
-        0x2D => (Instruction::AND, AddressingMode::Absolute),
-        0x3D => (Instruction::AND, AddressingMode::Absolute_X),
-        0x39 => (Instruction::AND, AddressingMode::Absolute_Y),
-        0x21 => (Instruction::AND, AddressingMode::Indirect_X),
-        0x31 => (Instruction::AND, AddressingMode::Indirect_Y),
-        // Exclusive OR
-        0x49 => (Instruction::EOR, AddressingMode::Immediate),
-        0x45 => (Instruction::EOR, AddressingMode::ZeroPage),
-        0x55 => (Instruction::EOR, AddressingMode::ZeroPage_X),
-        0x4D => (Instruction::EOR, AddressingMode::Absolute),
-        0x5D => (Instruction::EOR, AddressingMode::Absolute_X),
-        0x59 => (Instruction::EOR, AddressingMode::Absolute_Y),
-        0x41 => (Instruction::EOR, AddressingMode::Indirect_X),
-        0x51 => (Instruction::EOR, AddressingMode::Indirect_Y),
-        // Logical Inclusive OR
-        0x09 => (Instruction::ORA, AddressingMode::Immediate),
-        0x05 => (Instruction::ORA, AddressingMode::ZeroPage),
-        0x15 => (Instruction::ORA, AddressingMode::ZeroPage_X),
-        0x0D => (Instruction::ORA, AddressingMode::Absolute),
-        0x1D => (Instruction::ORA, AddressingMode::Absolute_X),
-        0x19 => (Instruction::ORA, AddressingMode::Absolute_Y),
-        0x01 => (Instruction::ORA, AddressingMode::Indirect_X),
-        0x11 => (Instruction::ORA, AddressingMode::Indirect_Y),
-        // Bit Test
-        0x24 => (Instruction::BIT, AddressingMode::ZeroPage),
-        0x2C => (Instruction::BIT, AddressingMode::Absolute),
-
-        // ===== Arithmetic =====
-        // Add with Carry
-        0x69 => (Instruction::ADC, AddressingMode::Immediate),
-        0x65 => (Instruction::ADC, AddressingMode::ZeroPage),
-        0x75 => (Instruction::ADC, AddressingMode::ZeroPage_X),
-        0x6D => (Instruction::ADC, AddressingMode::Absolute),
-        0x7D => (Instruction::ADC, AddressingMode::Absolute_X),
-        0x79 => (Instruction::ADC, AddressingMode::Absolute_Y),
-        0x61 => (Instruction::ADC, AddressingMode::Indirect_X),
-        0x71 => (Instruction::ADC, AddressingMode::Indirect_Y),
-        // Subtract with Carry
-        0xE9 => (Instruction::SBC, AddressingMode::Immediate),
-        0xE5 => (Instruction::SBC, AddressingMode::ZeroPage),
-        0xF5 => (Instruction::SBC, AddressingMode::ZeroPage_X),
-        0xED => (Instruction::SBC, AddressingMode::Absolute),
-        0xFD => (Instruction::SBC, AddressingMode::Absolute_X),
-        0xF9 => (Instruction::SBC, AddressingMode::Absolute_Y),
-        0xE1 => (Instruction::SBC, AddressingMode::Indirect_X),
-        0xF1 => (Instruction::SBC, AddressingMode::Indirect_Y),
-        // Compare Accumulator
-        0xC9 => (Instruction::CMP, AddressingMode::Immediate),
-        0xC5 => (Instruction::CMP, AddressingMode::ZeroPage),
-        0xD5 => (Instruction::CMP, AddressingMode::ZeroPage_X),
-        0xCD => (Instruction::CMP, AddressingMode::Absolute),
-        0xDD => (Instruction::CMP, AddressingMode::Absolute_X),
-        0xD9 => (Instruction::CMP, AddressingMode::Absolute_Y),
-        0xC1 => (Instruction::CMP, AddressingMode::Indirect_X),
-        0xD1 => (Instruction::CMP, AddressingMode::Indirect_Y),
-        // Compare X register
-        0xE0 => (Instruction::CPX, AddressingMode::Immediate),
-        0xE4 => (Instruction::CPX, AddressingMode::ZeroPage),
-        0xEC => (Instruction::CPX, AddressingMode::Absolute),
-        // Compare Y register
-        0xC0 => (Instruction::CPY, AddressingMode::Immediate),
-        0xC4 => (Instruction::CPY, AddressingMode::ZeroPage),
-        0xCC => (Instruction::CPY, AddressingMode::Absolute),
-
-        // ===== Increment & Decrements =====
-        // Increment a memory location
-        0xE6 => (Instruction::INC, AddressingMode::ZeroPage),
-        0xF6 => (Instruction::INC, AddressingMode::ZeroPage_X),
-        0xEE => (Instruction::INC, AddressingMode::Absolute),
-        0xFE => (Instruction::INC, AddressingMode::Absolute_X),
-        // Increment the X register
-        0xE8 => (Instruction::INX, AddressingMode::Implicit),
-        // Increment the Y register
-        0xC8 => (Instruction::INY, AddressingMode::Implicit),
-        // Decrement a memory location
-        0xC6 => (Instruction::DEC, AddressingMode::ZeroPage),
-        0xD6 => (Instruction::DEC, AddressingMode::ZeroPage_X),
-        0xCE => (Instruction::DEC, AddressingMode::Absolute),
-        0xDE => (Instruction::DEC, AddressingMode::Absolute_X),
-        // Decrement the X register
-        0xCA => (Instruction::DEX, AddressingMode::Implicit),
-        // Decrement the Y register
-        0x88 => (Instruction::DEY, AddressingMode::Implicit),
-
-        // ===== Shifts =====
-        // Arithmetic Shift Left
-        0x0A => (Instruction::ASL, AddressingMode::Accumulator),
-        0x06 => (Instruction::ASL, AddressingMode::ZeroPage),
-        0x16 => (Instruction::ASL, AddressingMode::ZeroPage_X),
-        0x0E => (Instruction::ASL, AddressingMode::Absolute),
-        0x1E => (Instruction::ASL, AddressingMode::Absolute_X),
-        // Logical Shift Right
-        0x4A => (Instruction::LSR, AddressingMode::Accumulator),
-        0x46 => (Instruction::LSR, AddressingMode::ZeroPage),
-        0x56 => (Instruction::LSR, AddressingMode::ZeroPage_X),
-        0x4E => (Instruction::LSR, AddressingMode::Absolute),
-        0x5E => (Instruction::LSR, AddressingMode::Absolute_X),
-        // Rotate Left
-        0x2A => (Instruction::ROL, AddressingMode::Accumulator),
-        0x26 => (Instruction::ROL, AddressingMode::ZeroPage),
-        0x36 => (Instruction::ROL, AddressingMode::ZeroPage_X),
-        0x2E => (Instruction::ROL, AddressingMode::Absolute),
-        0x3E => (Instruction::ROL, AddressingMode::Absolute_X),
-        // Rotate Right
-        0x6A => (Instruction::ROR, AddressingMode::Accumulator),
-        0x66 => (Instruction::ROR, AddressingMode::ZeroPage),
-        0x76 => (Instruction::ROR, AddressingMode::ZeroPage_X),
-        0x6E => (Instruction::ROR, AddressingMode::Absolute),
-        0x7E => (Instruction::ROR, AddressingMode::Absolute_X),
-
-        // ===== Jumps & Calls =====
-        // Jump to another location
-        0x4C => (Instruction::JMP, AddressingMode::Absolute),
-        0x6C => (Instruction::JMP, AddressingMode::Indirect),
-        // Jump to subroutine
-        0x20 => (Instruction::JSR, AddressingMode::Absolute),
-        // Return from subroutine
-        0x60 => (Instruction::RTS, AddressingMode::Implicit),
-
-        // ===== Branches =====
-        // Branch if Carry flag clear
-        0x90 => (Instruction::BCC, AddressingMode::Relative),
-        // Branch if Carry flag set
-        0xB0 => (Instruction::BCS, AddressingMode::Relative),
-        // Branch if Zero flag set
-        0xF0 => (Instruction::BEQ, AddressingMode::Relative),
-        // Branch if Negative flag set
-        0x30 => (Instruction::BMI, AddressingMode::Relative),
-        // Branch if Zero flag clear
-        0xD0 => (Instruction::BNE, AddressingMode::Relative),
-        // Branch if Negative flag clear
-        0x10 => (Instruction::BPL, AddressingMode::Relative),
-        // Branch if Overflow flag clear
-        0x50 => (Instruction::BVC, AddressingMode::Relative),
-        // Branch if Overflow flag set
-        0x70 => (Instruction::BVS, AddressingMode::Relative),
-
-        // ===== Status Flag Changes =====
-        // Clear Carry flag
-        0x18 => (Instruction::CLC, AddressingMode::Implicit),
-        // Clear Decimal Mode flag
-        0xD8 => (Instruction::CLD, AddressingMode::Implicit),
-        // Clear Interrupt Disable flag
-        0x58 => (Instruction::CLI, AddressingMode::Implicit),
-        // Clear Overflow flag
-        0xB8 => (Instruction::CLV, AddressingMode::Implicit),
-        // Set Carry flag
-        0x38 => (Instruction::SEC, AddressingMode::Implicit),
-        // Set Decimal Mode flag
-        0xF8 => (Instruction::SED, AddressingMode::Implicit),
-        // Set Interrupt Disable flag
-        0x78 => (Instruction::SEI, AddressingMode::Implicit),
-
-        // ===== System Functions =====
-        // Force an Interrupt
-        0x00 => (Instruction::BRK, AddressingMode::Implicit),
-        // No Operation
-        0xEA => (Instruction::NOP, AddressingMode::Implicit),
-        // Return from Interrupt
-        0x40 => (Instruction::RTI, AddressingMode::Implicit),
-
-        // ===== Undocumented Opcodes =====
-        // https://www.oxyron.de/html/opcodes02.html
-        // https://www.nesdev.org/wiki/CPU_unofficial_opcodes
-        0x1A | 0x3A | 0x5A | 0x7A | 0xDA | 0xFA => (Instruction::NOP, AddressingMode::Implicit),
-        0x0C => (Instruction::NOP, AddressingMode::Absolute),
-        0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => (Instruction::NOP, AddressingMode::Absolute_X),
-        0x04 | 0x44 | 0x64 => (Instruction::NOP, AddressingMode::ZeroPage),
-        0x14 | 0x34 | 0x54 | 0x74 | 0xd4 | 0xf4 => (Instruction::NOP, AddressingMode::ZeroPage_X),
-        0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => (Instruction::NOP, AddressingMode::Immediate),
-
-        // ===== Illegal Opcodes =====
-        // https://www.oxyron.de/html/opcodes02.html
-        // https://www.nesdev.org/wiki/CPU_unofficial_opcodes
-        // https://www.nesdev.org/wiki/Programming_with_unofficial_opcodes
-        // Equivalent to `ASL value` then `ORA value`
-        0x07 => (Instruction::SLO, AddressingMode::ZeroPage),
-        0x17 => (Instruction::SLO, AddressingMode::ZeroPage_X),
-        0x03 => (Instruction::SLO, AddressingMode::Indirect_X),
-        0x13 => (Instruction::SLO, AddressingMode::Indirect_Y),
-        0x0F => (Instruction::SLO, AddressingMode::Absolute),
-        0x1F => (Instruction::SLO, AddressingMode::Absolute_X),
-        0x1B => (Instruction::SLO, AddressingMode::Absolute_Y),
-
-        // Equivalent to `ROL value` then `AND value`
-        0x27 => (Instruction::RLA, AddressingMode::ZeroPage),
-        0x37 => (Instruction::RLA, AddressingMode::ZeroPage_X),
-        0x23 => (Instruction::RLA, AddressingMode::Indirect_X),
-        0x33 => (Instruction::RLA, AddressingMode::Indirect_Y),
-        0x2F => (Instruction::RLA, AddressingMode::Absolute),
-        0x3F => (Instruction::RLA, AddressingMode::Absolute_X),
-        0x3B => (Instruction::RLA, AddressingMode::Absolute_Y),
-
-        // Equivalent to `LSR value` then `EOR value`
-        0x47 => (Instruction::SRE, AddressingMode::ZeroPage),
-        0x57 => (Instruction::SRE, AddressingMode::ZeroPage_X),
-        0x43 => (Instruction::SRE, AddressingMode::Indirect_X),
-        0x53 => (Instruction::SRE, AddressingMode::Indirect_Y),
-        0x4F => (Instruction::SRE, AddressingMode::Absolute),
-        0x5F => (Instruction::SRE, AddressingMode::Absolute_X),
-        0x5B => (Instruction::SRE, AddressingMode::Absolute_Y),
-
-        // Equivalent to `ROR value` then `ADC value`
-        0x67 => (Instruction::RRA, AddressingMode::ZeroPage),
-        0x77 => (Instruction::RRA, AddressingMode::ZeroPage_X),
-        0x63 => (Instruction::RRA, AddressingMode::Indirect_X),
-        0x73 => (Instruction::RRA, AddressingMode::Indirect_Y),
-        0x6F => (Instruction::RRA, AddressingMode::Absolute),
-        0x7F => (Instruction::RRA, AddressingMode::Absolute_X),
-        0x7B => (Instruction::RRA, AddressingMode::Absolute_Y),
-
-        // Stores `A & X` into `{adr}`
-        0x87 => (Instruction::SAX, AddressingMode::ZeroPage),
-        0x97 => (Instruction::SAX, AddressingMode::ZeroPage_Y),
-        0x83 => (Instruction::SAX, AddressingMode::Indirect_X),
-        0x8F => (Instruction::SAX, AddressingMode::Absolute),
-
-        // Shortcut for `LDA value` then `TAX`
-        0xAB => (Instruction::LAX, AddressingMode::Immediate),
-        0xA7 => (Instruction::LAX, AddressingMode::ZeroPage),
-        0xB7 => (Instruction::LAX, AddressingMode::ZeroPage_Y),
-        0xA3 => (Instruction::LAX, AddressingMode::Indirect_X),
-        0xB3 => (Instruction::LAX, AddressingMode::Indirect_Y),
-        0xAF => (Instruction::LAX, AddressingMode::Absolute),
-        0xBF => (Instruction::LAX, AddressingMode::Absolute_Y),
-
-        // Equivalent to `DEC value` then `CMP value`
-        0xC7 => (Instruction::DCP, AddressingMode::ZeroPage),
-        0xD7 => (Instruction::DCP, AddressingMode::ZeroPage_X),
-        0xC3 => (Instruction::DCP, AddressingMode::Indirect_X),
-        0xD3 => (Instruction::DCP, AddressingMode::Indirect_Y),
-        0xCF => (Instruction::DCP, AddressingMode::Absolute),
-        0xDF => (Instruction::DCP, AddressingMode::Absolute_X),
-        0xDB => (Instruction::DCP, AddressingMode::Absolute_Y),
-
-        // Equivalent to `INC value` then `SBC value`
-        0xE7 => (Instruction::ISC, AddressingMode::ZeroPage),
-        0xF7 => (Instruction::ISC, AddressingMode::ZeroPage_X),
-        0xE3 => (Instruction::ISC, AddressingMode::Indirect_X),
-        0xF3 => (Instruction::ISC, AddressingMode::Indirect_Y),
-        0xEF => (Instruction::ISC, AddressingMode::Absolute),
-        0xFF => (Instruction::ISC, AddressingMode::Absolute_X),
-        0xFB => (Instruction::ISC, AddressingMode::Absolute_Y),
-
-        // Does `AND #i` then copies `N` to `C`
-        0x0B | 0x2B => (Instruction::ANC, AddressingMode::Immediate),
-
-        // Equivalent to `AND #i` then `LSR A`
-        0x4B => (Instruction::ALR, AddressingMode::Immediate),
-
-        // Similar to `AND #i`, but `C` is `bit 6` and `V` is `bit 6 XOR bit 5`
-        0x6B => (Instruction::ARR, AddressingMode::Immediate),
-
-        // Unpredictable behavior - https://www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE)
-        0x8B => (Instruction::XAA, AddressingMode::Immediate),
-
-        // Sets `X` to `A & X - #{imm}`
-        0xCB => (Instruction::AXS, AddressingMode::Immediate),
-
-        // Equivalent to `SBC #i` then `NOP`
-        0xEB => (Instruction::SBC_NOP, AddressingMode::Immediate),
-
-        // An incorrectly-implemented version of `SAX value`
-        0x93 => (Instruction::AHX, AddressingMode::Indirect_Y),
-        0x9F => (Instruction::AHX, AddressingMode::Absolute_Y),
-
-        // An incorrectly-implemented version of `STY a,X`
-        0x9C => (Instruction::SHY, AddressingMode::Absolute_X),
-
-        // An incorrectly-implemented version of `STX a,Y`
-        0x9E => (Instruction::SHX, AddressingMode::Absolute_Y),
-
-        // Stores `A & X` into `S` then `AHX a,Y`
-        0x9B => (Instruction::TAS, AddressingMode::Absolute_Y),
-
-        // Stores `{adr} & S` into `A`, `X`, and `S`
-        0xBB => (Instruction::LAS, AddressingMode::Absolute_Y),
-
-        _ => panic!("UNIMPLEMENTED OPCODE: {:02x}", opcode),
-    };
-    (instr, addr_mode, 1 + addr_mode.extra_bytes())
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct OpCode {
+    pub byte: u8,
+    pub instruction: Instruction,
+    pub mnemonic: &'static str,
+    pub len: u8,
+    pub mode: AddressingMode,
 }
+
+impl OpCode {
+    pub const fn new(
+        byte: u8,
+        instruction: Instruction,
+        mnemonic: &'static str,
+        mode: AddressingMode,
+    ) -> Self {
+        Self {
+            byte,
+            instruction,
+            mnemonic,
+            len: mode.opcode_bytes(),
+            mode,
+        }
+    }
+}
+
+pub fn decode_opcode(opbyte: u8) -> &'static OpCode {
+    OPCODES
+        .get(&opbyte)
+        .expect(&format!("OpCode {:x} is not recognized", opbyte))
+}
+
+macro_rules! define_opcodes {
+    (
+        $(
+            $( #[$enum_doc:meta] )*
+            $instr:ident $( $mnemonic:literal )? {
+                $( $opcode:literal => $mode:ident ),+ $(,)?
+            }
+        ),+ $(,)?
+    ) => {
+        #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+        #[allow(non_camel_case_types)]
+        pub enum Instruction {
+            $(
+                $( #[$enum_doc] )*
+                $instr,
+            )+
+        }
+
+        lazy_static::lazy_static! {
+            static ref OPCODES: HashMap<u8, OpCode> = {
+                let mut map = HashMap::new();
+                $(
+                    let instruction: Instruction = Instruction::$instr;
+                    let mnemonic: &'static str = define_opcodes!(@mnemonic $instr $( $mnemonic )?);
+                    $(
+                        map.insert(
+                            $opcode,
+                            OpCode::new($opcode, instruction, mnemonic, AddressingMode::$mode)
+                        );
+                    )+
+                )+
+                map
+            };
+        }
+    };
+
+    // Helper for mnemonic: use custom if present, else stringify enum name
+    (@mnemonic $instr:ident $mnemonic:literal) => { $mnemonic };
+    (@mnemonic $instr:ident) => { stringify!($instr) };
+}
+
+define_opcodes!(
+    // ===== Load/Store Operations =====
+    /// Load Accumulator
+    LDA {
+        0xA9 => Immediate,
+        0xA5 => ZeroPage,
+        0xB5 => ZeroPage_X,
+        0xAD => Absolute,
+        0xBD => Absolute_X,
+        0xB9 => Absolute_Y,
+        0xA1 => Indirect_X,
+        0xB1 => Indirect_Y,
+    },
+    /// Load X register
+    LDX {
+        0xA2 => Immediate,
+        0xA6 => ZeroPage,
+        0xB6 => ZeroPage_Y,
+        0xAE => Absolute,
+        0xBE => Absolute_Y,
+    },
+    /// Load Y register
+    LDY {
+        0xA0 => Immediate,
+        0xA4 => ZeroPage,
+        0xB4 => ZeroPage_X,
+        0xAC => Absolute,
+        0xBC => Absolute_X,
+    },
+    /// Store Accumulator
+    STA {
+        0x85 => ZeroPage,
+        0x95 => ZeroPage_X,
+        0x8D => Absolute,
+        0x9D => Absolute_X,
+        0x99 => Absolute_Y,
+        0x81 => Indirect_X,
+        0x91 => Indirect_Y,
+    },
+    /// Store X register
+    STX {
+        0x86 => ZeroPage,
+        0x96 => ZeroPage_Y,
+        0x8E => Absolute,
+    },
+    /// Store Y register
+    STY {
+        0x84 => ZeroPage,
+        0x94 => ZeroPage_Y,
+        0x8C => Absolute,
+    },
+
+    // ===== Register Transfers =====
+    /// Transfer Accumulator to X
+    TAX {
+        0xAA => Implicit,
+    },
+    /// Transfer Accumulator to Y
+    TAY {
+        0xA8 => Implicit,
+    },
+    /// Transfer X to Accumulator
+    TXA {
+        0x8A => Implicit,
+    },
+    /// Transfer Y to Accumulator
+    TYA {
+        0x98 => Implicit,
+    },
+
+    // ===== Stack Operations =====
+    /// Transfer Stack Pointer to X
+    TSX {
+        0xBA => Implicit,
+    },
+    /// Transfer X to Stack Pointer
+    TXS {
+        0x9A => Implicit,
+    },
+    /// Push Accumulator on Stack
+    PHA {
+        0x48 => Implicit,
+    },
+    /// Push Processor Status on Stack
+    PHP {
+        0x08 => Implicit,
+    },
+    /// Pull Accumulator from Stack
+    PLA {
+        0x68 => Implicit,
+    },
+    /// Pull Processor Status from Stack
+    PLP {
+        0x28 => Implicit,
+    },
+
+    // ===== Logical =====
+    /// Logical AND
+    AND {
+        0x29 => Immediate,
+        0x25 => ZeroPage,
+        0x35 => ZeroPage_X,
+        0x2D => Absolute,
+        0x3D => Absolute_X,
+        0x39 => Absolute_Y,
+        0x21 => Indirect_X,
+        0x31 => Indirect_Y,
+    },
+    /// Exclusive OR
+    EOR {
+        0x49 => Immediate,
+        0x45 => ZeroPage,
+        0x55 => ZeroPage_X,
+        0x4D => Absolute,
+        0x5D => Absolute_X,
+        0x59 => Absolute_Y,
+        0x41 => Indirect_X,
+        0x51 => Indirect_Y,
+    },
+    /// Logical Inclusive OR
+    ORA {
+        0x09 => Immediate,
+        0x05 => ZeroPage,
+        0x15 => ZeroPage_X,
+        0x0D => Absolute,
+        0x1D => Absolute_X,
+        0x19 => Absolute_Y,
+        0x01 => Indirect_X,
+        0x11 => Indirect_Y,
+    },
+    /// Bit Test
+    BIT {
+        0x24 => ZeroPage,
+        0x2C => Absolute,
+    },
+
+    // ===== Arithmetic =====
+    /// Add with Carry
+    ADC {
+        0x69 => Immediate,
+        0x65 => ZeroPage,
+        0x75 => ZeroPage_X,
+        0x6D => Absolute,
+        0x7D => Absolute_X,
+        0x79 => Absolute_Y,
+        0x61 => Indirect_X,
+        0x71 => Indirect_Y,
+    },
+    /// Subtract with Carry
+    SBC {
+        0xE9 => Immediate,
+        0xE5 => ZeroPage,
+        0xF5 => ZeroPage_X,
+        0xED => Absolute,
+        0xFD => Absolute_X,
+        0xF9 => Absolute_Y,
+        0xE1 => Indirect_X,
+        0xF1 => Indirect_Y,
+    },
+    /// Compare Accumulator
+    CMP {
+        0xC9 => Immediate,
+        0xC5 => ZeroPage,
+        0xD5 => ZeroPage_X,
+        0xCD => Absolute,
+        0xDD => Absolute_X,
+        0xD9 => Absolute_Y,
+        0xC1 => Indirect_X,
+        0xD1 => Indirect_Y,
+    },
+    /// Compare X register
+    CPX {
+        0xE0 => Immediate,
+        0xE4 => ZeroPage,
+        0xEC => Absolute,
+    },
+    /// Compare Y register
+    CPY {
+        0xC0 => Immediate,
+        0xC4 => ZeroPage,
+        0xCC => Absolute,
+    },
+
+    // ===== Increment & Decrements =====
+    /// Increment a memory location
+    INC {
+        0xE6 => ZeroPage,
+        0xF6 => ZeroPage_X,
+        0xEE => Absolute,
+        0xFE => Absolute_X,
+    },
+    /// Increment the X register
+    INX {
+        0xE8 => Implicit,
+    },
+    /// Increment the Y register
+    INY {
+        0xC8 => Implicit,
+    },
+    /// Decrement a memory location
+    DEC {
+        0xC6 => ZeroPage,
+        0xD6 => ZeroPage_X,
+        0xCE => Absolute,
+        0xDE => Absolute_X,
+    },
+    /// Decrement the X register
+    DEX {
+        0xCA => Implicit,
+    },
+    /// Decrement the Y register
+    DEY {
+        0x88 => Implicit,
+    },
+
+    // ===== Shifts =====
+    /// Arithmetic Shift Left
+    ASL {
+        0x0A => Accumulator,
+        0x06 => ZeroPage,
+        0x16 => ZeroPage_X,
+        0x0E => Absolute,
+        0x1E => Absolute_X,
+    },
+    /// Logical Shift Right
+    LSR {
+        0x4A => Accumulator,
+        0x46 => ZeroPage,
+        0x56 => ZeroPage_X,
+        0x4E => Absolute,
+        0x5E => Absolute_X,
+    },
+    /// Rotate Left
+    ROL {
+        0x2A => Accumulator,
+        0x26 => ZeroPage,
+        0x36 => ZeroPage_X,
+        0x2E => Absolute,
+        0x3E => Absolute_X,
+    },
+    /// Rotate Right
+    ROR {
+        0x6A => Accumulator,
+        0x66 => ZeroPage,
+        0x76 => ZeroPage_X,
+        0x6E => Absolute,
+        0x7E => Absolute_X,
+    },
+
+    // ===== Jumps & Calls =====
+    /// Jump to another location
+    JMP {
+        0x4C => Absolute,
+        0x6C => Indirect,
+    },
+    /// Jump to subroutine
+    JSR {
+        0x20 => Absolute,
+    },
+    /// Return from subroutine
+    RTS {
+        0x60 => Implicit,
+    },
+
+    // ===== Branches =====
+    /// Branch if Carry flag clear
+    BCC {
+        0x90 => Relative,
+    },
+    /// Branch if Carry flag set
+    BCS {
+        0xB0 => Relative,
+    },
+    /// Branch if Zero flag set
+    BEQ {
+        0xF0 => Relative,
+    },
+    /// Branch if Negative flag set
+    BMI {
+        0x30 => Relative,
+    },
+    /// Branch if Zero flag clear
+    BNE {
+        0xD0 => Relative,
+    },
+    /// Branch if Negative flag clear
+    BPL {
+        0x10 => Relative,
+    },
+    /// Branch if Overflow flag clear
+    BVC {
+        0x50 => Relative,
+    },
+    /// Branch if Overflow flag set
+    BVS {
+        0x70 => Relative,
+    },
+
+    // ===== Status Flag Changes =====
+    /// Clear Carry flag
+    CLC {
+        0x18 => Implicit,
+    },
+    /// Clear Decimal Mode flag
+    CLD {
+        0xD8 => Implicit,
+    },
+    /// Clear Interrupt Disable flag
+    CLI {
+        0x58 => Implicit,
+    },
+    /// Clear Overflow flag
+    CLV {
+        0xB8 => Implicit,
+    },
+    /// Set Carry flag
+    SEC {
+        0x38 => Implicit,
+    },
+    /// Set Decimal Mode flag
+    SED {
+        0xF8 => Implicit,
+    },
+    /// Set Interrupt Disable flag
+    SEI {
+        0x78 => Implicit,
+    },
+
+    // ===== System Functions =====
+    /// Force an Interrupt
+    BRK {
+        0x00 => Implicit,
+    },
+    /// No Operation
+    NOP {
+        0xEA => Implicit,
+    },
+    /// Return from Interrupt
+    RTI {
+        0x40 => Implicit,
+    },
+
+    // ===== Undocumented Opcodes =====
+    /// https:///www.oxyron.de/html/opcodes02.html
+    /// https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
+    NOP_ALT "NOP" {
+        0xFA => Implicit,
+        0x0C => Absolute,
+        0xFC => Absolute_X,
+        0x64 => ZeroPage,
+        0xf4 => ZeroPage_X,
+        0xe2 => Immediate,
+    },
+
+    // ===== Illegal Opcodes =====
+    /// https:///www.oxyron.de/html/opcodes02.html
+    /// https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
+    /// https:///www.nesdev.org/wiki/Programming_with_unofficial_opcodes
+    /// Equivalent to `ASL value` then `ORA value`
+    SLO {
+        0x07 => ZeroPage,
+        0x17 => ZeroPage_X,
+        0x03 => Indirect_X,
+        0x13 => Indirect_Y,
+        0x0F => Absolute,
+        0x1F => Absolute_X,
+        0x1B => Absolute_Y,
+    },
+    /// Equivalent to `ROL value` then `AND value`
+    RLA {
+        0x27 => ZeroPage,
+        0x37 => ZeroPage_X,
+        0x23 => Indirect_X,
+        0x33 => Indirect_Y,
+        0x2F => Absolute,
+        0x3F => Absolute_X,
+        0x3B => Absolute_Y,
+    },
+    /// Equivalent to `LSR value` then `EOR value`
+    SRE {
+        0x47 => ZeroPage,
+        0x57 => ZeroPage_X,
+        0x43 => Indirect_X,
+        0x53 => Indirect_Y,
+        0x4F => Absolute,
+        0x5F => Absolute_X,
+        0x5B => Absolute_Y,
+    },
+    /// Equivalent to `ROR value` then `ADC value`
+    RRA {
+        0x67 => ZeroPage,
+        0x77 => ZeroPage_X,
+        0x63 => Indirect_X,
+        0x73 => Indirect_Y,
+        0x6F => Absolute,
+        0x7F => Absolute_X,
+        0x7B => Absolute_Y,
+    },
+    /// Stores `A & X` into `{adr}`
+    SAX {
+        0x87 => ZeroPage,
+        0x97 => ZeroPage_Y,
+        0x83 => Indirect_X,
+        0x8F => Absolute,
+    },
+    /// Shortcut for `LDA value` then `TAX`
+    LAX {
+        0xAB => Immediate,
+        0xA7 => ZeroPage,
+        0xB7 => ZeroPage_Y,
+        0xA3 => Indirect_X,
+        0xB3 => Indirect_Y,
+        0xAF => Absolute,
+        0xBF => Absolute_Y,
+    },
+    /// Equivalent to `DEC value` then `CMP value`
+    DCP {
+        0xC7 => ZeroPage,
+        0xD7 => ZeroPage_X,
+        0xC3 => Indirect_X,
+        0xD3 => Indirect_Y,
+        0xCF => Absolute,
+        0xDF => Absolute_X,
+        0xDB => Absolute_Y,
+    },
+    /// Equivalent to `INC value` then `SBC value`
+    ISC {
+        0xE7 => ZeroPage,
+        0xF7 => ZeroPage_X,
+        0xE3 => Indirect_X,
+        0xF3 => Indirect_Y,
+        0xEF => Absolute,
+        0xFF => Absolute_X,
+        0xFB => Absolute_Y,
+    },
+    /// Does `AND #i` then copies `N` to `C`
+    ANC {
+        0x2B => Immediate,
+    },
+    /// Equivalent to `AND #i` then `LSR A`
+    ALR {
+        0x4B => Immediate,
+    },
+    /// Similar to `AND #i`, but `C` is `bit 6` and `V` is `bit 6 XOR bit 5`
+    ARR {
+        0x6B => Immediate,
+    },
+    /// Unpredictable behavior - https:///www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE)
+    XAA {
+        0x8B => Immediate,
+    },
+    /// Sets `X` to `A & X - #{imm}`
+    AXS {
+        0xCB => Immediate,
+    },
+    /// Equivalent to `SBC #i` then `NOP`
+    SBC_NOP "SBC" {
+        0xEB => Immediate,
+    },
+    /// An incorrectly-implemented version of `SAX value`
+    AHX {
+        0x93 => Indirect_Y,
+        0x9F => Absolute_Y,
+    },
+    /// An incorrectly-implemented version of `STY a,X`
+    SHY {
+        0x9C => Absolute_X,
+    },
+    /// An incorrectly-implemented version of `STX a,Y`
+    SHX {
+        0x9E => Absolute_Y,
+    },
+    /// Stores `A & X` into `S` then `AHX a,Y`
+    TAS {
+        0x9B => Absolute_Y,
+    },
+    /// Stores `{adr} & S` into `A`, `X`, and `S`
+    LAS {
+        0xBB => Absolute_Y,
+    },
+);
