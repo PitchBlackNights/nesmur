@@ -7,8 +7,6 @@ use env_logger::fmt::Formatter;
 use env_logger::Builder;
 use log::{LevelFilter, Record};
 use std::io::Write;
-use std::process;
-use std::thread::{self, Thread};
 
 /// Sets up the program by:
 /// 1. Set default environment variables generated at build
@@ -20,7 +18,7 @@ pub fn setup_logger_and_args() -> Args {
         Err(error) => {
             println!("Error: {}", error);
             Args::print_help();
-            process::exit(1);
+            std::process::exit(1);
         }
     };
 
@@ -67,27 +65,23 @@ fn init_logger(verbose_level: u8) {
                 record.level(),
                 " ".repeat(5 - record.level().to_string().len())
             );
-            let current_thread: Thread = thread::current();
-            let thread_name: &str = current_thread.name().unwrap_or("<unnamed>");
 
             // Log output format
             let log_output: String = if verbose_level >= 2 {
                 format!(
-                    "[{}] [{}] [{}/{}] [{}]: {}",
+                    "[{}] [{}] [{}/{}]: {}",
                     timestamp,
                     module_path,
                     target,
                     level,
-                    thread_name,
                     record.args(),
                 )
             } else {
                 format!(
-                    "[{}] [{}/{}] [{}]: {}",
+                    "[{}] [{}/{}]: {}",
                     timestamp,
                     target,
                     level,
-                    thread_name,
                     record.args(),
                 )
             };
