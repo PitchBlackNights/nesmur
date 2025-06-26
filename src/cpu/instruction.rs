@@ -1,3 +1,5 @@
+use crate::prelude::*;
+use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -88,8 +90,8 @@ macro_rules! define_opcodes {
             )+
         }
 
-        lazy_static::lazy_static! {
-            static ref OPCODES: HashMap<u8, OpCode> = {
+        static OPCODES: Lazy<HashMap<u8, OpCode>> = Lazy::new(|| {
+            trace!("Building OPCODES hashmap...");
                 let mut map = HashMap::new();
                 $(
                     let instruction: Instruction = Instruction::$instr;
@@ -101,9 +103,9 @@ macro_rules! define_opcodes {
                         );
                     )+
                 )+
+            trace!("Finished building OPCODES hashmap");
                 map
-            };
-        }
+        });
     };
 
     // Helper for mnemonic: use custom if present, else stringify enum name

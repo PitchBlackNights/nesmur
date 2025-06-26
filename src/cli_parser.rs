@@ -1,18 +1,19 @@
 use crate::ENV_VARS;
 use clap::{arg, crate_authors, value_parser, ArgMatches, Command};
+use once_cell::sync::Lazy;
 use std::{cmp, env, error::Error, process};
 
-lazy_static::lazy_static! {
-    static ref LONG_VERSION: String = format!(
+static LONG_VERSION: Lazy<String> = Lazy::new(|| {
+    format!(
         " v{}\nAuthor(s): {}\nDescription: {}\nRepository: {}",
         env!("CARGO_PKG_VERSION"),
         crate_authors!(", "),
         env!("CARGO_PKG_DESCRIPTION"),
         env!("CARGO_PKG_REPOSITORY")
-    );
+    )
+});
 
-    static ref SHORT_VERSION: String = format!(" v{}", env!("CARGO_PKG_VERSION"));
-}
+static SHORT_VERSION: Lazy<String> = Lazy::new(|| format!(" v{}", env!("CARGO_PKG_VERSION"),));
 
 /// Struct to describe passed command-line arguments
 #[derive(Debug)]
