@@ -69,7 +69,7 @@ impl OpCode {
 pub fn decode_opcode(opbyte: u8) -> &'static OpCode {
     OPCODES
         .get(&opbyte)
-        .expect(&format!("OpCode {:x} is not recognized", opbyte))
+        .unwrap_or_else(|| panic!("OpCode {:x} is not recognized", opbyte))
 }
 
 macro_rules! define_opcodes {
@@ -82,7 +82,7 @@ macro_rules! define_opcodes {
         ),+ $(,)?
     ) => {
         #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-        #[allow(non_camel_case_types)]
+        #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
         pub enum Instruction {
             $(
                 $( #[$enum_doc] )*
@@ -92,19 +92,19 @@ macro_rules! define_opcodes {
 
         static OPCODES: Lazy<HashMap<u8, OpCode>> = Lazy::new(|| {
             trace!("Building OPCODES hashmap...");
-                let mut map = HashMap::new();
+            let mut map = HashMap::new();
+            $(
+                let instruction: Instruction = Instruction::$instr;
+                let mnemonic: &'static str = define_opcodes!(@mnemonic $instr $( $mnemonic )?);
                 $(
-                    let instruction: Instruction = Instruction::$instr;
-                    let mnemonic: &'static str = define_opcodes!(@mnemonic $instr $( $mnemonic )?);
-                    $(
-                        map.insert(
-                            $opcode,
-                            OpCode::new($opcode, instruction, mnemonic, AddressingMode::$mode)
-                        );
-                    )+
+                    map.insert(
+                        $opcode,
+                        OpCode::new($opcode, instruction, mnemonic, AddressingMode::$mode)
+                    );
                 )+
+            )+
             trace!("Finished building OPCODES hashmap");
-                map
+            map
         });
     };
 

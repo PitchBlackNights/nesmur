@@ -62,7 +62,11 @@ fn init_logger(verbose_level: u8) {
             target.truncate(upto);
 
             let module_path: String = record.module_path().unwrap_or("UNKNOWN").to_string();
-            let level: String = format!("{}{}", record.level(), " ".repeat(5 - record.level().to_string().len()));
+            let level: String = format!(
+                "{}{}",
+                record.level(),
+                " ".repeat(5 - record.level().to_string().len())
+            );
             let current_thread: Thread = thread::current();
             let thread_name: &str = current_thread.name().unwrap_or("<unnamed>");
 
@@ -78,7 +82,14 @@ fn init_logger(verbose_level: u8) {
                     record.args(),
                 )
             } else {
-                format!("[{}] [{}/{}] [{}]: {}", timestamp, target, level, thread_name, record.args(),)
+                format!(
+                    "[{}] [{}/{}] [{}]: {}",
+                    timestamp,
+                    target,
+                    level,
+                    thread_name,
+                    record.args(),
+                )
             };
 
             // Apply severity color to the whole log line

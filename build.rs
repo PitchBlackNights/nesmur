@@ -64,9 +64,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    write!(
+    writeln!(
         &mut file,
-        "pub static ENV_VARS: phf::Map<&'static str, &'static str> = {};\n",
+        "pub static ENV_VARS: phf::Map<&'static str, &'static str> = {};",
         codegen.build()
     )
     .unwrap();
