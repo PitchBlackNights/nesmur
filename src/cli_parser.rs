@@ -1,7 +1,8 @@
 use crate::ENV_VARS;
 use clap::{arg, crate_authors, value_parser, ArgMatches, Command};
 use once_cell::sync::Lazy;
-use std::{cmp, env, error::Error, process};
+use std::error::Error;
+use std::{cmp, env, process};
 
 static LONG_VERSION: Lazy<String> = Lazy::new(|| {
     format!(
@@ -100,7 +101,7 @@ impl Args {
             trunc_environ.replace_range(..environ.find("_").unwrap() + 1, "");
 
             let concat_string: String = match ENV_VARS.get(environ) {
-                Some(value) => format!("{} = {}\n", trunc_environ, value),
+                Some(value) => format!("{trunc_environ} = {value}\n"),
                 None => {
                     if environ == "CUSTOM_BIN_NAME" {
                         format!(
@@ -111,7 +112,7 @@ impl Args {
                             }
                         )
                     } else {
-                        format!("{} = NOT_SET\n", trunc_environ)
+                        format!("{trunc_environ} = NOT_SET\n")
                     }
                 }
             };

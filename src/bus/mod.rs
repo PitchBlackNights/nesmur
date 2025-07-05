@@ -48,7 +48,7 @@ impl Mem for Bus {
             RAM..=RAM_MIRRORS_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 let byte: u8 = self.cpu_vram[mirror_down_addr as usize];
-                trace!("[MEM] Read {:#02X} from {:#04X}", byte, mirror_down_addr);
+                trace!("[MEM] Read {byte:#04X} from {mirror_down_addr:#06X}");
                 byte
             }
             PPU_REGISTERS..=PPU_REGISTERS_MIRRORS_END => {
@@ -56,7 +56,7 @@ impl Mem for Bus {
                 todo!("PPU is not supported yet")
             }
             _ => {
-                warn!("Ignoring mem access at {}", addr);
+                warn!("Ignoring mem access at {addr:#06X}",);
                 0
             }
         }
@@ -67,14 +67,14 @@ impl Mem for Bus {
             RAM..=RAM_MIRRORS_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 self.cpu_vram[mirror_down_addr as usize] = data;
-                trace!("[MEM] Wrote {:#02X} to {:#04X}", data, mirror_down_addr);
+                trace!("[MEM] Wrote {data:#04X} to {mirror_down_addr:#06X}");
             }
             PPU_REGISTERS..=PPU_REGISTERS_MIRRORS_END => {
                 let _mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
                 todo!("PPU is not supported yet");
             }
             _ => {
-                warn!("Ignoring mem write-access at {}", addr);
+                warn!("Ignoring mem write-access at {addr:#06X}");
             }
         }
     }

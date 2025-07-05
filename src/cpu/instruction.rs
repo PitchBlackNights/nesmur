@@ -69,528 +69,428 @@ impl OpCode {
 pub fn decode_opcode(opbyte: u8) -> &'static OpCode {
     OPCODES
         .get(&opbyte)
-        .unwrap_or_else(|| panic!("OpCode {:x} is not recognized", opbyte))
+        .unwrap_or_else(|| panic!("OpCode {opbyte:#04X} is not recognized"))
 }
 
-macro_rules! define_opcodes {
-    (
-        $(
-            $( #[$enum_doc:meta] )*
-            $instr:ident $( $mnemonic:literal )? {
-                $( $opcode:literal => $mode:ident ),+ $(,)?
-            }
-        ),+ $(,)?
-    ) => {
-        #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-        #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
-        pub enum Instruction {
-            $(
-                $( #[$enum_doc] )*
-                $instr,
-            )+
-        }
-
-        static OPCODES: Lazy<HashMap<u8, OpCode>> = Lazy::new(|| {
-            trace!("Building OPCODES hashmap...");
-            let mut map = HashMap::new();
-            $(
-                let instruction: Instruction = Instruction::$instr;
-                let mnemonic: &'static str = define_opcodes!(@mnemonic $instr $( $mnemonic )?);
-                $(
-                    map.insert(
-                        $opcode,
-                        OpCode::new($opcode, instruction, mnemonic, AddressingMode::$mode)
-                    );
-                )+
-            )+
-            trace!("Finished building OPCODES hashmap");
-            map
-        });
-    };
-
-    // Helper for mnemonic: use custom if present, else stringify enum name
-    (@mnemonic $instr:ident $mnemonic:literal) => { $mnemonic };
-    (@mnemonic $instr:ident) => { stringify!($instr) };
-}
-
-define_opcodes!(
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
+pub enum Instruction {
     // ===== Load/Store Operations =====
     /// Load Accumulator
-    LDA {
-        0xA9 => Immediate,
-        0xA5 => ZeroPage,
-        0xB5 => ZeroPage_X,
-        0xAD => Absolute,
-        0xBD => Absolute_X,
-        0xB9 => Absolute_Y,
-        0xA1 => Indirect_X,
-        0xB1 => Indirect_Y,
-    },
+    LDA,
     /// Load X register
-    LDX {
-        0xA2 => Immediate,
-        0xA6 => ZeroPage,
-        0xB6 => ZeroPage_Y,
-        0xAE => Absolute,
-        0xBE => Absolute_Y,
-    },
+    LDX,
     /// Load Y register
-    LDY {
-        0xA0 => Immediate,
-        0xA4 => ZeroPage,
-        0xB4 => ZeroPage_X,
-        0xAC => Absolute,
-        0xBC => Absolute_X,
-    },
+    LDY,
     /// Store Accumulator
-    STA {
-        0x85 => ZeroPage,
-        0x95 => ZeroPage_X,
-        0x8D => Absolute,
-        0x9D => Absolute_X,
-        0x99 => Absolute_Y,
-        0x81 => Indirect_X,
-        0x91 => Indirect_Y,
-    },
+    STA,
     /// Store X register
-    STX {
-        0x86 => ZeroPage,
-        0x96 => ZeroPage_Y,
-        0x8E => Absolute,
-    },
+    STX,
     /// Store Y register
-    STY {
-        0x84 => ZeroPage,
-        0x94 => ZeroPage_Y,
-        0x8C => Absolute,
-    },
-
-    // ===== Register Transfers =====
+    STY,
     /// Transfer Accumulator to X
-    TAX {
-        0xAA => Implicit,
-    },
+    // ===== Register Transfers =====
+    TAX,
     /// Transfer Accumulator to Y
-    TAY {
-        0xA8 => Implicit,
-    },
+    TAY,
     /// Transfer X to Accumulator
-    TXA {
-        0x8A => Implicit,
-    },
+    TXA,
     /// Transfer Y to Accumulator
-    TYA {
-        0x98 => Implicit,
-    },
+    TYA,
 
     // ===== Stack Operations =====
     /// Transfer Stack Pointer to X
-    TSX {
-        0xBA => Implicit,
-    },
+    TSX,
     /// Transfer X to Stack Pointer
-    TXS {
-        0x9A => Implicit,
-    },
+    TXS,
     /// Push Accumulator on Stack
-    PHA {
-        0x48 => Implicit,
-    },
+    PHA,
     /// Push Processor Status on Stack
-    PHP {
-        0x08 => Implicit,
-    },
+    PHP,
     /// Pull Accumulator from Stack
-    PLA {
-        0x68 => Implicit,
-    },
+    PLA,
     /// Pull Processor Status from Stack
-    PLP {
-        0x28 => Implicit,
-    },
+    PLP,
 
     // ===== Logical =====
     /// Logical AND
-    AND {
-        0x29 => Immediate,
-        0x25 => ZeroPage,
-        0x35 => ZeroPage_X,
-        0x2D => Absolute,
-        0x3D => Absolute_X,
-        0x39 => Absolute_Y,
-        0x21 => Indirect_X,
-        0x31 => Indirect_Y,
-    },
+    AND,
     /// Exclusive OR
-    EOR {
-        0x49 => Immediate,
-        0x45 => ZeroPage,
-        0x55 => ZeroPage_X,
-        0x4D => Absolute,
-        0x5D => Absolute_X,
-        0x59 => Absolute_Y,
-        0x41 => Indirect_X,
-        0x51 => Indirect_Y,
-    },
+    EOR,
     /// Logical Inclusive OR
-    ORA {
-        0x09 => Immediate,
-        0x05 => ZeroPage,
-        0x15 => ZeroPage_X,
-        0x0D => Absolute,
-        0x1D => Absolute_X,
-        0x19 => Absolute_Y,
-        0x01 => Indirect_X,
-        0x11 => Indirect_Y,
-    },
+    ORA,
     /// Bit Test
-    BIT {
-        0x24 => ZeroPage,
-        0x2C => Absolute,
-    },
+    BIT,
 
     // ===== Arithmetic =====
     /// Add with Carry
-    ADC {
-        0x69 => Immediate,
-        0x65 => ZeroPage,
-        0x75 => ZeroPage_X,
-        0x6D => Absolute,
-        0x7D => Absolute_X,
-        0x79 => Absolute_Y,
-        0x61 => Indirect_X,
-        0x71 => Indirect_Y,
-    },
+    ADC,
     /// Subtract with Carry
-    SBC {
-        0xE9 => Immediate,
-        0xE5 => ZeroPage,
-        0xF5 => ZeroPage_X,
-        0xED => Absolute,
-        0xFD => Absolute_X,
-        0xF9 => Absolute_Y,
-        0xE1 => Indirect_X,
-        0xF1 => Indirect_Y,
-    },
+    SBC,
     /// Compare Accumulator
-    CMP {
-        0xC9 => Immediate,
-        0xC5 => ZeroPage,
-        0xD5 => ZeroPage_X,
-        0xCD => Absolute,
-        0xDD => Absolute_X,
-        0xD9 => Absolute_Y,
-        0xC1 => Indirect_X,
-        0xD1 => Indirect_Y,
-    },
+    CMP,
     /// Compare X register
-    CPX {
-        0xE0 => Immediate,
-        0xE4 => ZeroPage,
-        0xEC => Absolute,
-    },
+    CPX,
     /// Compare Y register
-    CPY {
-        0xC0 => Immediate,
-        0xC4 => ZeroPage,
-        0xCC => Absolute,
-    },
+    CPY,
 
-    // ===== Increment & Decrements =====
+    // ===== Increments & Decrements =====
     /// Increment a memory location
-    INC {
-        0xE6 => ZeroPage,
-        0xF6 => ZeroPage_X,
-        0xEE => Absolute,
-        0xFE => Absolute_X,
-    },
+    INC,
     /// Increment the X register
-    INX {
-        0xE8 => Implicit,
-    },
+    INX,
     /// Increment the Y register
-    INY {
-        0xC8 => Implicit,
-    },
+    INY,
     /// Decrement a memory location
-    DEC {
-        0xC6 => ZeroPage,
-        0xD6 => ZeroPage_X,
-        0xCE => Absolute,
-        0xDE => Absolute_X,
-    },
+    DEC,
     /// Decrement the X register
-    DEX {
-        0xCA => Implicit,
-    },
+    DEX,
     /// Decrement the Y register
-    DEY {
-        0x88 => Implicit,
-    },
+    DEY,
 
     // ===== Shifts =====
     /// Arithmetic Shift Left
-    ASL {
-        0x0A => Accumulator,
-        0x06 => ZeroPage,
-        0x16 => ZeroPage_X,
-        0x0E => Absolute,
-        0x1E => Absolute_X,
-    },
+    ASL,
     /// Logical Shift Right
-    LSR {
-        0x4A => Accumulator,
-        0x46 => ZeroPage,
-        0x56 => ZeroPage_X,
-        0x4E => Absolute,
-        0x5E => Absolute_X,
-    },
+    LSR,
     /// Rotate Left
-    ROL {
-        0x2A => Accumulator,
-        0x26 => ZeroPage,
-        0x36 => ZeroPage_X,
-        0x2E => Absolute,
-        0x3E => Absolute_X,
-    },
+    ROL,
     /// Rotate Right
-    ROR {
-        0x6A => Accumulator,
-        0x66 => ZeroPage,
-        0x76 => ZeroPage_X,
-        0x6E => Absolute,
-        0x7E => Absolute_X,
-    },
+    ROR,
 
     // ===== Jumps & Calls =====
     /// Jump to another location
-    JMP {
-        0x4C => Absolute,
-        0x6C => Indirect,
-    },
+    JMP,
     /// Jump to subroutine
-    JSR {
-        0x20 => Absolute,
-    },
+    JSR,
     /// Return from subroutine
-    RTS {
-        0x60 => Implicit,
-    },
+    RTS,
 
     // ===== Branches =====
     /// Branch if Carry flag clear
-    BCC {
-        0x90 => Relative,
-    },
+    BCC,
     /// Branch if Carry flag set
-    BCS {
-        0xB0 => Relative,
-    },
+    BCS,
     /// Branch if Zero flag set
-    BEQ {
-        0xF0 => Relative,
-    },
+    BEQ,
     /// Branch if Negative flag set
-    BMI {
-        0x30 => Relative,
-    },
+    BMI,
     /// Branch if Zero flag clear
-    BNE {
-        0xD0 => Relative,
-    },
+    BNE,
     /// Branch if Negative flag clear
-    BPL {
-        0x10 => Relative,
-    },
+    BPL,
     /// Branch if Overflow flag clear
-    BVC {
-        0x50 => Relative,
-    },
+    BVC,
     /// Branch if Overflow flag set
-    BVS {
-        0x70 => Relative,
-    },
+    BVS,
 
     // ===== Status Flag Changes =====
     /// Clear Carry flag
-    CLC {
-        0x18 => Implicit,
-    },
+    CLC,
     /// Clear Decimal Mode flag
-    CLD {
-        0xD8 => Implicit,
-    },
+    CLD,
     /// Clear Interrupt Disable flag
-    CLI {
-        0x58 => Implicit,
-    },
+    CLI,
     /// Clear Overflow flag
-    CLV {
-        0xB8 => Implicit,
-    },
+    CLV,
     /// Set Carry flag
-    SEC {
-        0x38 => Implicit,
-    },
+    SEC,
     /// Set Decimal Mode flag
-    SED {
-        0xF8 => Implicit,
-    },
+    SED,
     /// Set Interrupt Disable flag
-    SEI {
-        0x78 => Implicit,
-    },
+    SEI,
 
     // ===== System Functions =====
     /// Force an Interrupt
-    BRK {
-        0x00 => Implicit,
-    },
+    BRK,
     /// No Operation
-    NOP {
-        0xEA => Implicit,
-    },
+    NOP,
     /// Return from Interrupt
-    RTI {
-        0x40 => Implicit,
-    },
+    RTI,
 
     // ===== Undocumented Opcodes =====
     /// https:///www.oxyron.de/html/opcodes02.html
     /// https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
-    NOP_ALT "NOP" {
-        0xFA => Implicit,
-        0x0C => Absolute,
-        0xFC => Absolute_X,
-        0x64 => ZeroPage,
-        0xf4 => ZeroPage_X,
-        0xe2 => Immediate,
-    },
+    NOP_ALT,
 
     // ===== Illegal Opcodes =====
     /// https:///www.oxyron.de/html/opcodes02.html
     /// https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
     /// https:///www.nesdev.org/wiki/Programming_with_unofficial_opcodes
     /// Equivalent to `ASL value` then `ORA value`
-    SLO {
-        0x07 => ZeroPage,
-        0x17 => ZeroPage_X,
-        0x03 => Indirect_X,
-        0x13 => Indirect_Y,
-        0x0F => Absolute,
-        0x1F => Absolute_X,
-        0x1B => Absolute_Y,
-    },
+    SLO,
     /// Equivalent to `ROL value` then `AND value`
-    RLA {
-        0x27 => ZeroPage,
-        0x37 => ZeroPage_X,
-        0x23 => Indirect_X,
-        0x33 => Indirect_Y,
-        0x2F => Absolute,
-        0x3F => Absolute_X,
-        0x3B => Absolute_Y,
-    },
+    RLA,
     /// Equivalent to `LSR value` then `EOR value`
-    SRE {
-        0x47 => ZeroPage,
-        0x57 => ZeroPage_X,
-        0x43 => Indirect_X,
-        0x53 => Indirect_Y,
-        0x4F => Absolute,
-        0x5F => Absolute_X,
-        0x5B => Absolute_Y,
-    },
+    SRE,
     /// Equivalent to `ROR value` then `ADC value`
-    RRA {
-        0x67 => ZeroPage,
-        0x77 => ZeroPage_X,
-        0x63 => Indirect_X,
-        0x73 => Indirect_Y,
-        0x6F => Absolute,
-        0x7F => Absolute_X,
-        0x7B => Absolute_Y,
-    },
+    RRA,
     /// Stores `A & X` into `{adr}`
-    SAX {
-        0x87 => ZeroPage,
-        0x97 => ZeroPage_Y,
-        0x83 => Indirect_X,
-        0x8F => Absolute,
-    },
+    SAX,
     /// Shortcut for `LDA value` then `TAX`
-    LAX {
-        0xAB => Immediate,
-        0xA7 => ZeroPage,
-        0xB7 => ZeroPage_Y,
-        0xA3 => Indirect_X,
-        0xB3 => Indirect_Y,
-        0xAF => Absolute,
-        0xBF => Absolute_Y,
-    },
+    LAX,
     /// Equivalent to `DEC value` then `CMP value`
-    DCP {
-        0xC7 => ZeroPage,
-        0xD7 => ZeroPage_X,
-        0xC3 => Indirect_X,
-        0xD3 => Indirect_Y,
-        0xCF => Absolute,
-        0xDF => Absolute_X,
-        0xDB => Absolute_Y,
-    },
+    DCP,
     /// Equivalent to `INC value` then `SBC value`
-    ISC {
-        0xE7 => ZeroPage,
-        0xF7 => ZeroPage_X,
-        0xE3 => Indirect_X,
-        0xF3 => Indirect_Y,
-        0xEF => Absolute,
-        0xFF => Absolute_X,
-        0xFB => Absolute_Y,
-    },
+    ISC,
     /// Does `AND #i` then copies `N` to `C`
-    ANC {
-        0x2B => Immediate,
-    },
+    ANC,
     /// Equivalent to `AND #i` then `LSR A`
-    ALR {
-        0x4B => Immediate,
-    },
+    ALR,
     /// Similar to `AND #i`, but `C` is `bit 6` and `V` is `bit 6 XOR bit 5`
-    ARR {
-        0x6B => Immediate,
-    },
+    ARR,
     /// Unpredictable behavior - https:///www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE)
-    XAA {
-        0x8B => Immediate,
-    },
+    XAA,
     /// Sets `X` to `A & X - #{imm}`
-    AXS {
-        0xCB => Immediate,
-    },
+    AXS,
     /// Equivalent to `SBC #i` then `NOP`
-    SBC_NOP "SBC" {
-        0xEB => Immediate,
-    },
+    SBC_NOP,
     /// An incorrectly-implemented version of `SAX value`
-    AHX {
-        0x93 => Indirect_Y,
-        0x9F => Absolute_Y,
-    },
+    AHX,
     /// An incorrectly-implemented version of `STY a,X`
-    SHY {
-        0x9C => Absolute_X,
-    },
+    SHY,
     /// An incorrectly-implemented version of `STX a,Y`
-    SHX {
-        0x9E => Absolute_Y,
-    },
+    SHX,
     /// Stores `A & X` into `S` then `AHX a,Y`
-    TAS {
-        0x9B => Absolute_Y,
-    },
+    TAS,
     /// Stores `{adr} & S` into `A`, `X`, and `S`
-    LAS {
-        0xBB => Absolute_Y,
-    },
-);
+    LAS,
+}
+
+pub static OPCODES: Lazy<HashMap<u8, OpCode>> = Lazy::new(|| {
+    trace!("Building OPCODES hashmap...");
+
+    #[rustfmt::skip]
+    let opcodes_vec: Vec<OpCode> = vec![
+        OpCode::new(0xA9, Instruction::LDA, "LDA", AddressingMode::Immediate),
+        OpCode::new(0xA5, Instruction::LDA, "LDA", AddressingMode::ZeroPage),
+        OpCode::new(0xB5, Instruction::LDA, "LDA", AddressingMode::ZeroPage_X),
+        OpCode::new(0xAD, Instruction::LDA, "LDA", AddressingMode::Absolute),
+        OpCode::new(0xBD, Instruction::LDA, "LDA", AddressingMode::Absolute_X),
+        OpCode::new(0xB9, Instruction::LDA, "LDA", AddressingMode::Absolute_Y),
+        OpCode::new(0xA1, Instruction::LDA, "LDA", AddressingMode::Indirect_X),
+        OpCode::new(0xB1, Instruction::LDA, "LDA", AddressingMode::Indirect_Y),
+        OpCode::new(0xA2, Instruction::LDX, "LDX", AddressingMode::Immediate),
+        OpCode::new(0xA6, Instruction::LDX, "LDX", AddressingMode::ZeroPage),
+        OpCode::new(0xB6, Instruction::LDX, "LDX", AddressingMode::ZeroPage_Y),
+        OpCode::new(0xAE, Instruction::LDX, "LDX", AddressingMode::Absolute),
+        OpCode::new(0xBE, Instruction::LDX, "LDX", AddressingMode::Absolute_Y),
+        OpCode::new(0xA0, Instruction::LDY, "LDY", AddressingMode::Immediate),
+        OpCode::new(0xA4, Instruction::LDY, "LDY", AddressingMode::ZeroPage),
+        OpCode::new(0xB4, Instruction::LDY, "LDY", AddressingMode::ZeroPage_X),
+        OpCode::new(0xAC, Instruction::LDY, "LDY", AddressingMode::Absolute),
+        OpCode::new(0xBC, Instruction::LDY, "LDY", AddressingMode::Absolute_X),
+        OpCode::new(0x85, Instruction::STA, "STA", AddressingMode::ZeroPage),
+        OpCode::new(0x95, Instruction::STA, "STA", AddressingMode::ZeroPage_X),
+        OpCode::new(0x8D, Instruction::STA, "STA", AddressingMode::Absolute),
+        OpCode::new(0x9D, Instruction::STA, "STA", AddressingMode::Absolute_X),
+        OpCode::new(0x99, Instruction::STA, "STA", AddressingMode::Absolute_Y),
+        OpCode::new(0x81, Instruction::STA, "STA", AddressingMode::Indirect_X),
+        OpCode::new(0x91, Instruction::STA, "STA", AddressingMode::Indirect_Y),
+        OpCode::new(0x86, Instruction::STX, "STX", AddressingMode::ZeroPage),
+        OpCode::new(0x96, Instruction::STX, "STX", AddressingMode::ZeroPage_Y),
+        OpCode::new(0x8E, Instruction::STX, "STX", AddressingMode::Absolute),
+        OpCode::new(0x84, Instruction::STY, "STY", AddressingMode::ZeroPage),
+        OpCode::new(0x94, Instruction::STY, "STY", AddressingMode::ZeroPage_Y),
+        OpCode::new(0x8C, Instruction::STY, "STY", AddressingMode::Absolute),
+        OpCode::new(0xAA, Instruction::TAX, "TAX", AddressingMode::Implicit),
+        OpCode::new(0xA8, Instruction::TAY, "TAY", AddressingMode::Implicit),
+        OpCode::new(0x8A, Instruction::TXA, "TXA", AddressingMode::Implicit),
+        OpCode::new(0x98, Instruction::TYA, "TYA", AddressingMode::Implicit),
+        OpCode::new(0xBA, Instruction::TSX, "TSX", AddressingMode::Implicit),
+        OpCode::new(0x9A, Instruction::TXS, "TXS", AddressingMode::Implicit),
+        OpCode::new(0x48, Instruction::PHA, "PHA", AddressingMode::Implicit),
+        OpCode::new(0x08, Instruction::PHP, "PHP", AddressingMode::Implicit),
+        OpCode::new(0x68, Instruction::PLA, "PLA", AddressingMode::Implicit),
+        OpCode::new(0x28, Instruction::PLP, "PLP", AddressingMode::Implicit),
+        OpCode::new(0x29, Instruction::AND, "AND", AddressingMode::Immediate),
+        OpCode::new(0x25, Instruction::AND, "AND", AddressingMode::ZeroPage),
+        OpCode::new(0x35, Instruction::AND, "AND", AddressingMode::ZeroPage_X),
+        OpCode::new(0x2D, Instruction::AND, "AND", AddressingMode::Absolute),
+        OpCode::new(0x3D, Instruction::AND, "AND", AddressingMode::Absolute_X),
+        OpCode::new(0x39, Instruction::AND, "AND", AddressingMode::Absolute_Y),
+        OpCode::new(0x21, Instruction::AND, "AND", AddressingMode::Indirect_X),
+        OpCode::new(0x31, Instruction::AND, "AND", AddressingMode::Indirect_Y),
+        OpCode::new(0x49, Instruction::EOR, "EOR", AddressingMode::Immediate),
+        OpCode::new(0x45, Instruction::EOR, "EOR", AddressingMode::ZeroPage),
+        OpCode::new(0x55, Instruction::EOR, "EOR", AddressingMode::ZeroPage_X),
+        OpCode::new(0x4D, Instruction::EOR, "EOR", AddressingMode::Absolute),
+        OpCode::new(0x5D, Instruction::EOR, "EOR", AddressingMode::Absolute_X),
+        OpCode::new(0x59, Instruction::EOR, "EOR", AddressingMode::Absolute_Y),
+        OpCode::new(0x41, Instruction::EOR, "EOR", AddressingMode::Indirect_X),
+        OpCode::new(0x51, Instruction::EOR, "EOR", AddressingMode::Indirect_Y),
+        OpCode::new(0x09, Instruction::ORA, "ORA", AddressingMode::Immediate),
+        OpCode::new(0x05, Instruction::ORA, "ORA", AddressingMode::ZeroPage),
+        OpCode::new(0x15, Instruction::ORA, "ORA", AddressingMode::ZeroPage_X),
+        OpCode::new(0x0D, Instruction::ORA, "ORA", AddressingMode::Absolute),
+        OpCode::new(0x1D, Instruction::ORA, "ORA", AddressingMode::Absolute_X),
+        OpCode::new(0x19, Instruction::ORA, "ORA", AddressingMode::Absolute_Y),
+        OpCode::new(0x01, Instruction::ORA, "ORA", AddressingMode::Indirect_X),
+        OpCode::new(0x11, Instruction::ORA, "ORA", AddressingMode::Indirect_Y),
+        OpCode::new(0x24, Instruction::BIT, "BIT", AddressingMode::ZeroPage),
+        OpCode::new(0x2C, Instruction::BIT, "BIT", AddressingMode::Absolute),
+        OpCode::new(0x69, Instruction::ADC, "ADC", AddressingMode::Immediate),
+        OpCode::new(0x65, Instruction::ADC, "ADC", AddressingMode::ZeroPage),
+        OpCode::new(0x75, Instruction::ADC, "ADC", AddressingMode::ZeroPage_X),
+        OpCode::new(0x6D, Instruction::ADC, "ADC", AddressingMode::Absolute),
+        OpCode::new(0x7D, Instruction::ADC, "ADC", AddressingMode::Absolute_X),
+        OpCode::new(0x79, Instruction::ADC, "ADC", AddressingMode::Absolute_Y),
+        OpCode::new(0x61, Instruction::ADC, "ADC", AddressingMode::Indirect_X),
+        OpCode::new(0x71, Instruction::ADC, "ADC", AddressingMode::Indirect_Y),
+        OpCode::new(0xE9, Instruction::SBC, "SBC", AddressingMode::Immediate),
+        OpCode::new(0xE5, Instruction::SBC, "SBC", AddressingMode::ZeroPage),
+        OpCode::new(0xF5, Instruction::SBC, "SBC", AddressingMode::ZeroPage_X),
+        OpCode::new(0xED, Instruction::SBC, "SBC", AddressingMode::Absolute),
+        OpCode::new(0xFD, Instruction::SBC, "SBC", AddressingMode::Absolute_X),
+        OpCode::new(0xF9, Instruction::SBC, "SBC", AddressingMode::Absolute_Y),
+        OpCode::new(0xE1, Instruction::SBC, "SBC", AddressingMode::Indirect_X),
+        OpCode::new(0xF1, Instruction::SBC, "SBC", AddressingMode::Indirect_Y),
+        OpCode::new(0xC9, Instruction::CMP, "CMP", AddressingMode::Immediate),
+        OpCode::new(0xC5, Instruction::CMP, "CMP", AddressingMode::ZeroPage),
+        OpCode::new(0xD5, Instruction::CMP, "CMP", AddressingMode::ZeroPage_X),
+        OpCode::new(0xCD, Instruction::CMP, "CMP", AddressingMode::Absolute),
+        OpCode::new(0xDD, Instruction::CMP, "CMP", AddressingMode::Absolute_X),
+        OpCode::new(0xD9, Instruction::CMP, "CMP", AddressingMode::Absolute_Y),
+        OpCode::new(0xC1, Instruction::CMP, "CMP", AddressingMode::Indirect_X),
+        OpCode::new(0xD1, Instruction::CMP, "CMP", AddressingMode::Indirect_Y),
+        OpCode::new(0xE0, Instruction::CPX, "CPX", AddressingMode::Immediate),
+        OpCode::new(0xE4, Instruction::CPX, "CPX", AddressingMode::ZeroPage),
+        OpCode::new(0xEC, Instruction::CPX, "CPX", AddressingMode::Absolute),
+        OpCode::new(0xC0, Instruction::CPY, "CPY", AddressingMode::Immediate),
+        OpCode::new(0xC4, Instruction::CPY, "CPY", AddressingMode::ZeroPage),
+        OpCode::new(0xCC, Instruction::CPY, "CPY", AddressingMode::Absolute),
+        OpCode::new(0xE6, Instruction::INC, "INC", AddressingMode::ZeroPage),
+        OpCode::new(0xF6, Instruction::INC, "INC", AddressingMode::ZeroPage_X),
+        OpCode::new(0xEE, Instruction::INC, "INC", AddressingMode::Absolute),
+        OpCode::new(0xFE, Instruction::INC, "INC", AddressingMode::Absolute_X),
+        OpCode::new(0xE8, Instruction::INX, "INX", AddressingMode::Implicit),
+        OpCode::new(0xC8, Instruction::INY, "INY", AddressingMode::Implicit),
+        OpCode::new(0xC6, Instruction::DEC, "DEC", AddressingMode::ZeroPage),
+        OpCode::new(0xD6, Instruction::DEC, "DEC", AddressingMode::ZeroPage_X),
+        OpCode::new(0xCE, Instruction::DEC, "DEC", AddressingMode::Absolute),
+        OpCode::new(0xDE, Instruction::DEC, "DEC", AddressingMode::Absolute_X),
+        OpCode::new(0xCA, Instruction::DEX, "DEX", AddressingMode::Implicit),
+        OpCode::new(0x88, Instruction::DEY, "DEY", AddressingMode::Implicit),
+        OpCode::new(0x0A, Instruction::ASL, "ASL", AddressingMode::Accumulator),
+        OpCode::new(0x06, Instruction::ASL, "ASL", AddressingMode::ZeroPage),
+        OpCode::new(0x16, Instruction::ASL, "ASL", AddressingMode::ZeroPage_X),
+        OpCode::new(0x0E, Instruction::ASL, "ASL", AddressingMode::Absolute),
+        OpCode::new(0x1E, Instruction::ASL, "ASL", AddressingMode::Absolute_X),
+        OpCode::new(0x4A, Instruction::LSR, "LSR", AddressingMode::Accumulator),
+        OpCode::new(0x46, Instruction::LSR, "LSR", AddressingMode::ZeroPage),
+        OpCode::new(0x56, Instruction::LSR, "LSR", AddressingMode::ZeroPage_X),
+        OpCode::new(0x4E, Instruction::LSR, "LSR", AddressingMode::Absolute),
+        OpCode::new(0x5E, Instruction::LSR, "LSR", AddressingMode::Absolute_X),
+        OpCode::new(0x2A, Instruction::ROL, "ROL", AddressingMode::Accumulator),
+        OpCode::new(0x26, Instruction::ROL, "ROL", AddressingMode::ZeroPage),
+        OpCode::new(0x36, Instruction::ROL, "ROL", AddressingMode::ZeroPage_X),
+        OpCode::new(0x2E, Instruction::ROL, "ROL", AddressingMode::Absolute),
+        OpCode::new(0x3E, Instruction::ROL, "ROL", AddressingMode::Absolute_X),
+        OpCode::new(0x6A, Instruction::ROR, "ROR", AddressingMode::Accumulator),
+        OpCode::new(0x66, Instruction::ROR, "ROR", AddressingMode::ZeroPage),
+        OpCode::new(0x76, Instruction::ROR, "ROR", AddressingMode::ZeroPage_X),
+        OpCode::new(0x6E, Instruction::ROR, "ROR", AddressingMode::Absolute),
+        OpCode::new(0x7E, Instruction::ROR, "ROR", AddressingMode::Absolute_X),
+        OpCode::new(0x4C, Instruction::JMP, "JMP", AddressingMode::Absolute),
+        OpCode::new(0x6C, Instruction::JMP, "JMP", AddressingMode::Indirect),
+        OpCode::new(0x20, Instruction::JSR, "JSR", AddressingMode::Absolute),
+        OpCode::new(0x60, Instruction::RTS, "RTS", AddressingMode::Implicit),
+        OpCode::new(0x90, Instruction::BCC, "BCC", AddressingMode::Relative),
+        OpCode::new(0xB0, Instruction::BCS, "BCS", AddressingMode::Relative),
+        OpCode::new(0xF0, Instruction::BEQ, "BEQ", AddressingMode::Relative),
+        OpCode::new(0x30, Instruction::BMI, "BMI", AddressingMode::Relative),
+        OpCode::new(0xD0, Instruction::BNE, "BNE", AddressingMode::Relative),
+        OpCode::new(0x10, Instruction::BPL, "BPL", AddressingMode::Relative),
+        OpCode::new(0x50, Instruction::BVC, "BVC", AddressingMode::Relative),
+        OpCode::new(0x70, Instruction::BVS, "BVS", AddressingMode::Relative),
+        OpCode::new(0x18, Instruction::CLC, "CLC", AddressingMode::Implicit),
+        OpCode::new(0xD8, Instruction::CLD, "CLD", AddressingMode::Implicit),
+        OpCode::new(0x58, Instruction::CLI, "CLI", AddressingMode::Implicit),
+        OpCode::new(0xB8, Instruction::CLV, "CLV", AddressingMode::Implicit),
+        OpCode::new(0x38, Instruction::SEC, "SEC", AddressingMode::Implicit),
+        OpCode::new(0xF8, Instruction::SED, "SED", AddressingMode::Implicit),
+        OpCode::new(0x78, Instruction::SEI, "SEI", AddressingMode::Implicit),
+        OpCode::new(0x00, Instruction::BRK, "BRK", AddressingMode::Implicit),
+        OpCode::new(0xEA, Instruction::NOP, "NOP", AddressingMode::Implicit),
+        OpCode::new(0x40, Instruction::RTI, "RTI", AddressingMode::Implicit),
+        OpCode::new(0xFA, Instruction::NOP_ALT, "NOP", AddressingMode::Implicit),
+        OpCode::new(0x0C, Instruction::NOP_ALT, "NOP", AddressingMode::Absolute),
+        OpCode::new(0xFC, Instruction::NOP_ALT, "NOP", AddressingMode::Absolute_X),
+        OpCode::new(0x64, Instruction::NOP_ALT, "NOP", AddressingMode::ZeroPage),
+        OpCode::new(0xF4, Instruction::NOP_ALT, "NOP", AddressingMode::ZeroPage_X),
+        OpCode::new(0xE2, Instruction::NOP_ALT, "NOP", AddressingMode::Immediate),
+        OpCode::new(0x07, Instruction::SLO, "SLO", AddressingMode::ZeroPage),
+        OpCode::new(0x17, Instruction::SLO, "SLO", AddressingMode::ZeroPage_X),
+        OpCode::new(0x03, Instruction::SLO, "SLO", AddressingMode::Indirect_X),
+        OpCode::new(0x13, Instruction::SLO, "SLO", AddressingMode::Indirect_Y),
+        OpCode::new(0x0F, Instruction::SLO, "SLO", AddressingMode::Absolute),
+        OpCode::new(0x1F, Instruction::SLO, "SLO", AddressingMode::Absolute_X),
+        OpCode::new(0x1B, Instruction::SLO, "SLO", AddressingMode::Absolute_Y),
+        OpCode::new(0x27, Instruction::RLA, "RLA", AddressingMode::ZeroPage),
+        OpCode::new(0x37, Instruction::RLA, "RLA", AddressingMode::ZeroPage_X),
+        OpCode::new(0x23, Instruction::RLA, "RLA", AddressingMode::Indirect_X),
+        OpCode::new(0x33, Instruction::RLA, "RLA", AddressingMode::Indirect_Y),
+        OpCode::new(0x2F, Instruction::RLA, "RLA", AddressingMode::Absolute),
+        OpCode::new(0x3F, Instruction::RLA, "RLA", AddressingMode::Absolute_X),
+        OpCode::new(0x3B, Instruction::RLA, "RLA", AddressingMode::Absolute_Y),
+        OpCode::new(0x47, Instruction::SRE, "SRE", AddressingMode::ZeroPage),
+        OpCode::new(0x57, Instruction::SRE, "SRE", AddressingMode::ZeroPage_X),
+        OpCode::new(0x43, Instruction::SRE, "SRE", AddressingMode::Indirect_X),
+        OpCode::new(0x53, Instruction::SRE, "SRE", AddressingMode::Indirect_Y),
+        OpCode::new(0x4F, Instruction::SRE, "SRE", AddressingMode::Absolute),
+        OpCode::new(0x5F, Instruction::SRE, "SRE", AddressingMode::Absolute_X),
+        OpCode::new(0x5B, Instruction::SRE, "SRE", AddressingMode::Absolute_Y),
+        OpCode::new(0x67, Instruction::RRA, "RRA", AddressingMode::ZeroPage),
+        OpCode::new(0x77, Instruction::RRA, "RRA", AddressingMode::ZeroPage_X),
+        OpCode::new(0x63, Instruction::RRA, "RRA", AddressingMode::Indirect_X),
+        OpCode::new(0x73, Instruction::RRA, "RRA", AddressingMode::Indirect_Y),
+        OpCode::new(0x6F, Instruction::RRA, "RRA", AddressingMode::Absolute),
+        OpCode::new(0x7F, Instruction::RRA, "RRA", AddressingMode::Absolute_X),
+        OpCode::new(0x7B, Instruction::RRA, "RRA", AddressingMode::Absolute_Y),
+        OpCode::new(0x87, Instruction::SAX, "SAX", AddressingMode::ZeroPage),
+        OpCode::new(0x97, Instruction::SAX, "SAX", AddressingMode::ZeroPage_Y),
+        OpCode::new(0x83, Instruction::SAX, "SAX", AddressingMode::Indirect_X),
+        OpCode::new(0x8F, Instruction::SAX, "SAX", AddressingMode::Absolute),
+        OpCode::new(0xAB, Instruction::LAX, "LAX", AddressingMode::Immediate),
+        OpCode::new(0xA7, Instruction::LAX, "LAX", AddressingMode::ZeroPage),
+        OpCode::new(0xB7, Instruction::LAX, "LAX", AddressingMode::ZeroPage_Y),
+        OpCode::new(0xA3, Instruction::LAX, "LAX", AddressingMode::Indirect_X),
+        OpCode::new(0xB3, Instruction::LAX, "LAX", AddressingMode::Indirect_Y),
+        OpCode::new(0xAF, Instruction::LAX, "LAX", AddressingMode::Absolute),
+        OpCode::new(0xBF, Instruction::LAX, "LAX", AddressingMode::Absolute_Y),
+        OpCode::new(0xC7, Instruction::DCP, "DCP", AddressingMode::ZeroPage),
+        OpCode::new(0xD7, Instruction::DCP, "DCP", AddressingMode::ZeroPage_X),
+        OpCode::new(0xC3, Instruction::DCP, "DCP", AddressingMode::Indirect_X),
+        OpCode::new(0xD3, Instruction::DCP, "DCP", AddressingMode::Indirect_Y),
+        OpCode::new(0xCF, Instruction::DCP, "DCP", AddressingMode::Absolute),
+        OpCode::new(0xDF, Instruction::DCP, "DCP", AddressingMode::Absolute_X),
+        OpCode::new(0xDB, Instruction::DCP, "DCP", AddressingMode::Absolute_Y),
+        OpCode::new(0xE7, Instruction::ISC, "ISC", AddressingMode::ZeroPage),
+        OpCode::new(0xF7, Instruction::ISC, "ISC", AddressingMode::ZeroPage_X),
+        OpCode::new(0xE3, Instruction::ISC, "ISC", AddressingMode::Indirect_X),
+        OpCode::new(0xF3, Instruction::ISC, "ISC", AddressingMode::Indirect_Y),
+        OpCode::new(0xEF, Instruction::ISC, "ISC", AddressingMode::Absolute),
+        OpCode::new(0xFF, Instruction::ISC, "ISC", AddressingMode::Absolute_X),
+        OpCode::new(0xFB, Instruction::ISC, "ISC", AddressingMode::Absolute_Y),
+        OpCode::new(0x2B, Instruction::ANC, "ANC", AddressingMode::Immediate),
+        OpCode::new(0x4B, Instruction::ALR, "ALR", AddressingMode::Immediate),
+        OpCode::new(0x6B, Instruction::ARR, "ARR", AddressingMode::Immediate),
+        OpCode::new(0x8B, Instruction::XAA, "XAA", AddressingMode::Immediate),
+        OpCode::new(0xCB, Instruction::AXS, "AXS", AddressingMode::Immediate),
+        OpCode::new(0xEB, Instruction::SBC_NOP, "SBC", AddressingMode::Immediate),
+        OpCode::new(0x93, Instruction::AHX, "AHX", AddressingMode::Indirect_Y),
+        OpCode::new(0x9F, Instruction::AHX, "AHX", AddressingMode::Absolute_Y),
+        OpCode::new(0x9C, Instruction::SHY, "SHY", AddressingMode::Absolute_X),
+        OpCode::new(0x9E, Instruction::SHX, "SHX", AddressingMode::Absolute_Y),
+        OpCode::new(0x9B, Instruction::TAS, "TAS", AddressingMode::Absolute_Y),
+        OpCode::new(0xBB, Instruction::LAS, "LAS", AddressingMode::Absolute_Y),
+    ];
+
+    let mut map = HashMap::new();
+    for opcode in opcodes_vec {
+        map.insert(opcode.byte, opcode);
+    }
+
+    trace!("Finished building OPCODES hashmap");
+    map
+});

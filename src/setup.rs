@@ -16,7 +16,7 @@ pub fn setup_logger_and_args() -> Args {
     let _args: Args = match Args::parse() {
         Ok(arguments) => arguments,
         Err(error) => {
-            println!("Error: {}", error);
+            println!("Error: {error}");
             Args::print_help();
             std::process::exit(1);
         }
@@ -24,7 +24,7 @@ pub fn setup_logger_and_args() -> Args {
 
     init_logger(_args.verbose);
     trace!("Logger was enabled successfully.");
-    debug!("Passed Arguments: {:?}", _args);
+    debug!("Passed Arguments: {_args:?}");
     _args
 }
 
@@ -69,21 +69,14 @@ fn init_logger(verbose_level: u8) {
             // Log output format
             let log_output: String = if verbose_level >= 2 {
                 format!(
-                    "[{}] [{}] [{}/{}]: {}",
-                    timestamp,
-                    module_path,
-                    target,
-                    level,
-                    record.args(),
-                )
-            } else {
-                format!(
                     "[{}] [{}/{}]: {}",
                     timestamp,
-                    target,
+                    module_path,
                     level,
-                    record.args(),
+                    record.args()
                 )
+            } else {
+                format!("[{}] [{}/{}]: {}", timestamp, target, level, record.args())
             };
 
             // Apply severity color to the whole log line
@@ -95,7 +88,7 @@ fn init_logger(verbose_level: u8) {
                 log::Level::Trace => log_output.bright_black(),
             };
 
-            writeln!(buf, "{}", colored_log)
+            writeln!(buf, "{colored_log}")
         })
         .filter(None, log_level_filter)
         .init();

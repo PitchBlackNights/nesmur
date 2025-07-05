@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for environ in env_list {
         if let Ok(value) = env::var(environ) {
-            codegen.entry(environ, format!("\"{}\"", value));
+            codegen.entry(environ, format!("\"{value}\""));
         }
     }
 
