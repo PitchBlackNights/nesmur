@@ -1,0 +1,9 @@
+[package]
+name = "nes"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+log = "0.4"
+once_cell = "1.21"
+bitflags = "2.9"

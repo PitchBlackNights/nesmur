@@ -1,6 +1,6 @@
-use nesmur::bus::Mem;
+use nes::bus::Mem;
 use nesmur::cli_parser::Args;
-use nesmur::cpu::CPU;
+use nes::cpu::CPU;
 use nesmur::prelude::*;
 use nesmur::setup;
 

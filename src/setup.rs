@@ -60,11 +60,7 @@ fn init_logger(verbose_level: u8) {
             target.truncate(upto);
 
             let module_path: String = record.module_path().unwrap_or("UNKNOWN").to_string();
-            let level: String = format!(
-                "{}{}",
-                record.level(),
-                " ".repeat(5 - record.level().to_string().len())
-            );
+            let level: String = record.level().to_string();
 
             // Log output format
             let log_output: String = if verbose_level >= 2 {
