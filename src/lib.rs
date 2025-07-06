@@ -1,6 +1,5 @@
 pub mod cli_parser;
 pub mod setup;
-pub mod test_timing;
 pub mod prelude {
     #[allow(unused_imports)]
     pub use log::{debug, error, info, trace, warn};

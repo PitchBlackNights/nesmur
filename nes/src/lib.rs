@@ -5,13 +5,11 @@ mod prelude {
 
 // pub mod apu;
 pub mod bus;
-pub mod clock;
 pub mod cpu;
 // pub mod ppu;
 
 // use crate::apu::APU;
 use crate::bus::Bus;
-// use crate::clock::Clock;
 use crate::cpu::CPU;
 // use crate::ppu::PPU;
 
