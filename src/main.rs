@@ -1,5 +1,5 @@
-use nes::bus::Mem;
-use nes::cpu::CPU;
+use nes::NES;
+use nes::cartridge::Rom;
 use nesmur::cli_parser::Args;
 use nesmur::prelude::*;
 use nesmur::setup;
@@ -7,16 +7,10 @@ use nesmur::setup;
 fn main() {
     let _args: Args = setup::setup_logger_and_args();
     info!("Starting Emulator...");
-    
-    nes::cpu::opcode::test_opcodes();
 
-    let mut cpu: CPU = CPU::new();
+    let rom_bytes: Vec<u8> = std::fs::read("nestest.nes").unwrap();
+    let rom: Rom = Rom::new(&rom_bytes).unwrap();
 
-    cpu.mem_write(0x0000, 0xEA);
-    cpu.mem_write(0x0001, 0xEB);
-    cpu.mem_write(0x0003, 0xB1);
-
-    cpu.step();
-    cpu.step();
-    cpu.step();
+    let mut nes: NES = NES::new(rom);
+    nes.reset();
 }

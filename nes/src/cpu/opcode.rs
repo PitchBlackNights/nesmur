@@ -38,492 +38,569 @@ pub fn decode_opcode(opbyte: u8) -> &'static OpCode {
         .unwrap_or_else(|| panic!("OpCode {opbyte:#04X} is not recognized"))
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
-pub enum Instruction {
+macro_rules! define_opcodes {
+    (
+        $(
+            $( #[$enum_doc:meta] )*
+            $instr:ident $( $mnemonic:literal )? {
+                $( $opcode:literal => $cycles:literal, $mode:ident ),+ $(,)?
+            }
+        ),+ $(,)?
+    ) => {
+        #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+        #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
+        pub enum Instruction {
+            $(
+                $( #[$enum_doc] )*
+                $instr,
+            )+
+        }
+
+        pub static OPCODES: Lazy<HashMap<u8, OpCode>> = Lazy::new(|| {
+            trace!("Building OPCODES hashmap...");
+            let mut map = HashMap::new();
+            $(
+                let instruction: Instruction = Instruction::$instr;
+                let mnemonic: &'static str = define_opcodes!(@mnemonic $instr $( $mnemonic )?);
+                $(
+                    map.insert(
+                        $opcode,
+                        OpCode::new($opcode, instruction, mnemonic, $cycles, AddressingMode::$mode)
+                    );
+                )+
+            )+
+            trace!("Finished building OPCODES hashmap");
+            map
+        });
+    };
+
+    // Helper for mnemonic: use custom if present, else stringify enum name
+    (@mnemonic $instr:ident $mnemonic:literal) => { $mnemonic };
+    (@mnemonic $instr:ident) => { stringify!($instr) };
+}
+
+define_opcodes!(
     // ===== Load/Store Operations =====
     /// Load Accumulator
-    LDA,
+    LDA {
+        0xA9 => 2, Immediate,
+        0xA5 => 3, ZeroPage,
+        0xB5 => 4, ZeroPage_X,
+        0xAD => 4, Absolute,
+        0xBD => 4, Absolute_X,
+        0xB9 => 4, Absolute_Y,
+        0xA1 => 6, Indirect_X,
+        0xB1 => 5, Indirect_Y,
+    },
     /// Load X register
-    LDX,
+    LDX {
+        0xA2 => 2, Immediate,
+        0xA6 => 3, ZeroPage,
+        0xB6 => 4, ZeroPage_Y,
+        0xAE => 4, Absolute,
+        0xBE => 4, Absolute_Y,
+    },
     /// Load Y register
-    LDY,
+    LDY {
+        0xA0 => 2, Immediate,
+        0xA4 => 3, ZeroPage,
+        0xB4 => 4, ZeroPage_X,
+        0xAC => 4, Absolute,
+        0xBC => 4, Absolute_X,
+    },
     /// Store Accumulator
-    STA,
+    STA {
+        0x85 => 3, ZeroPage,
+        0x95 => 4, ZeroPage_X,
+        0x8D => 4, Absolute,
+        0x9D => 5, Absolute_X,
+        0x99 => 5, Absolute_Y,
+        0x81 => 6, Indirect_X,
+        0x91 => 6, Indirect_Y,
+    },
     /// Store X register
-    STX,
+    STX {
+        0x86 => 3, ZeroPage,
+        0x96 => 4, ZeroPage_Y,
+        0x8E => 4, Absolute,
+    },
     /// Store Y register
-    STY,
-    
+    STY {
+        0x84 => 3, ZeroPage,
+        0x94 => 4, ZeroPage_Y,
+        0x8C => 4, Absolute,
+    },
+
     // ===== Register Transfers =====
     /// Transfer Accumulator to X
-    TAX,
+    TAX {
+        0xAA => 2, Implicit,
+    },
     /// Transfer Accumulator to Y
-    TAY,
+    TAY {
+        0xA8 => 2, Implicit,
+    },
     /// Transfer X to Accumulator
-    TXA,
+    TXA {
+        0x8A => 2, Implicit,
+    },
     /// Transfer Y to Accumulator
-    TYA,
+    TYA {
+        0x98 => 2, Implicit,
+    },
 
     // ===== Stack Operations =====
     /// Transfer Stack Pointer to X
-    TSX,
+    TSX {
+        0xBA => 2, Implicit,
+    },
     /// Transfer X to Stack Pointer
-    TXS,
+    TXS {
+        0x9A => 2, Implicit,
+    },
     /// Push Accumulator on Stack
-    PHA,
+    PHA {
+        0x48 => 3, Implicit,
+    },
     /// Push Processor Status on Stack
-    PHP,
+    PHP {
+        0x08 => 3, Implicit,
+    },
     /// Pull Accumulator from Stack
-    PLA,
+    PLA {
+        0x68 => 4, Implicit,
+    },
     /// Pull Processor Status from Stack
-    PLP,
+    PLP {
+        0x28 => 4, Implicit,
+    },
 
     // ===== Logical =====
     /// Logical AND
-    AND,
+    AND {
+        0x29 => 2, Immediate,
+        0x25 => 3, ZeroPage,
+        0x35 => 4, ZeroPage_X,
+        0x2D => 4, Absolute,
+        0x3D => 4, Absolute_X,
+        0x39 => 4, Absolute_Y,
+        0x21 => 6, Indirect_X,
+        0x31 => 5, Indirect_Y,
+    },
     /// Exclusive OR
-    EOR,
+    EOR {
+        0x49 => 2, Immediate,
+        0x45 => 3, ZeroPage,
+        0x55 => 4, ZeroPage_X,
+        0x4D => 4, Absolute,
+        0x5D => 4, Absolute_X,
+        0x59 => 4, Absolute_Y,
+        0x41 => 6, Indirect_X,
+        0x51 => 5, Indirect_Y,
+    },
     /// Logical Inclusive OR
-    ORA,
+    ORA {
+        0x09 => 2, Immediate,
+        0x05 => 3, ZeroPage,
+        0x15 => 4, ZeroPage_X,
+        0x0D => 4, Absolute,
+        0x1D => 4, Absolute_X,
+        0x19 => 4, Absolute_Y,
+        0x01 => 6, Indirect_X,
+        0x11 => 5, Indirect_Y,
+    },
     /// Bit Test
-    BIT,
+    BIT {
+        0x24 => 3, ZeroPage,
+        0x2C => 4, Absolute,
+    },
 
     // ===== Arithmetic =====
     /// Add with Carry
-    ADC,
+    ADC {
+        0x69 => 2, Immediate,
+        0x65 => 3, ZeroPage,
+        0x75 => 4, ZeroPage_X,
+        0x6D => 4, Absolute,
+        0x7D => 4, Absolute_X,
+        0x79 => 4, Absolute_Y,
+        0x61 => 6, Indirect_X,
+        0x71 => 5, Indirect_Y,
+    },
     /// Subtract with Carry
-    SBC,
+    SBC {
+        0xE9 => 2, Immediate,
+        0xE5 => 3, ZeroPage,
+        0xF5 => 4, ZeroPage_X,
+        0xED => 4, Absolute,
+        0xFD => 4, Absolute_X,
+        0xF9 => 4, Absolute_Y,
+        0xE1 => 6, Indirect_X,
+        0xF1 => 5, Indirect_Y,
+    },
     /// Compare Accumulator
-    CMP,
+    CMP {
+        0xC9 => 2, Immediate,
+        0xC5 => 3, ZeroPage,
+        0xD5 => 4, ZeroPage_X,
+        0xCD => 4, Absolute,
+        0xDD => 4, Absolute_X,
+        0xD9 => 4, Absolute_Y,
+        0xC1 => 6, Indirect_X,
+        0xD1 => 5, Indirect_Y,
+    },
     /// Compare X register
-    CPX,
+    CPX {
+        0xE0 => 2, Immediate,
+        0xE4 => 3, ZeroPage,
+        0xEC => 4, Absolute,
+    },
     /// Compare Y register
-    CPY,
+    CPY {
+        0xC0 => 2, Immediate,
+        0xC4 => 3, ZeroPage,
+        0xCC => 4, Absolute,
+    },
 
     // ===== Increments & Decrements =====
     /// Increment a memory location
-    INC,
+    INC {
+        0xE6 => 5, ZeroPage,
+        0xF6 => 6, ZeroPage_X,
+        0xEE => 6, Absolute,
+        0xFE => 7, Absolute_X,
+    },
     /// Increment the X register
-    INX,
+    INX {
+        0xE8 => 2, Implicit,
+    },
     /// Increment the Y register
-    INY,
+    INY {
+        0xC8 => 2, Implicit,
+    },
     /// Decrement a memory location
-    DEC,
+    DEC {
+        0xC6 => 5, ZeroPage,
+        0xD6 => 6, ZeroPage_X,
+        0xCE => 6, Absolute,
+        0xDE => 7, Absolute_X,
+    },
     /// Decrement the X register
-    DEX,
+    DEX {
+        0xCA => 2, Implicit,
+    },
     /// Decrement the Y register
-    DEY,
+    DEY {
+        0x88 => 2, Implicit,
+    },
 
     // ===== Shifts =====
     /// Arithmetic Shift Left
-    ASL,
+    ASL {
+        0x0A => 2, Accumulator,
+        0x06 => 5, ZeroPage,
+        0x16 => 6, ZeroPage_X,
+        0x0E => 6, Absolute,
+        0x1E => 7, Absolute_X,
+    },
     /// Logical Shift Right
-    LSR,
+    LSR {
+        0x4A => 2, Accumulator,
+        0x46 => 5, ZeroPage,
+        0x56 => 6, ZeroPage_X,
+        0x4E => 6, Absolute,
+        0x5E => 7, Absolute_X,
+    },
     /// Rotate Left
-    ROL,
+    ROL {
+        0x2A => 2, Accumulator,
+        0x26 => 5, ZeroPage,
+        0x36 => 6, ZeroPage_X,
+        0x2E => 6, Absolute,
+        0x3E => 7, Absolute_X,
+    },
     /// Rotate Right
-    ROR,
+    ROR {
+        0x6A => 2, Accumulator,
+        0x66 => 5, ZeroPage,
+        0x76 => 6, ZeroPage_X,
+        0x6E => 6, Absolute,
+        0x7E => 7, Absolute_X,
+    },
 
     // ===== Jumps & Calls =====
     /// Jump to another location
-    JMP,
+    JMP {
+        0x4C => 3, Absolute,
+        0x6C => 5, Indirect,
+    },
     /// Jump to subroutine
-    JSR,
+    JSR {
+        0x20 => 6, Absolute,
+    },
     /// Return from subroutine
-    RTS,
+    RTS {
+        0x60 => 6, Implicit,
+    },
 
     // ===== Branches =====
     /// Branch if Carry flag clear
-    BCC,
+    BCC {
+        0x90 => 2, Relative,
+    },
     /// Branch if Carry flag set
-    BCS,
+    BCS {
+        0xB0 => 2, Relative,
+    },
     /// Branch if Zero flag set
-    BEQ,
+    BEQ {
+        0xF0 => 2, Relative,
+    },
     /// Branch if Negative flag set
-    BMI,
+    BMI {
+        0x30 => 2, Relative,
+    },
     /// Branch if Zero flag clear
-    BNE,
+    BNE {
+        0xD0 => 2, Relative,
+    },
     /// Branch if Negative flag clear
-    BPL,
+    BPL {
+        0x10 => 2, Relative,
+    },
     /// Branch if Overflow flag clear
-    BVC,
+    BVC {
+        0x50 => 2, Relative,
+    },
     /// Branch if Overflow flag set
-    BVS,
+    BVS {
+        0x70 => 2, Relative,
+    },
 
     // ===== Status Flag Changes =====
     /// Clear Carry flag
-    CLC,
+    CLC {
+        0x18 => 2, Implicit,
+    },
     /// Clear Decimal Mode flag
-    CLD,
+    CLD {
+        0xD8 => 2, Implicit,
+    },
     /// Clear Interrupt Disable flag
-    CLI,
+    CLI {
+        0x58 => 2, Implicit,
+    },
     /// Clear Overflow flag
-    CLV,
+    CLV {
+        0xB8 => 2, Implicit,
+    },
     /// Set Carry flag
-    SEC,
+    SEC {
+        0x38 => 2, Implicit,
+    },
     /// Set Decimal Mode flag
-    SED,
+    SED {
+        0xF8 => 2, Implicit,
+    },
     /// Set Interrupt Disable flag
-    SEI,
+    SEI {
+        0x78 => 2, Implicit,
+    },
 
     // ===== System Functions =====
     /// Force an Interrupt
-    BRK,
+    BRK {
+        0x00 => 7, Implicit,
+    },
     /// No Operation
-    NOP,
+    NOP {
+        0xEA => 2, Implicit,
+    },
     /// Return from Interrupt
-    RTI,
+    RTI {
+        0x40 => 6, Implicit,
+    },
 
     // ===== Undocumented Opcodes =====
     // https:///www.oxyron.de/html/opcodes02.html
     // https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
-    NOP_ALT,
+    /// No Operation
+    NOP_ALT {
+        0x1A => 2, Implicit,
+        0x3A => 2, Implicit,
+        0x5A => 2, Implicit,
+        0x7A => 2, Implicit,
+        0xDA => 2, Implicit,
+        0xFA => 2, Implicit,
+        0x80 => 2, Immediate,
+        0x82 => 2, Immediate,
+        0x89 => 2, Immediate,
+        0xC2 => 2, Immediate,
+        0xE2 => 2, Immediate,
+        0x04 => 3, ZeroPage,
+        0x44 => 3, ZeroPage,
+        0x64 => 3, ZeroPage,
+        0x14 => 4, ZeroPage_X,
+        0x34 => 4, ZeroPage_X,
+        0x54 => 4, ZeroPage_X,
+        0x74 => 4, ZeroPage_X,
+        0xD4 => 4, ZeroPage_X,
+        0xF4 => 4, ZeroPage_X,
+        0x0C => 4, Absolute,
+        0x1C => 4, Absolute_X,
+        0x3C => 4, Absolute_X,
+        0x5C => 4, Absolute_X,
+        0x7C => 4, Absolute_X,
+        0xDC => 4, Absolute_X,
+        0xFC => 4, Absolute_X,
+    },
 
     // ===== Illegal Opcodes =====
     // https:///www.oxyron.de/html/opcodes02.html
     // https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
     // https:///www.nesdev.org/wiki/Programming_with_unofficial_opcodes
+    // https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
     /// Equivalent to `ASL value` then `ORA value`
-    SLO,
+    SLO {
+        0x07 => 5, ZeroPage,
+        0x17 => 6, ZeroPage_X,
+        0x0F => 6, Absolute,
+        0x1F => 7, Absolute_X,
+        0x1B => 7, Absolute_Y,
+        0x03 => 8, Indirect_X,
+        0x13 => 8, Indirect_Y,
+    },
     /// Equivalent to `ROL value` then `AND value`
-    RLA,
+    RLA {
+        0x27 => 5, ZeroPage,
+        0x37 => 6, ZeroPage_X,
+        0x2F => 6, Absolute,
+        0x3F => 7, Absolute_X,
+        0x3B => 7, Absolute_Y,
+        0x23 => 8, Indirect_X,
+        0x33 => 8, Indirect_Y,
+    },
     /// Equivalent to `LSR value` then `EOR value`
-    SRE,
+    SRE {
+        0x47 => 5, ZeroPage,
+        0x57 => 6, ZeroPage_X,
+        0x4F => 6, Absolute,
+        0x5F => 7, Absolute_X,
+        0x5B => 7, Absolute_Y,
+        0x43 => 8, Indirect_X,
+        0x53 => 8, Indirect_Y,
+    },
     /// Equivalent to `ROR value` then `ADC value`
-    RRA,
+    RRA {
+        0x67 => 5, ZeroPage,
+        0x77 => 6, ZeroPage_X,
+        0x6F => 6, Absolute,
+        0x7F => 7, Absolute_X,
+        0x7B => 7, Absolute_Y,
+        0x63 => 8, Indirect_X,
+        0x73 => 8, Indirect_Y,
+    },
     /// Stores `A & X` into `{adr}`
-    SAX,
+    SAX {
+        0x87 => 3, ZeroPage,
+        0x97 => 4, ZeroPage_Y,
+        0x8F => 4, Absolute,
+        0x83 => 6, Indirect_X,
+    },
     /// Shortcut for `LDA value` then `TAX`
-    LAX,
+    LAX {
+        0xAB => 2, Immediate,
+        0xA7 => 3, ZeroPage,
+        0xB7 => 4, ZeroPage_Y,
+        0xAF => 4, Absolute,
+        0xBF => 4, Absolute_Y,
+        0xA3 => 6, Indirect_X,
+        0xB3 => 5, Indirect_Y,
+    },
     /// Equivalent to `DEC value` then `CMP value`
-    DCP,
+    DCP {
+        0xC7 => 5, ZeroPage,
+        0xD7 => 6, ZeroPage_X,
+        0xCF => 6, Absolute,
+        0xDF => 7, Absolute_X,
+        0xDB => 7, Absolute_Y,
+        0xC3 => 8, Indirect_X,
+        0xD3 => 8, Indirect_Y,
+    },
     /// Equivalent to `INC value` then `SBC value`
-    ISC,
+    ISC {
+        0xE7 => 5, ZeroPage,
+        0xF7 => 6, ZeroPage_X,
+        0xEF => 6, Absolute,
+        0xFF => 7, Absolute_X,
+        0xFB => 7, Absolute_Y,
+        0xE3 => 8, Indirect_X,
+        0xF3 => 8, Indirect_Y,
+    },
     /// Does `AND #i` then copies `N` to `C`
-    ANC,
+    ANC {
+        0x0B => 2, Immediate,
+        0x2B => 2, Immediate,
+    },
     /// Equivalent to `AND #i` then `LSR A`
-    ALR,
+    ALR {
+        0x4B => 2, Immediate,
+    },
     /// Similar to `AND #i`, but `C` is `bit 6` and `V` is `bit 6 XOR bit 5`
-    ARR,
+    ARR {
+        0x6B => 2, Immediate,
+    },
     /// Unpredictable behavior - https:///www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE)
-    XAA,
+    /// ***WARNING:*** Highly Unstable
+    XAA {
+        0x8B => 2, Immediate,
+    },
     /// Sets `X` to `A & X - #{imm}`
-    AXS,
+    AXS {
+        0xCB => 2, Immediate,
+    },
     /// Equivalent to `SBC #i` then `NOP`
-    SBC_NOP,
+    SBC_NOP {
+        0xEB => 2, Immediate,
+    },
     /// An incorrectly-implemented version of `SAX value`
-    AHX,
+    /// **WARNING:** Unstable in certain situations
+    AHX {
+        0x9F => 5, Absolute_Y,
+        0x93 => 6, Indirect_Y,
+    },
     /// An incorrectly-implemented version of `STY a,X`
-    SHY,
+    /// **WARNING:** Unstable in certain situations
+    SHY {
+        0x9C => 5, Absolute_X,
+    },
     /// An incorrectly-implemented version of `STX a,Y`
-    SHX,
+    /// **WARNING:** Unstable in certain situations
+    SHX {
+        0x9E => 5, Absolute_Y,
+    },
     /// Stores `A & X` into `S` then `AHX a,Y`
-    TAS,
+    /// **WARNING:** Unstable in certain situations
+    TAS {
+        0x9B => 5, Absolute_Y,
+    },
     /// Stores `{adr} & S` into `A`, `X`, and `S`
-    LAS,
-}
-
-pub static OPCODES: Lazy<HashMap<u8, OpCode>> = Lazy::new(|| {
-    trace!("Building OPCODES hashmap...");
-
-    #[rustfmt::skip]
-    let opcodes_vec: Vec<OpCode> = vec![
-        // ===== Load/Store Operations =====
-        OpCode::new(0xA9, Instruction::LDA, "LDA", 0, AddressingMode::Immediate),
-        OpCode::new(0xA5, Instruction::LDA, "LDA", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xB5, Instruction::LDA, "LDA", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xAD, Instruction::LDA, "LDA", 0, AddressingMode::Absolute),
-        OpCode::new(0xBD, Instruction::LDA, "LDA", 0, AddressingMode::Absolute_X),
-        OpCode::new(0xB9, Instruction::LDA, "LDA", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0xA1, Instruction::LDA, "LDA", 0, AddressingMode::Indirect_X),
-        OpCode::new(0xB1, Instruction::LDA, "LDA", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0xA2, Instruction::LDX, "LDX", 0, AddressingMode::Immediate),
-        OpCode::new(0xA6, Instruction::LDX, "LDX", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xB6, Instruction::LDX, "LDX", 0, AddressingMode::ZeroPage_Y),
-        OpCode::new(0xAE, Instruction::LDX, "LDX", 0, AddressingMode::Absolute),
-        OpCode::new(0xBE, Instruction::LDX, "LDX", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0xA0, Instruction::LDY, "LDY", 0, AddressingMode::Immediate),
-        OpCode::new(0xA4, Instruction::LDY, "LDY", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xB4, Instruction::LDY, "LDY", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xAC, Instruction::LDY, "LDY", 0, AddressingMode::Absolute),
-        OpCode::new(0xBC, Instruction::LDY, "LDY", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x85, Instruction::STA, "STA", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x95, Instruction::STA, "STA", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x8D, Instruction::STA, "STA", 0, AddressingMode::Absolute),
-        OpCode::new(0x9D, Instruction::STA, "STA", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x99, Instruction::STA, "STA", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x81, Instruction::STA, "STA", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x91, Instruction::STA, "STA", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x86, Instruction::STX, "STX", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x96, Instruction::STX, "STX", 0, AddressingMode::ZeroPage_Y),
-        OpCode::new(0x8E, Instruction::STX, "STX", 0, AddressingMode::Absolute),
-        OpCode::new(0x84, Instruction::STY, "STY", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x94, Instruction::STY, "STY", 0, AddressingMode::ZeroPage_Y),
-        OpCode::new(0x8C, Instruction::STY, "STY", 0, AddressingMode::Absolute),
-        
-        // ===== Register Transfers =====
-        OpCode::new(0xAA, Instruction::TAX, "TAX", 0, AddressingMode::Implicit),
-        OpCode::new(0xA8, Instruction::TAY, "TAY", 0, AddressingMode::Implicit),
-        OpCode::new(0x8A, Instruction::TXA, "TXA", 0, AddressingMode::Implicit),
-        OpCode::new(0x98, Instruction::TYA, "TYA", 0, AddressingMode::Implicit),
-        OpCode::new(0xBA, Instruction::TSX, "TSX", 0, AddressingMode::Implicit),
-        OpCode::new(0x9A, Instruction::TXS, "TXS", 0, AddressingMode::Implicit),
-        
-        // ===== Stack Operations =====
-        OpCode::new(0x48, Instruction::PHA, "PHA", 0, AddressingMode::Implicit),
-        OpCode::new(0x08, Instruction::PHP, "PHP", 0, AddressingMode::Implicit),
-        OpCode::new(0x68, Instruction::PLA, "PLA", 0, AddressingMode::Implicit),
-        OpCode::new(0x28, Instruction::PLP, "PLP", 0, AddressingMode::Implicit),
-        
-        // ===== Logical =====
-        OpCode::new(0x29, Instruction::AND, "AND", 0, AddressingMode::Immediate),
-        OpCode::new(0x25, Instruction::AND, "AND", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x35, Instruction::AND, "AND", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x2D, Instruction::AND, "AND", 0, AddressingMode::Absolute),
-        OpCode::new(0x3D, Instruction::AND, "AND", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x39, Instruction::AND, "AND", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x21, Instruction::AND, "AND", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x31, Instruction::AND, "AND", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x49, Instruction::EOR, "EOR", 0, AddressingMode::Immediate),
-        OpCode::new(0x45, Instruction::EOR, "EOR", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x55, Instruction::EOR, "EOR", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x4D, Instruction::EOR, "EOR", 0, AddressingMode::Absolute),
-        OpCode::new(0x5D, Instruction::EOR, "EOR", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x59, Instruction::EOR, "EOR", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x41, Instruction::EOR, "EOR", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x51, Instruction::EOR, "EOR", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x09, Instruction::ORA, "ORA", 0, AddressingMode::Immediate),
-        OpCode::new(0x05, Instruction::ORA, "ORA", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x15, Instruction::ORA, "ORA", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x0D, Instruction::ORA, "ORA", 0, AddressingMode::Absolute),
-        OpCode::new(0x1D, Instruction::ORA, "ORA", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x19, Instruction::ORA, "ORA", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x01, Instruction::ORA, "ORA", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x11, Instruction::ORA, "ORA", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x24, Instruction::BIT, "BIT", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x2C, Instruction::BIT, "BIT", 0, AddressingMode::Absolute),
-        
-        // ===== Arithmetic =====
-        OpCode::new(0x69, Instruction::ADC, "ADC", 2, AddressingMode::Immediate),
-        OpCode::new(0x65, Instruction::ADC, "ADC", 3, AddressingMode::ZeroPage),
-        OpCode::new(0x75, Instruction::ADC, "ADC", 4, AddressingMode::ZeroPage_X),
-        OpCode::new(0x6D, Instruction::ADC, "ADC", 4, AddressingMode::Absolute),
-        OpCode::new(0x7D, Instruction::ADC, "ADC", 4, AddressingMode::Absolute_X),
-        OpCode::new(0x79, Instruction::ADC, "ADC", 4, AddressingMode::Absolute_Y),
-        OpCode::new(0x61, Instruction::ADC, "ADC", 6, AddressingMode::Indirect_X),
-        OpCode::new(0x71, Instruction::ADC, "ADC", 5, AddressingMode::Indirect_Y),
-        OpCode::new(0xE9, Instruction::SBC, "SBC", 0, AddressingMode::Immediate),
-        OpCode::new(0xE5, Instruction::SBC, "SBC", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xF5, Instruction::SBC, "SBC", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xED, Instruction::SBC, "SBC", 0, AddressingMode::Absolute),
-        OpCode::new(0xFD, Instruction::SBC, "SBC", 0, AddressingMode::Absolute_X),
-        OpCode::new(0xF9, Instruction::SBC, "SBC", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0xE1, Instruction::SBC, "SBC", 0, AddressingMode::Indirect_X),
-        OpCode::new(0xF1, Instruction::SBC, "SBC", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0xC9, Instruction::CMP, "CMP", 0, AddressingMode::Immediate),
-        OpCode::new(0xC5, Instruction::CMP, "CMP", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xD5, Instruction::CMP, "CMP", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xCD, Instruction::CMP, "CMP", 0, AddressingMode::Absolute),
-        OpCode::new(0xDD, Instruction::CMP, "CMP", 0, AddressingMode::Absolute_X),
-        OpCode::new(0xD9, Instruction::CMP, "CMP", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0xC1, Instruction::CMP, "CMP", 0, AddressingMode::Indirect_X),
-        OpCode::new(0xD1, Instruction::CMP, "CMP", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0xE0, Instruction::CPX, "CPX", 0, AddressingMode::Immediate),
-        OpCode::new(0xE4, Instruction::CPX, "CPX", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xEC, Instruction::CPX, "CPX", 0, AddressingMode::Absolute),
-        OpCode::new(0xC0, Instruction::CPY, "CPY", 0, AddressingMode::Immediate),
-        OpCode::new(0xC4, Instruction::CPY, "CPY", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xCC, Instruction::CPY, "CPY", 0, AddressingMode::Absolute),
-        
-        // ===== Increments & Decrements =====
-        OpCode::new(0xE6, Instruction::INC, "INC", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xF6, Instruction::INC, "INC", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xEE, Instruction::INC, "INC", 0, AddressingMode::Absolute),
-        OpCode::new(0xFE, Instruction::INC, "INC", 0, AddressingMode::Absolute_X),
-        OpCode::new(0xE8, Instruction::INX, "INX", 0, AddressingMode::Implicit),
-        OpCode::new(0xC8, Instruction::INY, "INY", 0, AddressingMode::Implicit),
-        OpCode::new(0xC6, Instruction::DEC, "DEC", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xD6, Instruction::DEC, "DEC", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xCE, Instruction::DEC, "DEC", 0, AddressingMode::Absolute),
-        OpCode::new(0xDE, Instruction::DEC, "DEC", 0, AddressingMode::Absolute_X),
-        OpCode::new(0xCA, Instruction::DEX, "DEX", 0, AddressingMode::Implicit),
-        OpCode::new(0x88, Instruction::DEY, "DEY", 0, AddressingMode::Implicit),
-        
-        // ===== Shifts =====
-        OpCode::new(0x0A, Instruction::ASL, "ASL", 0, AddressingMode::Accumulator),
-        OpCode::new(0x06, Instruction::ASL, "ASL", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x16, Instruction::ASL, "ASL", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x0E, Instruction::ASL, "ASL", 0, AddressingMode::Absolute),
-        OpCode::new(0x1E, Instruction::ASL, "ASL", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x4A, Instruction::LSR, "LSR", 0, AddressingMode::Accumulator),
-        OpCode::new(0x46, Instruction::LSR, "LSR", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x56, Instruction::LSR, "LSR", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x4E, Instruction::LSR, "LSR", 0, AddressingMode::Absolute),
-        OpCode::new(0x5E, Instruction::LSR, "LSR", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x2A, Instruction::ROL, "ROL", 0, AddressingMode::Accumulator),
-        OpCode::new(0x26, Instruction::ROL, "ROL", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x36, Instruction::ROL, "ROL", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x2E, Instruction::ROL, "ROL", 0, AddressingMode::Absolute),
-        OpCode::new(0x3E, Instruction::ROL, "ROL", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x6A, Instruction::ROR, "ROR", 0, AddressingMode::Accumulator),
-        OpCode::new(0x66, Instruction::ROR, "ROR", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x76, Instruction::ROR, "ROR", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x6E, Instruction::ROR, "ROR", 0, AddressingMode::Absolute),
-        OpCode::new(0x7E, Instruction::ROR, "ROR", 0, AddressingMode::Absolute_X),
-        
-        // ===== Jumps & Calls =====
-        OpCode::new(0x4C, Instruction::JMP, "JMP", 0, AddressingMode::Absolute),
-        OpCode::new(0x6C, Instruction::JMP, "JMP", 0, AddressingMode::Indirect),
-        OpCode::new(0x20, Instruction::JSR, "JSR", 0, AddressingMode::Absolute),
-        OpCode::new(0x60, Instruction::RTS, "RTS", 0, AddressingMode::Implicit),
-        
-        // ===== Branches =====
-        OpCode::new(0x90, Instruction::BCC, "BCC", 0, AddressingMode::Relative),
-        OpCode::new(0xB0, Instruction::BCS, "BCS", 0, AddressingMode::Relative),
-        OpCode::new(0xF0, Instruction::BEQ, "BEQ", 0, AddressingMode::Relative),
-        OpCode::new(0x30, Instruction::BMI, "BMI", 0, AddressingMode::Relative),
-        OpCode::new(0xD0, Instruction::BNE, "BNE", 0, AddressingMode::Relative),
-        OpCode::new(0x10, Instruction::BPL, "BPL", 0, AddressingMode::Relative),
-        OpCode::new(0x50, Instruction::BVC, "BVC", 0, AddressingMode::Relative),
-        OpCode::new(0x70, Instruction::BVS, "BVS", 0, AddressingMode::Relative),
-        
-        // ===== Status Flag Changes =====
-        OpCode::new(0x18, Instruction::CLC, "CLC", 0, AddressingMode::Implicit),
-        OpCode::new(0xD8, Instruction::CLD, "CLD", 0, AddressingMode::Implicit),
-        OpCode::new(0x58, Instruction::CLI, "CLI", 0, AddressingMode::Implicit),
-        OpCode::new(0xB8, Instruction::CLV, "CLV", 0, AddressingMode::Implicit),
-        OpCode::new(0x38, Instruction::SEC, "SEC", 0, AddressingMode::Implicit),
-        OpCode::new(0xF8, Instruction::SED, "SED", 0, AddressingMode::Implicit),
-        OpCode::new(0x78, Instruction::SEI, "SEI", 0, AddressingMode::Implicit),
-        
-        // ===== System Functions =====
-        OpCode::new(0x00, Instruction::BRK, "BRK", 7, AddressingMode::Implicit),
-        OpCode::new(0xEA, Instruction::NOP, "NOP", 2, AddressingMode::Implicit),
-        OpCode::new(0x40, Instruction::RTI, "RTI", 0, AddressingMode::Implicit),
-        
-        // ===== Undocumented Opcodes =====
-        OpCode::new(0x1A, Instruction::NOP_ALT, "NOP", 2, AddressingMode::Implicit),
-        OpCode::new(0xFA, Instruction::NOP_ALT, "NOP", 0, AddressingMode::Implicit),
-        OpCode::new(0x0C, Instruction::NOP_ALT, "NOP", 0, AddressingMode::Absolute),
-        OpCode::new(0xFC, Instruction::NOP_ALT, "NOP", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x64, Instruction::NOP_ALT, "NOP", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x04, Instruction::NOP_ALT, "NOP", 3, AddressingMode::ZeroPage),
-        OpCode::new(0x14, Instruction::NOP_ALT, "NOP", 4, AddressingMode::ZeroPage_X),
-        OpCode::new(0xF4, Instruction::NOP_ALT, "NOP", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xE2, Instruction::NOP_ALT, "NOP", 0, AddressingMode::Immediate),
-        
-        // ===== Illegal Opcodes =====
-        OpCode::new(0x07, Instruction::SLO, "SLO", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x17, Instruction::SLO, "SLO", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x03, Instruction::SLO, "SLO", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x13, Instruction::SLO, "SLO", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x0F, Instruction::SLO, "SLO", 0, AddressingMode::Absolute),
-        OpCode::new(0x1F, Instruction::SLO, "SLO", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x1B, Instruction::SLO, "SLO", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x27, Instruction::RLA, "RLA", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x37, Instruction::RLA, "RLA", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x23, Instruction::RLA, "RLA", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x33, Instruction::RLA, "RLA", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x2F, Instruction::RLA, "RLA", 0, AddressingMode::Absolute),
-        OpCode::new(0x3F, Instruction::RLA, "RLA", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x3B, Instruction::RLA, "RLA", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x47, Instruction::SRE, "SRE", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x57, Instruction::SRE, "SRE", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x43, Instruction::SRE, "SRE", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x53, Instruction::SRE, "SRE", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x4F, Instruction::SRE, "SRE", 0, AddressingMode::Absolute),
-        OpCode::new(0x5F, Instruction::SRE, "SRE", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x5B, Instruction::SRE, "SRE", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x67, Instruction::RRA, "RRA", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x77, Instruction::RRA, "RRA", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0x63, Instruction::RRA, "RRA", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x73, Instruction::RRA, "RRA", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x6F, Instruction::RRA, "RRA", 0, AddressingMode::Absolute),
-        OpCode::new(0x7F, Instruction::RRA, "RRA", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x7B, Instruction::RRA, "RRA", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x87, Instruction::SAX, "SAX", 0, AddressingMode::ZeroPage),
-        OpCode::new(0x97, Instruction::SAX, "SAX", 0, AddressingMode::ZeroPage_Y),
-        OpCode::new(0x83, Instruction::SAX, "SAX", 0, AddressingMode::Indirect_X),
-        OpCode::new(0x8F, Instruction::SAX, "SAX", 0, AddressingMode::Absolute),
-        OpCode::new(0xAB, Instruction::LAX, "LAX", 0, AddressingMode::Immediate),
-        OpCode::new(0xA7, Instruction::LAX, "LAX", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xB7, Instruction::LAX, "LAX", 0, AddressingMode::ZeroPage_Y),
-        OpCode::new(0xA3, Instruction::LAX, "LAX", 0, AddressingMode::Indirect_X),
-        OpCode::new(0xB3, Instruction::LAX, "LAX", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0xAF, Instruction::LAX, "LAX", 0, AddressingMode::Absolute),
-        OpCode::new(0xBF, Instruction::LAX, "LAX", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0xC7, Instruction::DCP, "DCP", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xD7, Instruction::DCP, "DCP", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xC3, Instruction::DCP, "DCP", 0, AddressingMode::Indirect_X),
-        OpCode::new(0xD3, Instruction::DCP, "DCP", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0xCF, Instruction::DCP, "DCP", 0, AddressingMode::Absolute),
-        OpCode::new(0xDF, Instruction::DCP, "DCP", 0, AddressingMode::Absolute_X),
-        OpCode::new(0xDB, Instruction::DCP, "DCP", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0xE7, Instruction::ISC, "ISC", 0, AddressingMode::ZeroPage),
-        OpCode::new(0xF7, Instruction::ISC, "ISC", 0, AddressingMode::ZeroPage_X),
-        OpCode::new(0xE3, Instruction::ISC, "ISC", 0, AddressingMode::Indirect_X),
-        OpCode::new(0xF3, Instruction::ISC, "ISC", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0xEF, Instruction::ISC, "ISC", 0, AddressingMode::Absolute),
-        OpCode::new(0xFF, Instruction::ISC, "ISC", 0, AddressingMode::Absolute_X),
-        OpCode::new(0xFB, Instruction::ISC, "ISC", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x0B, Instruction::ANC, "ANC", 2, AddressingMode::Immediate),
-        OpCode::new(0x2B, Instruction::ANC, "ANC", 0, AddressingMode::Immediate),
-        OpCode::new(0x4B, Instruction::ALR, "ALR", 0, AddressingMode::Immediate),
-        OpCode::new(0x6B, Instruction::ARR, "ARR", 0, AddressingMode::Immediate),
-        OpCode::new(0x8B, Instruction::XAA, "XAA", 0, AddressingMode::Immediate),
-        OpCode::new(0xCB, Instruction::AXS, "AXS", 0, AddressingMode::Immediate),
-        OpCode::new(0xEB, Instruction::SBC_NOP, "SBC", 0, AddressingMode::Immediate),
-        OpCode::new(0x93, Instruction::AHX, "AHX", 0, AddressingMode::Indirect_Y),
-        OpCode::new(0x9F, Instruction::AHX, "AHX", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x9C, Instruction::SHY, "SHY", 0, AddressingMode::Absolute_X),
-        OpCode::new(0x9E, Instruction::SHX, "SHX", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0x9B, Instruction::TAS, "TAS", 0, AddressingMode::Absolute_Y),
-        OpCode::new(0xBB, Instruction::LAS, "LAS", 0, AddressingMode::Absolute_Y),
-    ];
-
-    let mut map = HashMap::new();
-    for opcode in opcodes_vec {
-        map.insert(opcode.byte, opcode);
-    }
-
-    trace!("Finished building OPCODES hashmap");
-    map
-});
-
-pub fn test_opcodes() {
-    info!("{} opcodes defined", OPCODES.len());
-    
-    let mut missing_opcodes: Vec<u8> = Vec::new();
-    let mut no_cycle_opcodes: Vec<OpCode> = Vec::new();
-    for byte in 0..256 {
-        match OPCODES.get(&(byte as u8)) {
-            Some(opcode) => {
-                if opcode.cycles <= 0 {
-                    no_cycle_opcodes.push(*opcode);
-                }
-            },
-            None => missing_opcodes.push(byte as u8),
-        }
-    }
-    
-    if missing_opcodes.len() > 0 {
-        error!("{} missing opcodes", missing_opcodes.len());
-        error!("[{}]", missing_opcodes
-            .iter()
-            .map(|b| format!("{:#04X}", b))
-            .collect::<Vec<_>>()
-            .join(", ")
-        );
-    }
-    if no_cycle_opcodes.len() > 0 {
-        error!("{} no cycle opcodes", no_cycle_opcodes.len());
-        error!("[{}]", no_cycle_opcodes
-            .iter()
-            .map(|op| format!("{:?} ({:#04X})", op.instruction, op.byte))
-            .collect::<Vec<_>>()
-            .join(", ")
-        );
-    }
-    std::process::exit(0);
-}
+    LAS {
+        0xBB => 4, Absolute_Y,
+    },
+    /// Traps the CPU indefinitely with $FF on the bus, requires a reset to fix
+    KIL {
+        0x02 => 0, Implicit,
+        0x12 => 0, Implicit,
+        0x22 => 0, Implicit,
+        0x32 => 0, Implicit,
+        0x42 => 0, Implicit,
+        0x52 => 0, Implicit,
+        0x62 => 0, Implicit,
+        0x72 => 0, Implicit,
+        0x92 => 0, Implicit,
+        0xB2 => 0, Implicit,
+        0xD2 => 0, Implicit,
+        0xF2 => 0, Implicit,
+    },
+);

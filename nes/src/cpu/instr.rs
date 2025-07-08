@@ -1,10 +1,11 @@
+use crate::cpu::CPU;
 use crate::cpu::opcode::Instruction::*;
 use crate::cpu::opcode::OpCode;
-use crate::cpu::CPU;
 use crate::prelude::*;
 
 pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) -> u64 {
     debug!("==== Executing Operation ====");
+    debug!("  Address: {:#06X},", cpu.program_counter - 1);
     debug!("  Byte: {:#04X},", opcode.byte);
     debug!("  Instruction: {:?},", opcode.instruction);
     debug!("  Mnemonic: \"{}\"", opcode.mnemonic);
@@ -236,15 +237,15 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
         ),
-        NOP => {},
+        NOP => {}
         RTI => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
         ),
-        NOP_ALT => {
-            
-            let (_, page_crossed) = opcode.mode.read(cpu, Some(operands));
-        },
+        NOP_ALT => panic!(
+            "CPU Operation '{:?}' is not implemented",
+            opcode.instruction
+        ),
         SLO => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
@@ -321,6 +322,7 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
         ),
+        KIL => panic!("The `KIL` instruction was executed!"),
     }
 
     0
