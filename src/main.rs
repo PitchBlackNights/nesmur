@@ -7,6 +7,8 @@ use nesmur::setup;
 fn main() {
     let _args: Args = setup::setup_logger_and_args();
     info!("Starting Emulator...");
+    
+    nes::cpu::opcode::test_opcodes();
 
     let mut cpu: CPU = CPU::new();
 
