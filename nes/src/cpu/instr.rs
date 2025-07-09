@@ -11,6 +11,7 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
     debug!("  Mnemonic: \"{}\"", opcode.mnemonic);
     debug!("  Len: {}", opcode.len);
     debug!("  Mode: {:?}", opcode.mode);
+    debug!("  Cycles: {}", opcode.cycles);
     debug!(
         "  Operands: [{}]",
         operands
@@ -20,7 +21,7 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
             .join(", ")
     );
 
-    match opcode.instruction {
+    let extra_cycles: u8 = match opcode.instruction {
         LDA => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
@@ -237,7 +238,7 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
         ),
-        NOP => {}
+        NOP => 0,
         RTI => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
@@ -323,7 +324,7 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
             opcode.instruction
         ),
         KIL => panic!("The `KIL` instruction was executed!"),
-    }
+    };
 
-    0
+    (opcode.cycles + extra_cycles) as u64
 }

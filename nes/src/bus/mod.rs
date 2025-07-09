@@ -54,7 +54,7 @@ impl Bus {
     pub fn new(rom: Rc<RefCell<Rom>>, _apu: Rc<RefCell<APU>>, _ppu: Rc<RefCell<PPU>>) -> Bus {
         Bus {
             cpu_vram: [0; 2048],
-            rom: rom,
+            rom,
         }
     }
 
@@ -68,14 +68,14 @@ impl Bus {
     pub fn write_u16(&mut self, pos: u16, data: u16) { self.__write_u16(pos, data, false); }
 }
 
-pub trait MEM {
+pub trait Mem {
     fn __read(&self, addr: u16, quiet: bool) -> u8;
 
     fn __write(&mut self, addr: u16, data: u8, quiet: bool);
 
     fn __read_u16(&self, pos: u16, quiet: bool) -> u16 {
         let lo: u16 = self.__read(pos, quiet) as u16;
-        let hi: u16 = self.__read(pos + 1, quiet) as u16;
+        let hi: u16 = self.__read(pos.wrapping_add(1), quiet) as u16;
         (hi << 8) | lo
     }
 
@@ -83,11 +83,11 @@ pub trait MEM {
         let hi: u8 = (data >> 8) as u8;
         let lo: u8 = (data & 0xff) as u8;
         self.__write(pos, lo, quiet);
-        self.__write(pos + 1, hi, quiet);
+        self.__write(pos.wrapping_add(1), hi, quiet);
     }
 }
 
-impl MEM for Bus {
+impl Mem for Bus {
     fn __read(&self, addr: u16, quiet: bool) -> u8 {
         match addr {
             RAM..=RAM_END => {
@@ -104,7 +104,7 @@ impl MEM for Bus {
                 let mut addr = addr - 0x8000;
                 if self.rom().prg_rom.len() == 0x4000 && addr >= 0x4000 {
                     // Mirror the data if needed
-                    addr = addr % 0x4000;
+                    addr %= 0x4000;
                 }
                 let byte: u8 = self.rom().prg_rom[addr as usize];
                 (!quiet).then(|| trace!("[PRG-ROM] Read {:#04X} from {:#06x}", byte, addr));

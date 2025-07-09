@@ -70,7 +70,7 @@ impl CPU {
             stack_pointer: STACK_RESET,
             program_counter: 0x8000,
             status: Flags::from_bits_truncate(0b00100100),
-            bus: bus,
+            bus,
         }
     }
 

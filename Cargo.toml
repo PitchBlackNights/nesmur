@@ -18,5 +18,8 @@ vergen-git2 = { version = "1.0.7", features = ["build", "cargo", "rustc", "si", 
 phf = { version = "0.12", default-features = false }
 phf_codegen = "0.12"
 
+[workspace]
+members = ["nes"]
+
 [lints.clippy]
 uninlined-format-args = "allow"

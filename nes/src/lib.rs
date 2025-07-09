@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 mod prelude {
-    pub use crate::NESAccess;
+    pub use crate::bus::Mem;
+    pub use crate::tools::NESAccess;
     pub use log::{debug, error, info, trace, warn};
 }
 pub mod apu;
@@ -8,29 +9,18 @@ pub mod bus;
 pub mod cartridge;
 pub mod cpu;
 pub mod ppu;
+pub mod tools;
 #[cfg(test)]
 mod unit_tests;
 
 use crate::apu::APU;
 use crate::bus::Bus;
+use crate::cartridge::Rom;
 use crate::cpu::CPU;
 use crate::ppu::PPU;
-use crate::cartridge::Rom;
+use crate::prelude::*;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
-use crate::prelude::*;
-
-#[rustfmt::skip]
-pub trait NESAccess {
-    fn bus(&self) -> Ref<Bus> { panic!("Access to `Bus` is prohibited") }
-    fn bus_mut(&self) -> RefMut<Bus> { panic!("Access to `Bus` is prohibited") }
-    fn apu(&self) -> Ref<APU> { panic!("Access to `APU` is prohibited") }
-    fn apu_mut(&self) -> RefMut<APU> { panic!("Access to `APU` is prohibited") }
-    fn ppu(&self) -> Ref<PPU> { panic!("Access to `PPU` is prohibited") }
-    fn ppu_mut(&self) -> RefMut<PPU> { panic!("Access to `PPU` is prohibited") }
-    fn rom(&self) -> Ref<Rom> { panic!("Access to `Rom` is prohibited") }
-    fn rom_mut(&self) -> RefMut<Rom> { panic!("Access to `Rom` is prohibited") }
-}
 
 #[rustfmt::skip]
 impl NESAccess for NES {
@@ -59,10 +49,20 @@ impl NES {
         let apu: Rc<RefCell<APU>> = Rc::new(RefCell::new(APU::new()));
         let ppu: Rc<RefCell<PPU>> = Rc::new(RefCell::new(PPU::new()));
         let rom: Rc<RefCell<Rom>> = Rc::new(RefCell::new(rom));
-        let bus: Rc<RefCell<Bus>> = Rc::new(RefCell::new(Bus::new(rom.clone(), apu.clone(), ppu.clone())));
+        let bus: Rc<RefCell<Bus>> = Rc::new(RefCell::new(Bus::new(
+            rom.clone(),
+            apu.clone(),
+            ppu.clone(),
+        )));
         let cpu: CPU = CPU::new(bus.clone());
 
-        NES { cpu, bus, apu, ppu, rom }
+        NES {
+            cpu,
+            bus,
+            apu,
+            ppu,
+            rom,
+        }
     }
 
     pub fn reset(&mut self) {

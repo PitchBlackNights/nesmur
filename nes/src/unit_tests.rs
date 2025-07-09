@@ -1,12 +1,12 @@
 mod cpu_opcodes {
-    use crate::cpu::opcode::{OPCODES, OpCode, Instruction};
+    use crate::cpu::opcode::{Instruction, OPCODES, OpCode};
 
     #[test]
     pub fn missing() {
         let mut missing_opcodes: Vec<u8> = Vec::new();
         for byte in 0..256 {
             match OPCODES.get(&(byte as u8)) {
-                Some(opcode) => {}
+                Some(_) => {}
                 None => missing_opcodes.push(byte as u8),
             }
         }
