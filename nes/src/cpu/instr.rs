@@ -1,9 +1,10 @@
+use crate::cpu::Flags;
 use crate::cpu::CPU;
 use crate::cpu::opcode::Instruction::*;
 use crate::cpu::opcode::OpCode;
 use crate::prelude::*;
 
-pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) -> u64 {
+pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode) -> u64 {
     debug!("==== Executing Operation ====");
     debug!("  Address: {:#06X},", cpu.program_counter - 1);
     debug!("  Byte: {:#04X},", opcode.byte);
@@ -14,14 +15,16 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
     debug!("  Cycles: {}", opcode.cycles);
     debug!(
         "  Operands: [{}]",
-        operands
-            .iter()
+        (1..opcode.len)
+            .map(|i| cpu.bus().__read(cpu.program_counter + i as u16 - 1, true))
             .map(|b| format!("{:#04X}", b))
             .collect::<Vec<_>>()
             .join(", ")
     );
 
-    let extra_cycles: u8 = match opcode.instruction {
+    let mut extra_cycles: u8 = 0;
+
+    match opcode.instruction {
         LDA => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
@@ -162,10 +165,10 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
         ),
-        JMP => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
+        JMP => {
+            let (addr, _) = opcode.mode.get_operand_address(cpu);
+            cpu.program_counter = addr;
+        }
         JSR => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
@@ -206,39 +209,18 @@ pub fn execute_instruction(cpu: &mut CPU, opcode: &OpCode, operands: Vec<u8>) ->
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
         ),
-        CLC => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
-        CLD => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
-        CLI => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
-        CLV => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
-        SEC => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
-        SED => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
-        SEI => panic!(
-            "CPU Operation '{:?}' is not implemented",
-            opcode.instruction
-        ),
+        CLC => cpu.status.remove(Flags::CARRY),
+        CLD => cpu.status.remove(Flags::DECIMAL_MODE),
+        CLI => cpu.status.remove(Flags::INTERRUPT_DISABLE),
+        CLV => cpu.status.remove(Flags::OVERFLOW),
+        SEC => cpu.status.insert(Flags::CARRY),
+        SED => cpu.status.insert(Flags::DECIMAL_MODE),
+        SEI => cpu.status.insert(Flags::INTERRUPT_DISABLE),
         BRK => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction
         ),
-        NOP => 0,
+        NOP => {},
         RTI => panic!(
             "CPU Operation '{:?}' is not implemented",
             opcode.instruction

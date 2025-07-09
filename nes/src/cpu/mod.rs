@@ -85,21 +85,28 @@ impl CPU {
     }
 
     pub fn step(&mut self) {
-        let code: u8 = self.bus().read(self.program_counter);
+        let opbyte: u8 = self.bus().read(self.program_counter);
         self.program_counter += 1;
         let program_counter_state: u16 = self.program_counter;
-        let opcode: &'static OpCode = opcode::decode_opcode(code);
+        let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
 
-        let mut operands: Vec<u8> = Vec::new();
-        for i in 1..opcode.len {
-            operands.push(self.bus().read(self.program_counter + i as u16 - 1));
-        }
-        let cycles: u64 = execute_instruction(self, opcode, operands);
+        let cycles: u64 = execute_instruction(self, opcode);
         self.cycles += cycles;
         // TODO: Tick bus n cycles
 
         if program_counter_state == self.program_counter {
             self.program_counter += opcode.len as u16 - 1
+        }
+    }
+
+    pub fn run(&mut self) {
+
+    }
+
+    pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
+        loop {
+            callback(self);
+            self.step();
         }
     }
 }

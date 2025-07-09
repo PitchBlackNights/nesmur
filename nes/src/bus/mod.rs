@@ -101,7 +101,7 @@ impl Mem for Bus {
                 todo!("PPU is not supported yet")
             }
             PRG_ROM..=PRG_ROM_END => {
-                let mut addr = addr - 0x8000;
+                let mut addr: u16 = addr - 0x8000;
                 if self.rom().prg_rom.len() == 0x4000 && addr >= 0x4000 {
                     // Mirror the data if needed
                     addr %= 0x4000;

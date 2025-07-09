@@ -14,4 +14,8 @@ fn main() {
 
     let mut nes: NES = NES::new(rom);
     nes.reset();
+    nes.cpu.program_counter = 0x8000;
+    for _ in 0..10 {
+        nes.cpu.step();
+    }
 }
