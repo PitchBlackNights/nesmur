@@ -1,15 +1,15 @@
-pub mod addr;
-pub mod instr;
+mod common;
 pub mod opcode;
 
 use crate::bus::Bus;
-use std::cell::{Ref, RefCell, RefMut};
-use std::rc::Rc;
-// use crate::cpu::addr::AddressingMode;
-use crate::cpu::instr::execute_instruction;
+use crate::cpu::opcode::AddressingMode::*;
+use crate::cpu::opcode::Instruction::*;
 use crate::cpu::opcode::OpCode;
 use crate::prelude::*;
+// use crate::tools;
 use bitflags::bitflags;
+use std::cell::{Ref, RefCell, RefMut};
+use std::rc::Rc;
 
 bitflags! {
     /// Status Register (P) - http://wiki.nesdev.com/w/index.php/Status_flags
@@ -37,7 +37,7 @@ bitflags! {
     }
 }
 
-const _STACK: u16 = 0x0100;
+const STACK: u16 = 0x0100;
 const STACK_RESET: u8 = 0xFD;
 
 #[rustfmt::skip]
@@ -90,9 +90,8 @@ impl CPU {
         let program_counter_state: u16 = self.program_counter;
         let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
 
-        let cycles: u64 = execute_instruction(self, opcode);
-        self.cycles += cycles;
-        // TODO: Tick bus n cycles
+        self.cycles += opcode.cycles as u64;
+        // TODO: Tick the bus
 
         if program_counter_state == self.program_counter {
             self.program_counter += opcode.len as u16 - 1
@@ -100,7 +99,7 @@ impl CPU {
     }
 
     pub fn run(&mut self) {
-
+        self.run_with_callback(|_| {});
     }
 
     pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
@@ -108,5 +107,405 @@ impl CPU {
             callback(self);
             self.step();
         }
+    }
+
+    fn execute_instruction(&mut self, opcode: &OpCode) {
+        debug!("==== Executing Operation ====");
+        debug!("  Address: {:#06X},", self.program_counter - 1);
+        debug!("  Byte: {:#04X},", opcode.byte);
+        debug!("  Instruction: {:?},", opcode.instruction);
+        debug!("  Mnemonic: \"{}\"", opcode.mnemonic);
+        debug!("  Len: {}", opcode.len);
+        debug!("  Mode: {:?}", opcode.mode);
+        debug!("  Cycles: {}", opcode.cycles);
+        debug!(
+            "  Operands: [{}]",
+            (1..opcode.len)
+                .map(|i| self.bus().__read(self.program_counter + i as u16 - 1, true))
+                .map(|b| format!("{:#04X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+
+        match opcode.instruction {
+            LDA => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let value: u8 = self.bus().read(addr);
+                common::set_accumulator(self, value);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            LDX => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let value: u8 = self.bus().read(addr);
+                common::set_index_x(self, value);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            LDY => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let value: u8 = self.bus().read(addr);
+                common::set_index_y(self, value);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            STA => {
+                let (addr, _) = opcode.get_operand_address(self);
+                self.bus_mut().write(addr, self.accumulator);
+            }
+            STX => {
+                let (addr, _) = opcode.get_operand_address(self);
+                self.bus_mut().write(addr, self.index_x);
+            }
+            STY => {
+                let (addr, _) = opcode.get_operand_address(self);
+                self.bus_mut().write(addr, self.index_y);
+            }
+            TAX => {
+                common::set_index_x(self, self.accumulator);
+            }
+            TAY => {
+                common::set_index_y(self, self.accumulator);
+            }
+            TXA => {
+                common::set_accumulator(self, self.index_x);
+            }
+            TYA => {
+                common::set_accumulator(self, self.index_y);
+            }
+            TSX => {
+                common::set_index_x(self, self.stack_pointer);
+            }
+            TXS => {
+                self.stack_pointer = self.index_x;
+            }
+            PHA => common::stack_push(self, self.accumulator),
+            PHP => {
+                let mut flags: Flags = self.status.clone();
+                flags.insert(Flags::BREAK);
+                flags.insert(Flags::UNUSED);
+                common::stack_push(self, flags.bits());
+            }
+            PLA => {
+                let value: u8 = common::stack_pop(self);
+                common::set_accumulator(self, value);
+            }
+            PLP => {
+                self.status = Flags::from_bits_truncate(common::stack_pop(self));
+                self.status.remove(Flags::BREAK);
+                self.status.insert(Flags::UNUSED);
+            }
+            AND => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::set_accumulator(self, data & self.accumulator);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            EOR => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::set_accumulator(self, data ^ self.accumulator);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            ORA => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::set_accumulator(self, data | self.accumulator);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            BIT => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::update_flags_z(self, self.accumulator & data);
+                self.status.set(Flags::NEGATIVE, data & 0b10000000 > 0);
+                self.status.set(Flags::OVERFLOW, data & 0b01000000 > 0);
+            }
+            ADC => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let value: u8 = self.bus().read(addr);
+                common::add_to_accumulator(self, value);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            SBC => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let value: u8 = self.bus().read(addr);
+                common::sub_from_accumulator(self, value);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            CMP => {
+                common::compare(self, opcode, self.accumulator);
+            }
+            CPX => {
+                common::compare(self, opcode, self.index_x);
+            }
+            CPY => {
+                common::compare(self, opcode, self.index_y);
+            }
+            INC => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr).wrapping_add(1);
+                self.bus_mut().write(addr, data);
+                common::update_flags_zn(self, data);
+            }
+            INX => {
+                common::set_index_x(self, self.index_x.wrapping_add(1));
+            }
+            INY => {
+                common::set_index_y(self, self.index_y.wrapping_add(1));
+            }
+            DEC => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr).wrapping_sub(1);
+                self.bus_mut().write(addr, data);
+                common::update_flags_zn(self, data);
+            }
+            DEX => {
+                common::set_index_x(self, self.index_x.wrapping_sub(1));
+            }
+            DEY => {
+                common::set_index_y(self, self.index_y.wrapping_sub(1));
+            }
+            ASL => {
+                match opcode.mode {
+                    Accumulator => {
+                        let data: u8 = self.accumulator;
+                        if data >> 7 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        common::set_accumulator(self, data << 1);
+                    }
+                    _ => {
+                        let (addr, _) = opcode.get_operand_address(self);
+                        let mut data: u8 = self.bus().read(addr);
+                        if data >> 7 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        data = data << 1;
+                        self.bus_mut().write(addr, data);
+                        common::update_flags_zn(self, data);
+                    }
+                }
+            }
+            LSR => {
+                match opcode.mode {
+                    Accumulator => {
+                        let data: u8 = self.accumulator;
+                        if data & 1 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        common::set_accumulator(self, data >> 1);
+                    }
+                    _ => {
+                        let (addr, _) = opcode.get_operand_address(self);
+                        let mut data: u8 = self.bus().read(addr);
+                        if data & 1 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        data = data >> 1;
+                        self.bus_mut().write(addr, data);
+                        common::update_flags_zn(self, data);
+                    }
+                }
+            }
+            ROL => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            ROR => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            JMP => {
+                let (addr, _) = opcode.get_operand_address(self);
+                self.program_counter = addr;
+            }
+            JSR => {
+                let (addr, _) = opcode.get_operand_address(self);
+                common::stack_push_u16(self, self.program_counter + 1);
+                self.program_counter = addr;
+            }
+            RTS => {
+                self.program_counter = common::stack_pop_u16(self) + 1;
+            }
+            BCC => {
+                common::branch(self, opcode, !self.status.contains(Flags::CARRY));
+            }
+            BCS => {
+                common::branch(self, opcode, self.status.contains(Flags::CARRY));
+            }
+            BEQ => {
+                common::branch(self, opcode, self.status.contains(Flags::ZERO));
+            }
+            BMI => {
+                common::branch(self, opcode, self.status.contains(Flags::NEGATIVE));
+            }
+            BNE => {
+                common::branch(self, opcode, !self.status.contains(Flags::ZERO));
+            }
+            BPL => {
+                common::branch(self, opcode, !self.status.contains(Flags::NEGATIVE));
+            }
+            BVC => {
+                common::branch(self, opcode, !self.status.contains(Flags::OVERFLOW));
+            }
+            BVS => {
+                common::branch(self, opcode, self.status.contains(Flags::OVERFLOW));
+            }
+            CLC => self.status.remove(Flags::CARRY),
+            CLD => self.status.remove(Flags::DECIMAL_MODE),
+            CLI => self.status.remove(Flags::INTERRUPT_DISABLE),
+            CLV => self.status.remove(Flags::OVERFLOW),
+            SEC => self.status.insert(Flags::CARRY),
+            SED => self.status.insert(Flags::DECIMAL_MODE),
+            SEI => self.status.insert(Flags::INTERRUPT_DISABLE),
+            BRK => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            NOP => {}
+            RTI => {
+                self.status = Flags::from_bits_truncate(common::stack_pop(self));
+                self.status.remove(Flags::BREAK);
+                self.status.insert(Flags::UNUSED);
+                self.program_counter = common::stack_pop_u16(self);
+            }
+            NOP_ALT => {
+                let (addr, page_cross) = opcode.get_operand_address(self);
+                let _data: u8 = self.bus().read(addr);
+                if page_cross {
+                    // TODO: Tick the bus
+                }
+            }
+            SLO => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            RLA => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            SRE => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            RRA => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            SAX => {
+                let data = self.accumulator & self.index_x;
+                let (addr, _) = opcode.get_operand_address(self);
+                self.bus_mut().write(addr, data);
+            }
+            LAX => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::set_accumulator(self, data);
+                self.index_x = self.accumulator;
+            }
+            DCP => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr).wrapping_sub(1);
+                self.bus_mut().write(addr, data);
+                if data <= self.accumulator {
+                    self.status.insert(Flags::CARRY);
+                }
+                common::update_flags_zn(self, self.accumulator.wrapping_sub(data));
+            }
+            ISC => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            ANC => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::set_accumulator(self, data & self.accumulator);
+                if self.status.contains(Flags::NEGATIVE) {
+                    self.status.insert(Flags::CARRY);
+                } else {
+                    self.status.remove(Flags::CARRY);
+                }
+            }
+            ALR => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            ARR => panic!(
+                "CPU Operation '{:?}' is not implemented",
+                opcode.instruction
+            ),
+            XAA => {
+                common::set_accumulator(self, self.index_x);
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::set_accumulator(self, data & self.accumulator);
+            }
+            AXS => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                let result: u8 = (self.index_x & self.accumulator).wrapping_sub(data);
+                if data <= self.index_x & self.accumulator {
+                    self.status.insert(Flags::CARRY);
+                }
+                common::update_flags_zn(self, result);
+                self.index_x = result
+            }
+            SBC_NOP => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::sub_from_accumulator(self, data);
+            }
+            AHX => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.accumulator & self.index_x & (addr >> 8) as u8;
+                self.bus_mut().write(addr, data);
+            }
+            SHY => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.index_y & ((addr >> 8) as u8 + 1);
+                self.bus_mut().write(addr, data);
+            }
+            SHX => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.index_x & ((addr >> 8) as u8 + 1);
+                self.bus_mut().write(addr, data);
+            }
+            TAS => {
+                self.stack_pointer = self.accumulator & self.index_x;
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = ((addr >> 8) as u8 + 1) & self.stack_pointer;
+                self.bus_mut().write(addr, data);
+            }
+            LAS => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr) & self.stack_pointer;
+                self.accumulator = data;
+                self.index_x = data;
+                self.stack_pointer = data;
+                common::update_flags_zn(self, data);
+            }
+            KIL => panic!("The `KIL` instruction was executed!"),
+        };
     }
 }

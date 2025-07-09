@@ -1,7 +1,8 @@
-use crate::cpu::addr::AddressingMode;
 use crate::prelude::*;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use crate::cpu::CPU;
+use crate::tools;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct OpCode {
@@ -21,15 +22,118 @@ impl OpCode {
         cycles: u8,
         mode: AddressingMode,
     ) -> Self {
+        let len: u8 = match mode {
+            AddressingMode::Implicit => 1,
+            AddressingMode::Accumulator => 1,
+            AddressingMode::Immediate => 2,
+            AddressingMode::ZeroPage => 2,
+            AddressingMode::ZeroPage_X => 2,
+            AddressingMode::ZeroPage_Y => 2,
+            AddressingMode::Relative => 2,
+            AddressingMode::Absolute => 3,
+            AddressingMode::Absolute_X => 3,
+            AddressingMode::Absolute_Y => 3,
+            AddressingMode::Indirect => 3,
+            AddressingMode::Indirect_X => 2,
+            AddressingMode::Indirect_Y => 2,
+        };
+
         Self {
             byte,
             instruction,
             mnemonic,
-            len: mode.bytes(),
+            len,
             cycles,
             mode,
         }
     }
+
+    pub fn get_operand_address(self, cpu: &CPU) -> (u16, bool) {
+        match self.mode {
+            AddressingMode::Immediate => (cpu.program_counter, false),
+            _ => self.get_absolute_address(cpu, cpu.program_counter),
+        }
+    }
+
+    fn get_absolute_address(self, cpu: &CPU, addr: u16) -> (u16, bool) {
+        match self.mode {
+            AddressingMode::ZeroPage => (cpu.bus().read(addr) as u16, false),
+            AddressingMode::ZeroPage_X => {
+                let pos: u8 = cpu.bus().read(addr);
+                let addr: u16 = pos.wrapping_add(cpu.index_x) as u16;
+                (addr, false)
+            }
+            AddressingMode::ZeroPage_Y => {
+                let pos: u8 = cpu.bus().read(addr);
+                let addr: u16 = pos.wrapping_add(cpu.index_y) as u16;
+                (addr, false)
+            }
+            AddressingMode::Relative => {
+                let jump: i8 = cpu.bus().read(addr) as i8;
+                let jump_addr: u16 = addr.wrapping_add(1).wrapping_add(jump as u16);
+                (jump_addr, tools::page_cross(addr.wrapping_add(1), jump_addr))
+            }
+            AddressingMode::Absolute => (cpu.bus().read_u16(addr), false),
+            AddressingMode::Absolute_X => {
+                let base: u16 = cpu.bus().read_u16(addr);
+                let addr: u16 = base.wrapping_add(cpu.index_x as u16);
+                (addr, tools::page_cross(base, addr))
+            }
+            AddressingMode::Absolute_Y => {
+                let base: u16 = cpu.bus().read_u16(addr);
+                let addr: u16 = base.wrapping_add(cpu.index_y as u16);
+                (addr, tools::page_cross(base, addr))
+            }
+            AddressingMode::Indirect => {
+                // JMP ($xxyy), or JMP indirect, does not advance pages if the
+                // lower eight bits of the specified address is $FF; the upper
+                // eight bits are fetched from $xx00, 255 bytes earlier,
+                // instead of the expected following byte.
+                let base: u16 = cpu.bus().read_u16(addr);
+                let addr: u16 = if base & 0x00FF == 0x00FF {
+                    tools::bytes_to_u16(&[cpu.bus().read(base), cpu.bus().read(base & 0xFF00)])
+                } else {
+                    cpu.bus().read_u16(base)
+                };
+                (addr, false)
+            }
+            AddressingMode::Indirect_X => {
+                let base: u8 = cpu.bus().read(addr).wrapping_add(cpu.index_x);
+                let ptr: u16 = cpu.bus().read_u16(base as u16);
+                (ptr, false)
+            }
+            AddressingMode::Indirect_Y => {
+                let base: u8 = cpu.bus().read(addr);
+                let deref_base: u16 = cpu.bus().read_u16(base as u16);
+                let deref: u16 = deref_base.wrapping_add(cpu.index_y as u16);
+                (deref, tools::page_cross(deref, deref_base))
+            }
+            _ => {
+                panic!(
+                    "Getting the operand address for Addressing Mode {:?} is not supported",
+                    self
+                );
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
+pub enum AddressingMode {
+    Implicit,
+    Accumulator,
+    Immediate,
+    ZeroPage,
+    ZeroPage_X,
+    ZeroPage_Y,
+    Relative,
+    Absolute,
+    Absolute_X,
+    Absolute_Y,
+    Indirect,
+    Indirect_X, // aka IndexedIndirect
+    Indirect_Y, // aka IndirectIndexed
 }
 
 pub fn decode_opcode(opbyte: u8) -> &'static OpCode {
@@ -414,7 +518,13 @@ define_opcodes!(
     },
     /// No Operation
     NOP {
+        0x1A => 2, Implicit, // Undocumented
+        0x3A => 2, Implicit, // Undocumented
+        0x5A => 2, Implicit, // Undocumented
+        0x7A => 2, Implicit, // Undocumented
+        0xDA => 2, Implicit, // Undocumented
         0xEA => 2, Implicit,
+        0xFA => 2, Implicit, // Undocumented
     },
     /// Return from Interrupt
     RTI {
@@ -426,12 +536,6 @@ define_opcodes!(
     // https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
     /// No Operation
     NOP_ALT {
-        0x1A => 2, Implicit,
-        0x3A => 2, Implicit,
-        0x5A => 2, Implicit,
-        0x7A => 2, Implicit,
-        0xDA => 2, Implicit,
-        0xFA => 2, Implicit,
         0x80 => 2, Immediate,
         0x82 => 2, Immediate,
         0x89 => 2, Immediate,
@@ -550,7 +654,7 @@ define_opcodes!(
     ARR {
         0x6B => 2, Immediate,
     },
-    /// Unpredictable behavior - https:///www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE)
+    /// Unpredictable behavior - https:///www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE) \
     /// ***WARNING:*** Highly Unstable
     XAA {
         0x8B => 2, Immediate,
@@ -563,23 +667,23 @@ define_opcodes!(
     SBC_NOP {
         0xEB => 2, Immediate,
     },
-    /// An incorrectly-implemented version of `SAX value`
+    /// An incorrectly-implemented version of `SAX value` \
     /// **WARNING:** Unstable in certain situations
     AHX {
         0x9F => 5, Absolute_Y,
         0x93 => 6, Indirect_Y,
     },
-    /// An incorrectly-implemented version of `STY a,X`
+    /// An incorrectly-implemented version of `STY a,X` \
     /// **WARNING:** Unstable in certain situations
     SHY {
         0x9C => 5, Absolute_X,
     },
-    /// An incorrectly-implemented version of `STX a,Y`
+    /// An incorrectly-implemented version of `STX a,Y` \
     /// **WARNING:** Unstable in certain situations
     SHX {
         0x9E => 5, Absolute_Y,
     },
-    /// Stores `A & X` into `S` then `AHX a,Y`
+    /// Stores `A & X` into `S` then `AHX a,Y` \
     /// **WARNING:** Unstable in certain situations
     TAS {
         0x9B => 5, Absolute_Y,

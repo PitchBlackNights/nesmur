@@ -16,6 +16,10 @@ pub trait NESAccess {
     fn rom_mut(&self) -> RefMut<Rom> { panic!("Access to `Rom` is prohibited") }
 }
 
+pub fn u16_to_bytes(value: u16) -> [u8; 2] {
+    [(value & 0x00FF) as u8, (value >> 8) as u8]
+}
+
 pub fn bytes_to_u16(bytes: &[u8; 2]) -> u16 {
     ((bytes[1] as u16) << 8) | (bytes[0] as u16)
 }
