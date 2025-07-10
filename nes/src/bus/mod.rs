@@ -98,7 +98,8 @@ impl Mem for Bus {
             }
             PPU_REGISTERS..=PPU_REGISTERS_END => {
                 let _addr: u16 = addr & 0b00100000_00000111;
-                todo!("PPU is not supported yet")
+                //todo!("PPU is not supported yet")
+                0
             }
             PRG_ROM..=PRG_ROM_END => {
                 let mut addr: u16 = addr - 0x8000;
@@ -127,7 +128,7 @@ impl Mem for Bus {
             }
             PPU_REGISTERS..=PPU_REGISTERS_END => {
                 let _mirror_down_addr: u16 = addr & 0b00100000_00000111;
-                todo!("PPU is not supported yet");
+                //todo!("PPU is not supported yet");
             }
             PRG_ROM..=PRG_ROM_END => panic!("Attempted to write to PRG-ROM: {:#04X}", addr),
 

@@ -90,6 +90,7 @@ impl CPU {
         let program_counter_state: u16 = self.program_counter;
         let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
 
+        self.execute_instruction(opcode);
         self.cycles += opcode.cycles as u64;
         // TODO: Tick the bus
 
@@ -328,14 +329,78 @@ impl CPU {
                     }
                 }
             }
-            ROL => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
-            ROR => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
+            ROL => {
+                match opcode.mode {
+                    Accumulator => {
+                        let mut data = self.accumulator;
+                        let old_carry = self.status.contains(Flags::CARRY);
+                
+                        if data >> 7 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        data = data << 1;
+                        if old_carry {
+                            data = data | 1;
+                        }
+                        common::set_accumulator(self, data);
+                    }
+                    _ => {
+                        let (addr, _) = opcode.get_operand_address(self);
+                        let mut data = self.bus().read(addr);
+                        let old_carry = self.status.contains(Flags::CARRY);
+                
+                        if data >> 7 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        data = data << 1;
+                        if old_carry {
+                            data = data | 1;
+                        }
+                        self.bus_mut().write(addr, data);
+                        common::update_flags_n(self, data);
+                    }
+                }
+            }
+            ROR => {
+                match opcode.mode {
+                    Accumulator => {
+                        let mut data = self.accumulator;
+                        let old_carry = self.status.contains(Flags::CARRY);
+                
+                        if data & 1 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        data = data >> 1;
+                        if old_carry {
+                            data = data | 0b10000000;
+                        }
+                        common::set_accumulator(self, data);
+                    }
+                    _ => {
+                        let (addr, _) = opcode.get_operand_address(self);
+                        let mut data = self.bus().read(addr);
+                        let old_carry = self.status.contains(Flags::CARRY);
+                
+                        if data & 1 == 1 {
+                            self.status.insert(Flags::CARRY);
+                        } else {
+                            self.status.remove(Flags::CARRY);
+                        }
+                        data = data >> 1;
+                        if old_carry {
+                            data = data | 0b10000000;
+                        }
+                        self.bus_mut().write(addr, data);
+                        common::update_flags_n(self, data);
+                    }
+                }
+            }
             JMP => {
                 let (addr, _) = opcode.get_operand_address(self);
                 self.program_counter = addr;
@@ -397,22 +462,68 @@ impl CPU {
                     // TODO: Tick the bus
                 }
             }
-            SLO => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
-            RLA => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
-            SRE => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
-            RRA => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
+            SLO => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let mut data: u8 = self.bus().read(addr);
+                if data >> 7 == 1 {
+                    self.status.insert(Flags::CARRY);
+                } else {
+                    self.status.remove(Flags::CARRY);
+                }
+                data = data << 1;
+                self.bus_mut().write(addr, data);
+                common::update_flags_zn(self, data);
+                common::set_accumulator(self, data | self.accumulator);
+            }
+            RLA => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let mut data = self.bus().read(addr);
+                let old_carry = self.status.contains(Flags::CARRY);
+        
+                if data >> 7 == 1 {
+                    self.status.insert(Flags::CARRY);
+                } else {
+                    self.status.remove(Flags::CARRY);
+                }
+                data = data << 1;
+                if old_carry {
+                    data = data | 1;
+                }
+                self.bus_mut().write(addr, data);
+                common::update_flags_n(self, data);
+                common::set_accumulator(self, data & self.accumulator);
+            }
+            SRE => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let mut data: u8 = self.bus().read(addr);
+                if data & 1 == 1 {
+                    self.status.insert(Flags::CARRY);
+                } else {
+                    self.status.remove(Flags::CARRY);
+                }
+                data = data >> 1;
+                self.bus_mut().write(addr, data);
+                common::update_flags_zn(self, data);
+                common::set_accumulator(self, data ^ self.accumulator);
+            }
+            RRA => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let mut data = self.bus().read(addr);
+                let old_carry = self.status.contains(Flags::CARRY);
+        
+                if data & 1 == 1 {
+                    self.status.insert(Flags::CARRY);
+                } else {
+                    self.status.remove(Flags::CARRY);
+                }
+                data = data >> 1;
+                if old_carry {
+                    data = data | 0b10000000;
+                }
+                self.bus_mut().write(addr, data);
+                common::update_flags_n(self, data);
+                common::add_to_accumulator(self, data);
+            }
             SAX => {
                 let data = self.accumulator & self.index_x;
                 let (addr, _) = opcode.get_operand_address(self);
@@ -433,10 +544,13 @@ impl CPU {
                 }
                 common::update_flags_zn(self, self.accumulator.wrapping_sub(data));
             }
-            ISC => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
+            ISC => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr).wrapping_add(1);
+                self.bus_mut().write(addr, data);
+                common::update_flags_zn(self, data);
+                common::sub_from_accumulator(self, data);
+            }
             ANC => {
                 let (addr, _) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
@@ -447,14 +561,45 @@ impl CPU {
                     self.status.remove(Flags::CARRY);
                 }
             }
-            ALR => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
-            ARR => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
+            ALR => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.bus().read(addr);
+                common::set_accumulator(self, data & self.accumulator);
+                let data: u8 = self.accumulator;
+                if data & 1 == 1 {
+                    self.status.insert(Flags::CARRY);
+                } else {
+                    self.status.remove(Flags::CARRY);
+                }
+                common::set_accumulator(self, data >> 1);
+            }
+            ARR => {
+                let (addr, _) = opcode.get_operand_address(self);
+                let mut data: u8 = self.bus().read(addr) & self.accumulator;
+                let old_carry = self.status.contains(Flags::CARRY);
+                if data & 1 == 1 {
+                    self.status.insert(Flags::CARRY);
+                } else {
+                    self.status.remove(Flags::CARRY);
+                }
+                data = data >> 1;
+                if old_carry {
+                    data = data | 0b10000000;
+                }
+                common::set_accumulator(self, data);
+                let bit_5 = (self.accumulator >> 5) & 1;
+                let bit_6 = (self.accumulator >> 6) & 1;
+                if bit_6 == 1 {
+                    self.status.insert(Flags::CARRY)
+                } else {
+                    self.status.remove(Flags::CARRY)
+                }
+                if bit_5 ^ bit_6 == 1 {
+                    self.status.insert(Flags::OVERFLOW);
+                } else {
+                    self.status.remove(Flags::OVERFLOW);
+                }
+            }
             XAA => {
                 common::set_accumulator(self, self.index_x);
                 let (addr, _) = opcode.get_operand_address(self);
