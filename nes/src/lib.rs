@@ -72,16 +72,19 @@ impl NES {
 
         self.reset();
         self.cpu.program_counter = 0xC000;
-        let breakpoints: Vec<u32> = vec![1100];
+        let breakpoints: Vec<u16> = vec![];
 
         let mut debug_log: BufWriter<File> = BufWriter::new(File::create("nestest.log").unwrap());
 
-        for instr_num in 0..8992u32 {
+        for instr_num in 0..8991u32 {
+            let breakpoint: bool = breakpoints.contains(&self.cpu.program_counter);
+            let old_pc: u16 = self.cpu.program_counter;
+            
             writeln!(&mut debug_log, "{}", tools::trace(&self.cpu)).unwrap();
             self.cpu.step();
 
-            if breakpoints.contains(&instr_num) {
-                println!("HIT BREAKPOINT - INSTRUCTION {}", instr_num);
+            if breakpoint {
+                println!("HIT BREAKPOINT - {:#06X}", old_pc);
                 debug_log.flush().unwrap();
                 let mut prg_rom_log: BufWriter<File> =
                     BufWriter::new(File::create(format!("bp_{}-memory.log", instr_num)).unwrap());

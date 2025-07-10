@@ -100,17 +100,21 @@ impl OpCode {
                 (addr, false)
             }
             AddressingMode::Indirect_X => {
-                let base: u8 = cpu.bus().read(addr).wrapping_add(cpu.index_x);
-                let ptr: u16 = cpu.bus().read_u16(base as u16);
-                debug!("addr = {:#06X}", addr);
-                debug!("cpu.index_x = {:#04X}", cpu.index_x);
+                let base: u8 = cpu.bus().read(addr);
+                let ptr: u8 = base.wrapping_add(cpu.index_x);
+                let lo = cpu.bus().read(ptr as u16);
+                let hi = cpu.bus().read(ptr.wrapping_add(1) as u16);
                 debug!("base = {:#06X}", base as u16);
+                debug!("cpu.index_x = {:#04X}", cpu.index_x);
                 debug!("ptr = {:#06X}", ptr);
-                (ptr, false)
+                debug!("data = 0x{:02X}{:02X}", hi, lo);
+                (tools::bytes_to_u16(&[lo, hi]), false)
             }
             AddressingMode::Indirect_Y => {
                 let base: u8 = cpu.bus().read(addr);
-                let deref_base: u16 = cpu.bus().read_u16(base as u16);
+                let lo = cpu.bus().read(base as u16);
+                let hi = cpu.bus().read(base.wrapping_add(1) as u16);
+                let deref_base: u16 = tools::bytes_to_u16(&[lo, hi]);
                 let deref: u16 = deref_base.wrapping_add(cpu.index_y as u16);
                 (deref, tools::page_cross(deref, deref_base))
             }
@@ -237,7 +241,7 @@ define_opcodes!(
     /// Store Y register
     STY {
         0x84 => 3, ZeroPage,
-        0x94 => 4, ZeroPage_Y,
+        0x94 => 4, ZeroPage_X,
         0x8C => 4, Absolute,
     },
 
@@ -524,13 +528,7 @@ define_opcodes!(
     },
     /// No Operation
     NOP {
-        0x1A => 2, Implicit, // Undocumented
-        0x3A => 2, Implicit, // Undocumented
-        0x5A => 2, Implicit, // Undocumented
-        0x7A => 2, Implicit, // Undocumented
-        0xDA => 2, Implicit, // Undocumented
         0xEA => 2, Implicit,
-        0xFA => 2, Implicit, // Undocumented
     },
     /// Return from Interrupt
     RTI {
@@ -541,7 +539,13 @@ define_opcodes!(
     // https:///www.oxyron.de/html/opcodes02.html
     // https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
     /// No Operation
-    NOP_ALT {
+    NOP_ALT "NOP" {
+        0x1A => 2, Implicit,
+        0x3A => 2, Implicit,
+        0x5A => 2, Implicit,
+        0x7A => 2, Implicit,
+        0xDA => 2, Implicit,
+        0xFA => 2, Implicit,
         0x80 => 2, Immediate,
         0x82 => 2, Immediate,
         0x89 => 2, Immediate,
@@ -566,9 +570,9 @@ define_opcodes!(
     },
 
     // ===== Illegal Opcodes =====
-    // https:///www.oxyron.de/html/opcodes02.html
-    // https:///www.nesdev.org/wiki/CPU_unofficial_opcodes
-    // https:///www.nesdev.org/wiki/Programming_with_unofficial_opcodes
+    // https://www.oxyron.de/html/opcodes02.html
+    // https://www.nesdev.org/wiki/CPU_unofficial_opcodes
+    // https://www.nesdev.org/wiki/Programming_with_unofficial_opcodes
     // https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
     /// Equivalent to `ASL value` then `ORA value`
     SLO {
@@ -670,7 +674,7 @@ define_opcodes!(
         0xCB => 2, Immediate,
     },
     /// Equivalent to `SBC #i` then `NOP`
-    SBC_NOP {
+    SBC_NOP "SBC" {
         0xEB => 2, Immediate,
     },
     /// An incorrectly-implemented version of `SAX value` \

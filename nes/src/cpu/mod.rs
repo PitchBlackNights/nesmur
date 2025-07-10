@@ -423,10 +423,15 @@ impl CPU {
                 self.program_counter = common::stack_pop_u16(self);
             }
             NOP_ALT => {
-                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
-                let _data: u8 = self.bus().read(addr);
-                if page_cross {
-                    // TODO: Tick the bus
+                match opcode.mode {
+                    Implicit => {},
+                    _ => {
+                        let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
+                        let _data: u8 = self.bus().read(addr);
+                        if page_cross {
+                            // TODO: Tick the bus
+                        }
+                    }
                 }
             }
             SLO => {

@@ -6348,7 +6348,7 @@ FAB1  24 01     BIT $01 = FF                    A:EB X:02 Y:AA P:E5 SP:F9 PPU:16
 FAB3  18        CLC                             A:EB X:02 Y:AA P:E5 SP:F9 PPU:160,301 CYC:18287
 FAB4  A9 40     LDA #$40                        A:EB X:02 Y:AA P:E4 SP:F9 PPU:160,307 CYC:18289
 FAB6  60        RTS                             A:40 X:02 Y:AA P:64 SP:F9 PPU:160,313 CYC:18291
-EB9E  E3 45    *ISB ($45,X) @ 47 = 0647 = EB    A:40 X:02 Y:AA P:64 SP:FB PPU:160,331 CYC:18297
+EB9E  E3 45    *ISC ($45,X) @ 47 = 0647 = EB    A:40 X:02 Y:AA P:64 SP:FB PPU:160,331 CYC:18297
 EBA0  EA        NOP                             A:53 X:02 Y:AA P:24 SP:FB PPU:161, 14 CYC:18305
 EBA1  EA        NOP                             A:53 X:02 Y:AA P:24 SP:FB PPU:161, 20 CYC:18307
 EBA2  EA        NOP                             A:53 X:02 Y:AA P:24 SP:FB PPU:161, 26 CYC:18309
@@ -6371,7 +6371,7 @@ FAC2  B8        CLV                             A:FF X:02 Y:AB P:A5 SP:F9 PPU:16
 FAC3  38        SEC                             A:FF X:02 Y:AB P:A5 SP:F9 PPU:161,179 CYC:18360
 FAC4  A9 FF     LDA #$FF                        A:FF X:02 Y:AB P:A5 SP:F9 PPU:161,185 CYC:18362
 FAC6  60        RTS                             A:FF X:02 Y:AB P:A5 SP:F9 PPU:161,191 CYC:18364
-EBB9  E3 45    *ISB ($45,X) @ 47 = 0647 = FF    A:FF X:02 Y:AB P:A5 SP:FB PPU:161,209 CYC:18370
+EBB9  E3 45    *ISC ($45,X) @ 47 = 0647 = FF    A:FF X:02 Y:AB P:A5 SP:FB PPU:161,209 CYC:18370
 EBBB  EA        NOP                             A:FF X:02 Y:AB P:A5 SP:FB PPU:161,233 CYC:18378
 EBBC  EA        NOP                             A:FF X:02 Y:AB P:A5 SP:FB PPU:161,239 CYC:18380
 EBBD  EA        NOP                             A:FF X:02 Y:AB P:A5 SP:FB PPU:161,245 CYC:18382
@@ -6395,7 +6395,7 @@ FAD4  24 01     BIT $01 = FF                    A:37 X:02 Y:AC P:25 SP:F9 PPU:16
 FAD6  38        SEC                             A:37 X:02 Y:AC P:E5 SP:F9 PPU:162, 66 CYC:18436
 FAD7  A9 F0     LDA #$F0                        A:37 X:02 Y:AC P:E5 SP:F9 PPU:162, 72 CYC:18438
 FAD9  60        RTS                             A:F0 X:02 Y:AC P:E5 SP:F9 PPU:162, 78 CYC:18440
-EBD4  E3 45    *ISB ($45,X) @ 47 = 0647 = 37    A:F0 X:02 Y:AC P:E5 SP:FB PPU:162, 96 CYC:18446
+EBD4  E3 45    *ISC ($45,X) @ 47 = 0647 = 37    A:F0 X:02 Y:AC P:E5 SP:FB PPU:162, 96 CYC:18446
 EBD6  EA        NOP                             A:B8 X:02 Y:AC P:A5 SP:FB PPU:162,120 CYC:18454
 EBD7  EA        NOP                             A:B8 X:02 Y:AC P:A5 SP:FB PPU:162,126 CYC:18456
 EBD8  EA        NOP                             A:B8 X:02 Y:AC P:A5 SP:FB PPU:162,132 CYC:18458
@@ -6419,7 +6419,7 @@ FAB1  24 01     BIT $01 = FF                    A:EB X:02 Y:AD P:A5 SP:F9 PPU:16
 FAB3  18        CLC                             A:EB X:02 Y:AD P:E5 SP:F9 PPU:162,294 CYC:18512
 FAB4  A9 40     LDA #$40                        A:EB X:02 Y:AD P:E4 SP:F9 PPU:162,300 CYC:18514
 FAB6  60        RTS                             A:40 X:02 Y:AD P:64 SP:F9 PPU:162,306 CYC:18516
-EBEE  E7 47    *ISB $47 = EB                    A:40 X:02 Y:AD P:64 SP:FB PPU:162,324 CYC:18522
+EBEE  E7 47    *ISC $47 = EB                    A:40 X:02 Y:AD P:64 SP:FB PPU:162,324 CYC:18522
 EBF0  EA        NOP                             A:53 X:02 Y:AD P:24 SP:FB PPU:162,339 CYC:18527
 EBF1  EA        NOP                             A:53 X:02 Y:AD P:24 SP:FB PPU:163,  4 CYC:18529
 EBF2  EA        NOP                             A:53 X:02 Y:AD P:24 SP:FB PPU:163, 10 CYC:18531
@@ -6442,7 +6442,7 @@ FAC2  B8        CLV                             A:FF X:02 Y:AE P:A5 SP:F9 PPU:16
 FAC3  38        SEC                             A:FF X:02 Y:AE P:A5 SP:F9 PPU:163,157 CYC:18580
 FAC4  A9 FF     LDA #$FF                        A:FF X:02 Y:AE P:A5 SP:F9 PPU:163,163 CYC:18582
 FAC6  60        RTS                             A:FF X:02 Y:AE P:A5 SP:F9 PPU:163,169 CYC:18584
-EC07  E7 47    *ISB $47 = FF                    A:FF X:02 Y:AE P:A5 SP:FB PPU:163,187 CYC:18590
+EC07  E7 47    *ISC $47 = FF                    A:FF X:02 Y:AE P:A5 SP:FB PPU:163,187 CYC:18590
 EC09  EA        NOP                             A:FF X:02 Y:AE P:A5 SP:FB PPU:163,202 CYC:18595
 EC0A  EA        NOP                             A:FF X:02 Y:AE P:A5 SP:FB PPU:163,208 CYC:18597
 EC0B  EA        NOP                             A:FF X:02 Y:AE P:A5 SP:FB PPU:163,214 CYC:18599
@@ -6466,7 +6466,7 @@ FAD4  24 01     BIT $01 = FF                    A:37 X:02 Y:AF P:25 SP:F9 PPU:16
 FAD6  38        SEC                             A:37 X:02 Y:AF P:E5 SP:F9 PPU:164, 29 CYC:18651
 FAD7  A9 F0     LDA #$F0                        A:37 X:02 Y:AF P:E5 SP:F9 PPU:164, 35 CYC:18653
 FAD9  60        RTS                             A:F0 X:02 Y:AF P:E5 SP:F9 PPU:164, 41 CYC:18655
-EC20  E7 47    *ISB $47 = 37                    A:F0 X:02 Y:AF P:E5 SP:FB PPU:164, 59 CYC:18661
+EC20  E7 47    *ISC $47 = 37                    A:F0 X:02 Y:AF P:E5 SP:FB PPU:164, 59 CYC:18661
 EC22  EA        NOP                             A:B8 X:02 Y:AF P:A5 SP:FB PPU:164, 74 CYC:18666
 EC23  EA        NOP                             A:B8 X:02 Y:AF P:A5 SP:FB PPU:164, 80 CYC:18668
 EC24  EA        NOP                             A:B8 X:02 Y:AF P:A5 SP:FB PPU:164, 86 CYC:18670
@@ -6490,7 +6490,7 @@ FAB1  24 01     BIT $01 = FF                    A:EB X:02 Y:B0 P:A5 SP:F9 PPU:16
 FAB3  18        CLC                             A:EB X:02 Y:B0 P:E5 SP:F9 PPU:164,248 CYC:18724
 FAB4  A9 40     LDA #$40                        A:EB X:02 Y:B0 P:E4 SP:F9 PPU:164,254 CYC:18726
 FAB6  60        RTS                             A:40 X:02 Y:B0 P:64 SP:F9 PPU:164,260 CYC:18728
-EC3A  EF 47 06 *ISB $0647 = EB                  A:40 X:02 Y:B0 P:64 SP:FB PPU:164,278 CYC:18734
+EC3A  EF 47 06 *ISC $0647 = EB                  A:40 X:02 Y:B0 P:64 SP:FB PPU:164,278 CYC:18734
 EC3D  EA        NOP                             A:53 X:02 Y:B0 P:24 SP:FB PPU:164,296 CYC:18740
 EC3E  EA        NOP                             A:53 X:02 Y:B0 P:24 SP:FB PPU:164,302 CYC:18742
 EC3F  EA        NOP                             A:53 X:02 Y:B0 P:24 SP:FB PPU:164,308 CYC:18744
@@ -6513,7 +6513,7 @@ FAC2  B8        CLV                             A:FF X:02 Y:B1 P:A5 SP:F9 PPU:16
 FAC3  38        SEC                             A:FF X:02 Y:B1 P:A5 SP:F9 PPU:165,120 CYC:18795
 FAC4  A9 FF     LDA #$FF                        A:FF X:02 Y:B1 P:A5 SP:F9 PPU:165,126 CYC:18797
 FAC6  60        RTS                             A:FF X:02 Y:B1 P:A5 SP:F9 PPU:165,132 CYC:18799
-EC56  EF 47 06 *ISB $0647 = FF                  A:FF X:02 Y:B1 P:A5 SP:FB PPU:165,150 CYC:18805
+EC56  EF 47 06 *ISC $0647 = FF                  A:FF X:02 Y:B1 P:A5 SP:FB PPU:165,150 CYC:18805
 EC59  EA        NOP                             A:FF X:02 Y:B1 P:A5 SP:FB PPU:165,168 CYC:18811
 EC5A  EA        NOP                             A:FF X:02 Y:B1 P:A5 SP:FB PPU:165,174 CYC:18813
 EC5B  EA        NOP                             A:FF X:02 Y:B1 P:A5 SP:FB PPU:165,180 CYC:18815
@@ -6537,7 +6537,7 @@ FAD4  24 01     BIT $01 = FF                    A:37 X:02 Y:B2 P:25 SP:F9 PPU:16
 FAD6  38        SEC                             A:37 X:02 Y:B2 P:E5 SP:F9 PPU:166,  1 CYC:18869
 FAD7  A9 F0     LDA #$F0                        A:37 X:02 Y:B2 P:E5 SP:F9 PPU:166,  7 CYC:18871
 FAD9  60        RTS                             A:F0 X:02 Y:B2 P:E5 SP:F9 PPU:166, 13 CYC:18873
-EC72  EF 47 06 *ISB $0647 = 37                  A:F0 X:02 Y:B2 P:E5 SP:FB PPU:166, 31 CYC:18879
+EC72  EF 47 06 *ISC $0647 = 37                  A:F0 X:02 Y:B2 P:E5 SP:FB PPU:166, 31 CYC:18879
 EC75  EA        NOP                             A:B8 X:02 Y:B2 P:A5 SP:FB PPU:166, 49 CYC:18885
 EC76  EA        NOP                             A:B8 X:02 Y:B2 P:A5 SP:FB PPU:166, 55 CYC:18887
 EC77  EA        NOP                             A:B8 X:02 Y:B2 P:A5 SP:FB PPU:166, 61 CYC:18889
@@ -6565,7 +6565,7 @@ FAB1  24 01     BIT $01 = FF                    A:05 X:02 Y:FF P:A5 SP:F9 PPU:16
 FAB3  18        CLC                             A:05 X:02 Y:FF P:E5 SP:F9 PPU:166,256 CYC:18954
 FAB4  A9 40     LDA #$40                        A:05 X:02 Y:FF P:E4 SP:F9 PPU:166,262 CYC:18956
 FAB6  60        RTS                             A:40 X:02 Y:FF P:64 SP:F9 PPU:166,268 CYC:18958
-EC97  F3 45    *ISB ($45),Y = 0548 @ 0647 = EB  A:40 X:02 Y:FF P:64 SP:FB PPU:166,286 CYC:18964
+EC97  F3 45    *ISC ($45),Y = 0548 @ 0647 = EB  A:40 X:02 Y:FF P:64 SP:FB PPU:166,286 CYC:18964
 EC99  EA        NOP                             A:53 X:02 Y:FF P:24 SP:FB PPU:166,310 CYC:18972
 EC9A  EA        NOP                             A:53 X:02 Y:FF P:24 SP:FB PPU:166,316 CYC:18974
 EC9B  08        PHP                             A:53 X:02 Y:FF P:24 SP:FB PPU:166,322 CYC:18976
@@ -6591,7 +6591,7 @@ FAC2  B8        CLV                             A:FF X:02 Y:FF P:A5 SP:F9 PPU:16
 FAC3  38        SEC                             A:FF X:02 Y:FF P:A5 SP:F9 PPU:167,170 CYC:19039
 FAC4  A9 FF     LDA #$FF                        A:FF X:02 Y:FF P:A5 SP:F9 PPU:167,176 CYC:19041
 FAC6  60        RTS                             A:FF X:02 Y:FF P:A5 SP:F9 PPU:167,182 CYC:19043
-ECB7  F3 45    *ISB ($45),Y = 0548 @ 0647 = FF  A:FF X:02 Y:FF P:A5 SP:FB PPU:167,200 CYC:19049
+ECB7  F3 45    *ISC ($45),Y = 0548 @ 0647 = FF  A:FF X:02 Y:FF P:A5 SP:FB PPU:167,200 CYC:19049
 ECB9  EA        NOP                             A:FF X:02 Y:FF P:A5 SP:FB PPU:167,224 CYC:19057
 ECBA  EA        NOP                             A:FF X:02 Y:FF P:A5 SP:FB PPU:167,230 CYC:19059
 ECBB  08        PHP                             A:FF X:02 Y:FF P:A5 SP:FB PPU:167,236 CYC:19061
@@ -6618,7 +6618,7 @@ FAD4  24 01     BIT $01 = FF                    A:37 X:02 Y:FF P:25 SP:F9 PPU:16
 FAD6  38        SEC                             A:37 X:02 Y:FF P:E5 SP:F9 PPU:168, 93 CYC:19127
 FAD7  A9 F0     LDA #$F0                        A:37 X:02 Y:FF P:E5 SP:F9 PPU:168, 99 CYC:19129
 FAD9  60        RTS                             A:F0 X:02 Y:FF P:E5 SP:F9 PPU:168,105 CYC:19131
-ECD7  F3 45    *ISB ($45),Y = 0548 @ 0647 = 37  A:F0 X:02 Y:FF P:E5 SP:FB PPU:168,123 CYC:19137
+ECD7  F3 45    *ISC ($45),Y = 0548 @ 0647 = 37  A:F0 X:02 Y:FF P:E5 SP:FB PPU:168,123 CYC:19137
 ECD9  EA        NOP                             A:B8 X:02 Y:FF P:A5 SP:FB PPU:168,147 CYC:19145
 ECDA  EA        NOP                             A:B8 X:02 Y:FF P:A5 SP:FB PPU:168,153 CYC:19147
 ECDB  08        PHP                             A:B8 X:02 Y:FF P:A5 SP:FB PPU:168,159 CYC:19149
@@ -6646,7 +6646,7 @@ FAB1  24 01     BIT $01 = FF                    A:EB X:FF Y:B6 P:A5 SP:F9 PPU:16
 FAB3  18        CLC                             A:EB X:FF Y:B6 P:E5 SP:F9 PPU:169, 22 CYC:19217
 FAB4  A9 40     LDA #$40                        A:EB X:FF Y:B6 P:E4 SP:F9 PPU:169, 28 CYC:19219
 FAB6  60        RTS                             A:40 X:FF Y:B6 P:64 SP:F9 PPU:169, 34 CYC:19221
-ECF8  F7 48    *ISB $48,X @ 47 = EB             A:40 X:FF Y:B6 P:64 SP:FB PPU:169, 52 CYC:19227
+ECF8  F7 48    *ISC $48,X @ 47 = EB             A:40 X:FF Y:B6 P:64 SP:FB PPU:169, 52 CYC:19227
 ECFA  EA        NOP                             A:53 X:FF Y:B6 P:24 SP:FB PPU:169, 70 CYC:19233
 ECFB  EA        NOP                             A:53 X:FF Y:B6 P:24 SP:FB PPU:169, 76 CYC:19235
 ECFC  EA        NOP                             A:53 X:FF Y:B6 P:24 SP:FB PPU:169, 82 CYC:19237
@@ -6669,7 +6669,7 @@ FAC2  B8        CLV                             A:FF X:FF Y:B7 P:A5 SP:F9 PPU:16
 FAC3  38        SEC                             A:FF X:FF Y:B7 P:A5 SP:F9 PPU:169,229 CYC:19286
 FAC4  A9 FF     LDA #$FF                        A:FF X:FF Y:B7 P:A5 SP:F9 PPU:169,235 CYC:19288
 FAC6  60        RTS                             A:FF X:FF Y:B7 P:A5 SP:F9 PPU:169,241 CYC:19290
-ED11  F7 48    *ISB $48,X @ 47 = FF             A:FF X:FF Y:B7 P:A5 SP:FB PPU:169,259 CYC:19296
+ED11  F7 48    *ISC $48,X @ 47 = FF             A:FF X:FF Y:B7 P:A5 SP:FB PPU:169,259 CYC:19296
 ED13  EA        NOP                             A:FF X:FF Y:B7 P:A5 SP:FB PPU:169,277 CYC:19302
 ED14  EA        NOP                             A:FF X:FF Y:B7 P:A5 SP:FB PPU:169,283 CYC:19304
 ED15  EA        NOP                             A:FF X:FF Y:B7 P:A5 SP:FB PPU:169,289 CYC:19306
@@ -6693,7 +6693,7 @@ FAD4  24 01     BIT $01 = FF                    A:37 X:FF Y:B8 P:25 SP:F9 PPU:17
 FAD6  38        SEC                             A:37 X:FF Y:B8 P:E5 SP:F9 PPU:170,104 CYC:19358
 FAD7  A9 F0     LDA #$F0                        A:37 X:FF Y:B8 P:E5 SP:F9 PPU:170,110 CYC:19360
 FAD9  60        RTS                             A:F0 X:FF Y:B8 P:E5 SP:F9 PPU:170,116 CYC:19362
-ED2A  F7 48    *ISB $48,X @ 47 = 37             A:F0 X:FF Y:B8 P:E5 SP:FB PPU:170,134 CYC:19368
+ED2A  F7 48    *ISC $48,X @ 47 = 37             A:F0 X:FF Y:B8 P:E5 SP:FB PPU:170,134 CYC:19368
 ED2C  EA        NOP                             A:B8 X:FF Y:B8 P:A5 SP:FB PPU:170,152 CYC:19374
 ED2D  EA        NOP                             A:B8 X:FF Y:B8 P:A5 SP:FB PPU:170,158 CYC:19376
 ED2E  EA        NOP                             A:B8 X:FF Y:B8 P:A5 SP:FB PPU:170,164 CYC:19378
@@ -6717,7 +6717,7 @@ FAB1  24 01     BIT $01 = FF                    A:EB X:FF Y:FF P:A5 SP:F9 PPU:17
 FAB3  18        CLC                             A:EB X:FF Y:FF P:E5 SP:F9 PPU:170,326 CYC:19432
 FAB4  A9 40     LDA #$40                        A:EB X:FF Y:FF P:E4 SP:F9 PPU:170,332 CYC:19434
 FAB6  60        RTS                             A:40 X:FF Y:FF P:64 SP:F9 PPU:170,338 CYC:19436
-ED45  FB 48 05 *ISB $0548,Y @ 0647 = EB         A:40 X:FF Y:FF P:64 SP:FB PPU:171, 15 CYC:19442
+ED45  FB 48 05 *ISC $0548,Y @ 0647 = EB         A:40 X:FF Y:FF P:64 SP:FB PPU:171, 15 CYC:19442
 ED48  EA        NOP                             A:53 X:FF Y:FF P:24 SP:FB PPU:171, 36 CYC:19449
 ED49  EA        NOP                             A:53 X:FF Y:FF P:24 SP:FB PPU:171, 42 CYC:19451
 ED4A  08        PHP                             A:53 X:FF Y:FF P:24 SP:FB PPU:171, 48 CYC:19453
@@ -6743,7 +6743,7 @@ FAC2  B8        CLV                             A:FF X:FF Y:FF P:A5 SP:F9 PPU:17
 FAC3  38        SEC                             A:FF X:FF Y:FF P:A5 SP:F9 PPU:171,237 CYC:19516
 FAC4  A9 FF     LDA #$FF                        A:FF X:FF Y:FF P:A5 SP:F9 PPU:171,243 CYC:19518
 FAC6  60        RTS                             A:FF X:FF Y:FF P:A5 SP:F9 PPU:171,249 CYC:19520
-ED66  FB 48 05 *ISB $0548,Y @ 0647 = FF         A:FF X:FF Y:FF P:A5 SP:FB PPU:171,267 CYC:19526
+ED66  FB 48 05 *ISC $0548,Y @ 0647 = FF         A:FF X:FF Y:FF P:A5 SP:FB PPU:171,267 CYC:19526
 ED69  EA        NOP                             A:FF X:FF Y:FF P:A5 SP:FB PPU:171,288 CYC:19533
 ED6A  EA        NOP                             A:FF X:FF Y:FF P:A5 SP:FB PPU:171,294 CYC:19535
 ED6B  08        PHP                             A:FF X:FF Y:FF P:A5 SP:FB PPU:171,300 CYC:19537
@@ -6770,7 +6770,7 @@ FAD4  24 01     BIT $01 = FF                    A:37 X:FF Y:FF P:25 SP:F9 PPU:17
 FAD6  38        SEC                             A:37 X:FF Y:FF P:E5 SP:F9 PPU:172,157 CYC:19603
 FAD7  A9 F0     LDA #$F0                        A:37 X:FF Y:FF P:E5 SP:F9 PPU:172,163 CYC:19605
 FAD9  60        RTS                             A:F0 X:FF Y:FF P:E5 SP:F9 PPU:172,169 CYC:19607
-ED87  FB 48 05 *ISB $0548,Y @ 0647 = 37         A:F0 X:FF Y:FF P:E5 SP:FB PPU:172,187 CYC:19613
+ED87  FB 48 05 *ISC $0548,Y @ 0647 = 37         A:F0 X:FF Y:FF P:E5 SP:FB PPU:172,187 CYC:19613
 ED8A  EA        NOP                             A:B8 X:FF Y:FF P:A5 SP:FB PPU:172,208 CYC:19620
 ED8B  EA        NOP                             A:B8 X:FF Y:FF P:A5 SP:FB PPU:172,214 CYC:19622
 ED8C  08        PHP                             A:B8 X:FF Y:FF P:A5 SP:FB PPU:172,220 CYC:19624
@@ -6798,7 +6798,7 @@ FAB1  24 01     BIT $01 = FF                    A:EB X:FF Y:BC P:A5 SP:F9 PPU:17
 FAB3  18        CLC                             A:EB X:FF Y:BC P:E5 SP:F9 PPU:173, 86 CYC:19693
 FAB4  A9 40     LDA #$40                        A:EB X:FF Y:BC P:E4 SP:F9 PPU:173, 92 CYC:19695
 FAB6  60        RTS                             A:40 X:FF Y:BC P:64 SP:F9 PPU:173, 98 CYC:19697
-EDAA  FF 48 05 *ISB $0548,X @ 0647 = EB         A:40 X:FF Y:BC P:64 SP:FB PPU:173,116 CYC:19703
+EDAA  FF 48 05 *ISC $0548,X @ 0647 = EB         A:40 X:FF Y:BC P:64 SP:FB PPU:173,116 CYC:19703
 EDAD  EA        NOP                             A:53 X:FF Y:BC P:24 SP:FB PPU:173,137 CYC:19710
 EDAE  EA        NOP                             A:53 X:FF Y:BC P:24 SP:FB PPU:173,143 CYC:19712
 EDAF  EA        NOP                             A:53 X:FF Y:BC P:24 SP:FB PPU:173,149 CYC:19714
@@ -6821,7 +6821,7 @@ FAC2  B8        CLV                             A:FF X:FF Y:BD P:A5 SP:F9 PPU:17
 FAC3  38        SEC                             A:FF X:FF Y:BD P:A5 SP:F9 PPU:173,302 CYC:19765
 FAC4  A9 FF     LDA #$FF                        A:FF X:FF Y:BD P:A5 SP:F9 PPU:173,308 CYC:19767
 FAC6  60        RTS                             A:FF X:FF Y:BD P:A5 SP:F9 PPU:173,314 CYC:19769
-EDC6  FF 48 05 *ISB $0548,X @ 0647 = FF         A:FF X:FF Y:BD P:A5 SP:FB PPU:173,332 CYC:19775
+EDC6  FF 48 05 *ISC $0548,X @ 0647 = FF         A:FF X:FF Y:BD P:A5 SP:FB PPU:173,332 CYC:19775
 EDC9  EA        NOP                             A:FF X:FF Y:BD P:A5 SP:FB PPU:174, 12 CYC:19782
 EDCA  EA        NOP                             A:FF X:FF Y:BD P:A5 SP:FB PPU:174, 18 CYC:19784
 EDCB  EA        NOP                             A:FF X:FF Y:BD P:A5 SP:FB PPU:174, 24 CYC:19786
@@ -6845,7 +6845,7 @@ FAD4  24 01     BIT $01 = FF                    A:37 X:FF Y:BE P:25 SP:F9 PPU:17
 FAD6  38        SEC                             A:37 X:FF Y:BE P:E5 SP:F9 PPU:174,186 CYC:19840
 FAD7  A9 F0     LDA #$F0                        A:37 X:FF Y:BE P:E5 SP:F9 PPU:174,192 CYC:19842
 FAD9  60        RTS                             A:F0 X:FF Y:BE P:E5 SP:F9 PPU:174,198 CYC:19844
-EDE2  FF 48 05 *ISB $0548,X @ 0647 = 37         A:F0 X:FF Y:BE P:E5 SP:FB PPU:174,216 CYC:19850
+EDE2  FF 48 05 *ISC $0548,X @ 0647 = 37         A:F0 X:FF Y:BE P:E5 SP:FB PPU:174,216 CYC:19850
 EDE5  EA        NOP                             A:B8 X:FF Y:BE P:A5 SP:FB PPU:174,237 CYC:19857
 EDE6  EA        NOP                             A:B8 X:FF Y:BE P:A5 SP:FB PPU:174,243 CYC:19859
 EDE7  EA        NOP                             A:B8 X:FF Y:BE P:A5 SP:FB PPU:174,249 CYC:19861

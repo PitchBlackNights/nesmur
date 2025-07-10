@@ -36,6 +36,7 @@ pub fn page_cross(addr1: u16, addr2: u16) -> bool {
 }
 
 pub fn trace(cpu: &CPU) -> String {
+    use crate::cpu::opcode::Instruction::*;
     use crate::cpu::opcode::AddressingMode::*;
     use crate::cpu::opcode::{OpCode, decode_opcode};
     crate::bus::set_quiet_log(true);
@@ -153,14 +154,18 @@ pub fn trace(cpu: &CPU) -> String {
         _ => String::from(""),
     };
 
+    let undoc_marker: &'static str = match opcode.instruction {
+        NOP_ALT | SLO | RLA | SRE | RRA | SAX | LAX | DCP | ISC | ANC | ALR | ARR | XAA | AXS | SBC_NOP | AHX | SHY | SHX | TAS | LAS | KIL => "*",
+        _ => " ",
+    };
     let hex_str: String = hex_dump
         .iter()
         .map(|z| format!("{:02X}", z))
         .collect::<Vec<String>>()
         .join(" ");
     let asm_str: String = format!(
-        "{:04X}  {:8} {: >4} {}",
-        begin, hex_str, opcode.mnemonic, tmp
+        "{:04X}  {:8} {}{} {}",
+        begin, hex_str, undoc_marker, opcode.mnemonic, tmp
     )
     .trim()
     .to_string();
