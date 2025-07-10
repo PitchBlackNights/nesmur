@@ -13,6 +13,5 @@ fn main() {
     let rom: Rom = Rom::new(&rom_bytes).unwrap();
 
     let mut nes: NES = NES::new(rom);
-    nes.reset();
-    nes.cpu.run();
+    nes.debug_cpu();
 }

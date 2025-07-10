@@ -26,13 +26,13 @@ impl Rom {
 
         let mapper: u8 = (raw[7] & 0b1111_0000) | (raw[6] >> 4);
 
-        let ines_ver: u8 = (raw[7] >> 2) & 0b11;
+        let ines_ver: u8 = (raw[7] >> 2) & 0b0000_0011;
         if ines_ver != 0 {
             return Err("NES2.0 format is not supported".to_string());
         }
 
-        let four_screen: bool = raw[6] & 0b1000 != 0;
-        let vertical_mirroring: bool = raw[6] & 0b1 != 0;
+        let four_screen: bool = raw[6] & 0b0000_1000 != 0;
+        let vertical_mirroring: bool = raw[6] & 0b0000_0001 != 0;
         let screen_mirroring: Mirroring = match (four_screen, vertical_mirroring) {
             (true, _) => Mirroring::FourScreen,
             (false, true) => Mirroring::Vertical,
@@ -42,7 +42,7 @@ impl Rom {
         let prg_rom_size: usize = raw[4] as usize * PRG_ROM_PAGE_SIZE;
         let chr_rom_size: usize = raw[5] as usize * CHR_ROM_PAGE_SIZE;
 
-        let skip_trainer: bool = raw[6] & 0b100 != 0;
+        let skip_trainer: bool = raw[6] & 0b0000_0100 != 0;
 
         let prg_rom_start: usize = 16 + if skip_trainer { 512 } else { 0 };
         let chr_rom_start: usize = prg_rom_start + prg_rom_size;

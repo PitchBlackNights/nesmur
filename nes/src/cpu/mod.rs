@@ -69,7 +69,7 @@ impl CPU {
             index_y: 0x00,
             stack_pointer: STACK_RESET,
             program_counter: 0x8000,
-            status: Flags::from_bits_truncate(0b00100100),
+            status: Flags::from_bits_truncate(0b0010_0100),
             bus,
         }
     }
@@ -111,16 +111,27 @@ impl CPU {
     }
 
     fn execute_instruction(&mut self, opcode: &OpCode) {
-        debug!("==== Executing Operation ====");
-        debug!("  Address: {:#06X},", self.program_counter - 1);
-        debug!("  Byte: {:#04X},", opcode.byte);
-        debug!("  Instruction: {:?},", opcode.instruction);
-        debug!("  Mnemonic: \"{}\"", opcode.mnemonic);
-        debug!("  Len: {}", opcode.len);
-        debug!("  Mode: {:?}", opcode.mode);
-        debug!("  Cycles: {}", opcode.cycles);
+        // debug!("==== Executing Operation ====");
+        // debug!("  Address: {:#06X},", self.program_counter - 1);
+        // debug!("  Byte: {:#04X},", opcode.byte);
+        // debug!("  Instruction: {:?},", opcode.instruction);
+        // debug!("  Mnemonic: \"{}\"", opcode.mnemonic);
+        // debug!("  Len: {}", opcode.len);
+        // debug!("  Mode: {:?}", opcode.mode);
+        // debug!("  Cycles: {}", opcode.cycles);
+        // debug!(
+        //     "  Operands: [{}]",
+        //     (1..opcode.len)
+        //         .map(|i| self.bus().__read(self.program_counter + i as u16 - 1, true))
+        //         .map(|b| format!("{:#04X}", b))
+        //         .collect::<Vec<_>>()
+        //         .join(", ")
+        // );
         debug!(
-            "  Operands: [{}]",
+            "EXEOP -- {:#06X}\t{:?}\t{:?}\t[{}]",
+            self.program_counter - 1,
+            opcode.instruction,
+            opcode.mode,
             (1..opcode.len)
                 .map(|i| self.bus().__read(self.program_counter + i as u16 - 1, true))
                 .map(|b| format!("{:#04X}", b))
@@ -130,7 +141,7 @@ impl CPU {
 
         match opcode.instruction {
             LDA => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let value: u8 = self.bus().read(addr);
                 common::set_accumulator(self, value);
                 if page_cross {
@@ -138,7 +149,7 @@ impl CPU {
                 }
             }
             LDX => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let value: u8 = self.bus().read(addr);
                 common::set_index_x(self, value);
                 if page_cross {
@@ -146,7 +157,7 @@ impl CPU {
                 }
             }
             LDY => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let value: u8 = self.bus().read(addr);
                 common::set_index_y(self, value);
                 if page_cross {
@@ -154,15 +165,15 @@ impl CPU {
                 }
             }
             STA => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 self.bus_mut().write(addr, self.accumulator);
             }
             STX => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 self.bus_mut().write(addr, self.index_x);
             }
             STY => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 self.bus_mut().write(addr, self.index_y);
             }
             TAX => {
@@ -200,7 +211,7 @@ impl CPU {
                 self.status.insert(Flags::UNUSED);
             }
             AND => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data & self.accumulator);
                 if page_cross {
@@ -208,7 +219,7 @@ impl CPU {
                 }
             }
             EOR => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data ^ self.accumulator);
                 if page_cross {
@@ -216,7 +227,7 @@ impl CPU {
                 }
             }
             ORA => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data | self.accumulator);
                 if page_cross {
@@ -224,14 +235,14 @@ impl CPU {
                 }
             }
             BIT => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::update_flags_z(self, self.accumulator & data);
-                self.status.set(Flags::NEGATIVE, data & 0b10000000 > 0);
-                self.status.set(Flags::OVERFLOW, data & 0b01000000 > 0);
+                self.status.set(Flags::NEGATIVE, data & 0b1000_0000 > 0);
+                self.status.set(Flags::OVERFLOW, data & 0b0100_0000 > 0);
             }
             ADC => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let value: u8 = self.bus().read(addr);
                 common::add_to_accumulator(self, value);
                 if page_cross {
@@ -239,7 +250,7 @@ impl CPU {
                 }
             }
             SBC => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let value: u8 = self.bus().read(addr);
                 common::sub_from_accumulator(self, value);
                 if page_cross {
@@ -256,7 +267,7 @@ impl CPU {
                 common::compare(self, opcode, self.index_y);
             }
             INC => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr).wrapping_add(1);
                 self.bus_mut().write(addr, data);
                 common::update_flags_zn(self, data);
@@ -268,7 +279,7 @@ impl CPU {
                 common::set_index_y(self, self.index_y.wrapping_add(1));
             }
             DEC => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr).wrapping_sub(1);
                 self.bus_mut().write(addr, data);
                 common::update_flags_zn(self, data);
@@ -286,7 +297,7 @@ impl CPU {
                     common::set_accumulator(self, data << 1);
                 }
                 _ => {
-                    let (addr, _) = opcode.get_operand_address(self);
+                    let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                     let mut data: u8 = self.bus().read(addr);
                     common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
                     data <<= 1;
@@ -301,7 +312,7 @@ impl CPU {
                     common::set_accumulator(self, data >> 1);
                 }
                 _ => {
-                    let (addr, _) = opcode.get_operand_address(self);
+                    let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                     let mut data: u8 = self.bus().read(addr);
                     common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                     data >>= 1;
@@ -321,7 +332,7 @@ impl CPU {
                     common::set_accumulator(self, data);
                 }
                 _ => {
-                    let (addr, _) = opcode.get_operand_address(self);
+                    let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                     let mut data: u8 = self.bus().read(addr);
                     let old_carry: bool = self.status.contains(Flags::CARRY);
                     common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
@@ -345,7 +356,7 @@ impl CPU {
                     common::set_accumulator(self, data);
                 }
                 _ => {
-                    let (addr, _) = opcode.get_operand_address(self);
+                    let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                     let mut data: u8 = self.bus().read(addr);
                     let old_carry: bool = self.status.contains(Flags::CARRY);
                     common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
@@ -358,11 +369,11 @@ impl CPU {
                 }
             },
             JMP => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 self.program_counter = addr;
             }
             JSR => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 common::stack_push_u16(self, self.program_counter + 1);
                 self.program_counter = addr;
             }
@@ -412,14 +423,14 @@ impl CPU {
                 self.program_counter = common::stack_pop_u16(self);
             }
             NOP_ALT => {
-                let (addr, page_cross) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let _data: u8 = self.bus().read(addr);
                 if page_cross {
                     // TODO: Tick the bus
                 }
             }
             SLO => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr);
                 common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
                 data <<= 1;
@@ -428,7 +439,7 @@ impl CPU {
                 common::set_accumulator(self, data | self.accumulator);
             }
             RLA => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr);
                 let old_carry: bool = self.status.contains(Flags::CARRY);
                 common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
@@ -441,7 +452,7 @@ impl CPU {
                 common::set_accumulator(self, data & self.accumulator);
             }
             SRE => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr);
                 common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                 data >>= 1;
@@ -450,63 +461,63 @@ impl CPU {
                 common::set_accumulator(self, data ^ self.accumulator);
             }
             RRA => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr);
                 let old_carry: bool = self.status.contains(Flags::CARRY);
                 common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                 data >>= 1;
                 if old_carry {
-                    data |= 0b10000000;
+                    data |= 0b1000_0000;
                 }
                 self.bus_mut().write(addr, data);
                 common::update_flags_n(self, data);
                 common::add_to_accumulator(self, data);
             }
             SAX => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.accumulator & self.index_x;
                 self.bus_mut().write(addr, data);
             }
             LAX => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data);
                 self.index_x = self.accumulator;
             }
             DCP => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr).wrapping_sub(1);
                 self.bus_mut().write(addr, data);
                 common::update_flag_if(self, Flags::CARRY, data <= self.accumulator);
                 common::update_flags_zn(self, self.accumulator.wrapping_sub(data));
             }
             ISC => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr).wrapping_add(1);
                 self.bus_mut().write(addr, data);
                 common::update_flags_zn(self, data);
                 common::sub_from_accumulator(self, data);
             }
             ANC => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data & self.accumulator);
                 common::update_flag_if(self, Flags::CARRY, self.status.contains(Flags::NEGATIVE));
             }
             ALR => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr) & self.accumulator;
                 common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                 common::set_accumulator(self, data >> 1);
             }
             ARR => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr) & self.accumulator;
                 let old_carry: bool = self.status.contains(Flags::CARRY);
                 common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                 data >>= 1;
                 if old_carry {
-                    data |= 0b10000000;
+                    data |= 0b1000_0000;
                 }
                 common::set_accumulator(self, data);
                 let bit_5: u8 = (self.accumulator >> 5) & 1;
@@ -515,12 +526,12 @@ impl CPU {
                 common::update_flag_if(self, Flags::OVERFLOW, bit_5 ^ bit_6 == 1);
             }
             XAA => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data & self.index_x);
             }
             AXS => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 let result: u8 = (self.index_x & self.accumulator).wrapping_sub(data);
                 common::update_flag_if(self, Flags::CARRY, data <= self.index_x & self.accumulator);
@@ -528,33 +539,33 @@ impl CPU {
                 self.index_x = result
             }
             SBC_NOP => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::sub_from_accumulator(self, data);
             }
             AHX => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.accumulator & self.index_x & (addr >> 8) as u8;
                 self.bus_mut().write(addr, data);
             }
             SHY => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.index_y & ((addr >> 8) as u8 + 1);
                 self.bus_mut().write(addr, data);
             }
             SHX => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.index_x & ((addr >> 8) as u8 + 1);
                 self.bus_mut().write(addr, data);
             }
             TAS => {
                 self.stack_pointer = self.accumulator & self.index_x;
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = ((addr >> 8) as u8 + 1) & self.stack_pointer;
                 self.bus_mut().write(addr, data);
             }
             LAS => {
-                let (addr, _) = opcode.get_operand_address(self);
+                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr) & self.stack_pointer;
                 self.accumulator = data;
                 self.index_x = data;

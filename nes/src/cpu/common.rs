@@ -1,7 +1,6 @@
 use crate::cpu::opcode::OpCode;
 use crate::cpu::{CPU, Flags, STACK};
 use crate::prelude::*;
-use crate::tools;
 
 // ============================
 //   Stack Operations

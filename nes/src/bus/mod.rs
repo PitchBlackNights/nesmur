@@ -39,6 +39,14 @@ const PPU_REGISTERS_END: u16 = 0x3FFF;
 const PRG_ROM: u16 = 0x8000;
 const PRG_ROM_END: u16 = 0xFFFF;
 
+pub static mut QUIET_LOG: bool = false;
+pub fn get_quiet_log() -> bool {
+    unsafe { QUIET_LOG }
+}
+pub fn set_quiet_log(value: bool) {
+    unsafe { QUIET_LOG = value }
+}
+
 #[rustfmt::skip]
 impl NESAccess for Bus {
     fn rom(&self) -> Ref<Rom> { self.rom.borrow() }
@@ -56,6 +64,21 @@ impl Bus {
             cpu_vram: [0; 2048],
             rom,
         }
+    }
+
+    pub fn memory(&self) -> Vec<u8> {
+        let mut memory: Vec<u8> = vec![0u8; 0x10000];
+        let cpu_vram: Vec<u8> = self.cpu_vram.to_vec();
+        let prg_rom: &Vec<u8> = &self.rom().prg_rom;
+
+        memory[0x0000..0x07FF+1].copy_from_slice(&cpu_vram);
+        memory[0x0800..0x0FFF+1].copy_from_slice(&cpu_vram);
+        memory[0x1000..0x17FF+1].copy_from_slice(&cpu_vram);
+        memory[0x1800..0x1FFF+1].copy_from_slice(&cpu_vram);
+        // OTHER MEMORY
+        memory[0x8000..0xBFFF+1].copy_from_slice(&prg_rom);
+        memory[0xC000..0xFFFF+1].copy_from_slice(&prg_rom);
+        memory
     }
 
     #[rustfmt::skip]
@@ -89,15 +112,16 @@ pub trait Mem {
 
 impl Mem for Bus {
     fn __read(&self, addr: u16, quiet: bool) -> u8 {
+        let quiet: bool = quiet || get_quiet_log();
         match addr {
             RAM..=RAM_END => {
-                let addr: u16 = addr & 0b00000111_11111111;
+                let addr: u16 = addr & 0b0000_0111_1111_1111;
                 let byte: u8 = self.cpu_vram[addr as usize];
                 (!quiet).then(|| trace!("[RAM] Read {:#04X} from {:#06X}", byte, addr));
                 byte
             }
             PPU_REGISTERS..=PPU_REGISTERS_END => {
-                let _addr: u16 = addr & 0b00100000_00000111;
+                let _addr: u16 = addr & 0b0010_0000_0000_0111;
                 //todo!("PPU is not supported yet")
                 0
             }
@@ -120,14 +144,15 @@ impl Mem for Bus {
     }
 
     fn __write(&mut self, addr: u16, data: u8, quiet: bool) {
+        let quiet: bool = quiet || get_quiet_log();
         match addr {
             RAM..=RAM_END => {
-                let mirror_down_addr: u16 = addr & 0b00000111_11111111;
+                let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 self.cpu_vram[mirror_down_addr as usize] = data;
                 (!quiet).then(|| trace!("[RAM] Wrote {:#04X} to {:#06X}", data, mirror_down_addr));
             }
             PPU_REGISTERS..=PPU_REGISTERS_END => {
-                let _mirror_down_addr: u16 = addr & 0b00100000_00000111;
+                let _mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
                 //todo!("PPU is not supported yet");
             }
             PRG_ROM..=PRG_ROM_END => panic!("Attempted to write to PRG-ROM: {:#04X}", addr),

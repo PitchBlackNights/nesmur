@@ -1,6 +1,5 @@
 use crate::cpu::CPU;
 use crate::prelude::*;
-use crate::tools;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
@@ -55,7 +54,7 @@ impl OpCode {
         }
     }
 
-    fn get_absolute_address(self, cpu: &CPU, addr: u16) -> (u16, bool) {
+    pub fn get_absolute_address(self, cpu: &CPU, addr: u16) -> (u16, bool) {
         match self.mode {
             AddressingMode::ZeroPage => (cpu.bus().read(addr) as u16, false),
             AddressingMode::ZeroPage_X => {
@@ -103,6 +102,10 @@ impl OpCode {
             AddressingMode::Indirect_X => {
                 let base: u8 = cpu.bus().read(addr).wrapping_add(cpu.index_x);
                 let ptr: u16 = cpu.bus().read_u16(base as u16);
+                debug!("addr = {:#06X}", addr);
+                debug!("cpu.index_x = {:#04X}", cpu.index_x);
+                debug!("base = {:#06X}", base as u16);
+                debug!("ptr = {:#06X}", ptr);
                 (ptr, false)
             }
             AddressingMode::Indirect_Y => {
