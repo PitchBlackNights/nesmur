@@ -65,9 +65,7 @@ impl NES {
         }
     }
 
-    pub fn debug_cpu() {
-        
-    }
+    pub fn debug_cpu() {}
 
     pub fn reset(&mut self) {
         info!("Resetting CPU...");

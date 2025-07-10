@@ -279,128 +279,84 @@ impl CPU {
             DEY => {
                 common::set_index_y(self, self.index_y.wrapping_sub(1));
             }
-            ASL => {
-                match opcode.mode {
-                    Accumulator => {
-                        let data: u8 = self.accumulator;
-                        if data >> 7 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        common::set_accumulator(self, data << 1);
-                    }
-                    _ => {
-                        let (addr, _) = opcode.get_operand_address(self);
-                        let mut data: u8 = self.bus().read(addr);
-                        if data >> 7 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        data = data << 1;
-                        self.bus_mut().write(addr, data);
-                        common::update_flags_zn(self, data);
-                    }
+            ASL => match opcode.mode {
+                Accumulator => {
+                    let data: u8 = self.accumulator;
+                    common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
+                    common::set_accumulator(self, data << 1);
                 }
-            }
-            LSR => {
-                match opcode.mode {
-                    Accumulator => {
-                        let data: u8 = self.accumulator;
-                        if data & 1 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        common::set_accumulator(self, data >> 1);
-                    }
-                    _ => {
-                        let (addr, _) = opcode.get_operand_address(self);
-                        let mut data: u8 = self.bus().read(addr);
-                        if data & 1 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        data = data >> 1;
-                        self.bus_mut().write(addr, data);
-                        common::update_flags_zn(self, data);
-                    }
+                _ => {
+                    let (addr, _) = opcode.get_operand_address(self);
+                    let mut data: u8 = self.bus().read(addr);
+                    common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
+                    data <<= 1;
+                    self.bus_mut().write(addr, data);
+                    common::update_flags_zn(self, data);
                 }
-            }
-            ROL => {
-                match opcode.mode {
-                    Accumulator => {
-                        let mut data = self.accumulator;
-                        let old_carry = self.status.contains(Flags::CARRY);
-                
-                        if data >> 7 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        data = data << 1;
-                        if old_carry {
-                            data = data | 1;
-                        }
-                        common::set_accumulator(self, data);
-                    }
-                    _ => {
-                        let (addr, _) = opcode.get_operand_address(self);
-                        let mut data = self.bus().read(addr);
-                        let old_carry = self.status.contains(Flags::CARRY);
-                
-                        if data >> 7 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        data = data << 1;
-                        if old_carry {
-                            data = data | 1;
-                        }
-                        self.bus_mut().write(addr, data);
-                        common::update_flags_n(self, data);
-                    }
+            },
+            LSR => match opcode.mode {
+                Accumulator => {
+                    let data: u8 = self.accumulator;
+                    common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
+                    common::set_accumulator(self, data >> 1);
                 }
-            }
-            ROR => {
-                match opcode.mode {
-                    Accumulator => {
-                        let mut data = self.accumulator;
-                        let old_carry = self.status.contains(Flags::CARRY);
-                
-                        if data & 1 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        data = data >> 1;
-                        if old_carry {
-                            data = data | 0b10000000;
-                        }
-                        common::set_accumulator(self, data);
-                    }
-                    _ => {
-                        let (addr, _) = opcode.get_operand_address(self);
-                        let mut data = self.bus().read(addr);
-                        let old_carry = self.status.contains(Flags::CARRY);
-                
-                        if data & 1 == 1 {
-                            self.status.insert(Flags::CARRY);
-                        } else {
-                            self.status.remove(Flags::CARRY);
-                        }
-                        data = data >> 1;
-                        if old_carry {
-                            data = data | 0b10000000;
-                        }
-                        self.bus_mut().write(addr, data);
-                        common::update_flags_n(self, data);
-                    }
+                _ => {
+                    let (addr, _) = opcode.get_operand_address(self);
+                    let mut data: u8 = self.bus().read(addr);
+                    common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
+                    data >>= 1;
+                    self.bus_mut().write(addr, data);
+                    common::update_flags_zn(self, data);
                 }
-            }
+            },
+            ROL => match opcode.mode {
+                Accumulator => {
+                    let mut data: u8 = self.accumulator;
+                    let old_carry: bool = self.status.contains(Flags::CARRY);
+                    common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
+                    data <<= 1;
+                    if old_carry {
+                        data |= 1;
+                    }
+                    common::set_accumulator(self, data);
+                }
+                _ => {
+                    let (addr, _) = opcode.get_operand_address(self);
+                    let mut data: u8 = self.bus().read(addr);
+                    let old_carry: bool = self.status.contains(Flags::CARRY);
+                    common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
+                    data <<= 1;
+                    if old_carry {
+                        data |= 1;
+                    }
+                    self.bus_mut().write(addr, data);
+                    common::update_flags_n(self, data);
+                }
+            },
+            ROR => match opcode.mode {
+                Accumulator => {
+                    let mut data: u8 = self.accumulator;
+                    let old_carry: bool = self.status.contains(Flags::CARRY);
+                    common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
+                    data >>= 1;
+                    if old_carry {
+                        data |= 0b10000000;
+                    }
+                    common::set_accumulator(self, data);
+                }
+                _ => {
+                    let (addr, _) = opcode.get_operand_address(self);
+                    let mut data: u8 = self.bus().read(addr);
+                    let old_carry: bool = self.status.contains(Flags::CARRY);
+                    common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
+                    data >>= 1;
+                    if old_carry {
+                        data |= 0b10000000;
+                    }
+                    self.bus_mut().write(addr, data);
+                    common::update_flags_n(self, data);
+                }
+            },
             JMP => {
                 let (addr, _) = opcode.get_operand_address(self);
                 self.program_counter = addr;
@@ -465,29 +421,20 @@ impl CPU {
             SLO => {
                 let (addr, _) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr);
-                if data >> 7 == 1 {
-                    self.status.insert(Flags::CARRY);
-                } else {
-                    self.status.remove(Flags::CARRY);
-                }
-                data = data << 1;
+                common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
+                data <<= 1;
                 self.bus_mut().write(addr, data);
                 common::update_flags_zn(self, data);
                 common::set_accumulator(self, data | self.accumulator);
             }
             RLA => {
                 let (addr, _) = opcode.get_operand_address(self);
-                let mut data = self.bus().read(addr);
-                let old_carry = self.status.contains(Flags::CARRY);
-        
-                if data >> 7 == 1 {
-                    self.status.insert(Flags::CARRY);
-                } else {
-                    self.status.remove(Flags::CARRY);
-                }
-                data = data << 1;
+                let mut data: u8 = self.bus().read(addr);
+                let old_carry: bool = self.status.contains(Flags::CARRY);
+                common::update_flag_if(self, Flags::CARRY, data >> 7 == 1);
+                data <<= 1;
                 if old_carry {
-                    data = data | 1;
+                    data |= 1;
                 }
                 self.bus_mut().write(addr, data);
                 common::update_flags_n(self, data);
@@ -496,37 +443,28 @@ impl CPU {
             SRE => {
                 let (addr, _) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr);
-                if data & 1 == 1 {
-                    self.status.insert(Flags::CARRY);
-                } else {
-                    self.status.remove(Flags::CARRY);
-                }
-                data = data >> 1;
+                common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
+                data >>= 1;
                 self.bus_mut().write(addr, data);
                 common::update_flags_zn(self, data);
                 common::set_accumulator(self, data ^ self.accumulator);
             }
             RRA => {
                 let (addr, _) = opcode.get_operand_address(self);
-                let mut data = self.bus().read(addr);
-                let old_carry = self.status.contains(Flags::CARRY);
-        
-                if data & 1 == 1 {
-                    self.status.insert(Flags::CARRY);
-                } else {
-                    self.status.remove(Flags::CARRY);
-                }
-                data = data >> 1;
+                let mut data: u8 = self.bus().read(addr);
+                let old_carry: bool = self.status.contains(Flags::CARRY);
+                common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
+                data >>= 1;
                 if old_carry {
-                    data = data | 0b10000000;
+                    data |= 0b10000000;
                 }
                 self.bus_mut().write(addr, data);
                 common::update_flags_n(self, data);
                 common::add_to_accumulator(self, data);
             }
             SAX => {
-                let data = self.accumulator & self.index_x;
                 let (addr, _) = opcode.get_operand_address(self);
+                let data: u8 = self.accumulator & self.index_x;
                 self.bus_mut().write(addr, data);
             }
             LAX => {
@@ -539,9 +477,7 @@ impl CPU {
                 let (addr, _) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr).wrapping_sub(1);
                 self.bus_mut().write(addr, data);
-                if data <= self.accumulator {
-                    self.status.insert(Flags::CARRY);
-                }
+                common::update_flag_if(self, Flags::CARRY, data <= self.accumulator);
                 common::update_flags_zn(self, self.accumulator.wrapping_sub(data));
             }
             ISC => {
@@ -555,64 +491,39 @@ impl CPU {
                 let (addr, _) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data & self.accumulator);
-                if self.status.contains(Flags::NEGATIVE) {
-                    self.status.insert(Flags::CARRY);
-                } else {
-                    self.status.remove(Flags::CARRY);
-                }
+                common::update_flag_if(self, Flags::CARRY, self.status.contains(Flags::NEGATIVE));
             }
             ALR => {
                 let (addr, _) = opcode.get_operand_address(self);
-                let data: u8 = self.bus().read(addr);
-                common::set_accumulator(self, data & self.accumulator);
-                let data: u8 = self.accumulator;
-                if data & 1 == 1 {
-                    self.status.insert(Flags::CARRY);
-                } else {
-                    self.status.remove(Flags::CARRY);
-                }
+                let data: u8 = self.bus().read(addr) & self.accumulator;
+                common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                 common::set_accumulator(self, data >> 1);
             }
             ARR => {
                 let (addr, _) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr) & self.accumulator;
-                let old_carry = self.status.contains(Flags::CARRY);
-                if data & 1 == 1 {
-                    self.status.insert(Flags::CARRY);
-                } else {
-                    self.status.remove(Flags::CARRY);
-                }
-                data = data >> 1;
+                let old_carry: bool = self.status.contains(Flags::CARRY);
+                common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
+                data >>= 1;
                 if old_carry {
-                    data = data | 0b10000000;
+                    data |= 0b10000000;
                 }
                 common::set_accumulator(self, data);
-                let bit_5 = (self.accumulator >> 5) & 1;
-                let bit_6 = (self.accumulator >> 6) & 1;
-                if bit_6 == 1 {
-                    self.status.insert(Flags::CARRY)
-                } else {
-                    self.status.remove(Flags::CARRY)
-                }
-                if bit_5 ^ bit_6 == 1 {
-                    self.status.insert(Flags::OVERFLOW);
-                } else {
-                    self.status.remove(Flags::OVERFLOW);
-                }
+                let bit_5: u8 = (self.accumulator >> 5) & 1;
+                let bit_6: u8 = (self.accumulator >> 6) & 1;
+                common::update_flag_if(self, Flags::CARRY, bit_6 == 1);
+                common::update_flag_if(self, Flags::OVERFLOW, bit_5 ^ bit_6 == 1);
             }
             XAA => {
-                common::set_accumulator(self, self.index_x);
                 let (addr, _) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
-                common::set_accumulator(self, data & self.accumulator);
+                common::set_accumulator(self, data & self.index_x);
             }
             AXS => {
                 let (addr, _) = opcode.get_operand_address(self);
                 let data: u8 = self.bus().read(addr);
                 let result: u8 = (self.index_x & self.accumulator).wrapping_sub(data);
-                if data <= self.index_x & self.accumulator {
-                    self.status.insert(Flags::CARRY);
-                }
+                common::update_flag_if(self, Flags::CARRY, data <= self.index_x & self.accumulator);
                 common::update_flags_zn(self, result);
                 self.index_x = result
             }

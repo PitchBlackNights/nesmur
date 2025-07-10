@@ -1,8 +1,8 @@
+use crate::cpu::CPU;
 use crate::prelude::*;
+use crate::tools;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use crate::cpu::CPU;
-use crate::tools;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct OpCode {
@@ -71,7 +71,10 @@ impl OpCode {
             AddressingMode::Relative => {
                 let jump: i8 = cpu.bus().read(addr) as i8;
                 let jump_addr: u16 = addr.wrapping_add(1).wrapping_add(jump as u16);
-                (jump_addr, tools::page_cross(addr.wrapping_add(1), jump_addr))
+                (
+                    jump_addr,
+                    tools::page_cross(addr.wrapping_add(1), jump_addr),
+                )
             }
             AddressingMode::Absolute => (cpu.bus().read_u16(addr), false),
             AddressingMode::Absolute_X => {

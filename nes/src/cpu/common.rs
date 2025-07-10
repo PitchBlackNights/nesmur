@@ -1,5 +1,5 @@
-use crate::cpu::{CPU, Flags, STACK};
 use crate::cpu::opcode::OpCode;
+use crate::cpu::{CPU, Flags, STACK};
 use crate::prelude::*;
 use crate::tools;
 
@@ -113,6 +113,14 @@ pub fn sub_from_accumulator(cpu: &mut CPU, data: u8) {
 // ============================
 //   Updating CPU Status
 // ============================
+pub fn update_flag_if(cpu: &mut CPU, flag: Flags, condition: bool) {
+    if condition {
+        cpu.status.insert(flag);
+    } else {
+        cpu.status.remove(flag);
+    }
+}
+
 pub fn update_flags_zn(cpu: &mut CPU, value: u8) {
     update_flags_z(cpu, value);
     update_flags_n(cpu, value);
