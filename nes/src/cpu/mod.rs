@@ -104,6 +104,7 @@ impl CPU {
     }
 
     pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
+        info!("Running CPU...");
         loop {
             callback(self);
             self.step();
@@ -127,17 +128,17 @@ impl CPU {
         //         .collect::<Vec<_>>()
         //         .join(", ")
         // );
-        debug!(
-            "EXEOP -- {:#06X}\t{:?}\t{:?}\t[{}]",
-            self.program_counter - 1,
-            opcode.instruction,
-            opcode.mode,
-            (1..opcode.len)
-                .map(|i| self.bus().__read(self.program_counter + i as u16 - 1, true))
-                .map(|b| format!("{:#04X}", b))
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        // debug!(
+        //     "EXEOP -- {:#06X}\t{:?}\t{:?}\t[{}]",
+        //     self.program_counter - 1,
+        //     opcode.instruction,
+        //     opcode.mode,
+        //     (1..opcode.len)
+        //         .map(|i| self.bus().__read(self.program_counter + i as u16 - 1, true))
+        //         .map(|b| format!("{:#04X}", b))
+        //         .collect::<Vec<_>>()
+        //         .join(", ")
+        // );
 
         match opcode.instruction {
             LDA => {

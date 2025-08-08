@@ -112,27 +112,28 @@ pub trait Mem {
 
 impl Mem for Bus {
     fn __read(&self, addr: u16, quiet: bool) -> u8 {
-        let quiet: bool = quiet || get_quiet_log();
+        // Force on for now
+        let quiet: bool = quiet || get_quiet_log() || true;
         match addr {
             RAM..=RAM_END => {
-                let addr: u16 = addr & 0b0000_0111_1111_1111;
-                let byte: u8 = self.cpu_vram[addr as usize];
-                (!quiet).then(|| trace!("[RAM] Read {:#04X} from {:#06X}", byte, addr));
+                let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
+                let byte: u8 = self.cpu_vram[mirror_down_addr as usize];
+                (!quiet).then(|| trace!("[RAM] Read {:#04X} from {:#06X} ({:#06X})", byte, addr, mirror_down_addr));
                 byte
             }
             PPU_REGISTERS..=PPU_REGISTERS_END => {
-                let _addr: u16 = addr & 0b0010_0000_0000_0111;
+                let _addr_mirror_down: u16 = addr & 0b0010_0000_0000_0111;
                 //todo!("PPU is not supported yet")
                 0
             }
             PRG_ROM..=PRG_ROM_END => {
-                let mut addr: u16 = addr - 0x8000;
-                if self.rom().prg_rom.len() == 0x4000 && addr >= 0x4000 {
+                let mut mirror_down_addr: u16 = addr - 0x8000;
+                if self.rom().prg_rom.len() == 0x4000 && mirror_down_addr >= 0x4000 {
                     // Mirror the data if needed
-                    addr %= 0x4000;
+                    mirror_down_addr %= 0x4000;
                 }
-                let byte: u8 = self.rom().prg_rom[addr as usize];
-                (!quiet).then(|| trace!("[PRG-ROM] Read {:#04X} from {:#06x}", byte, addr));
+                let byte: u8 = self.rom().prg_rom[mirror_down_addr as usize];
+                (!quiet).then(|| trace!("[PRG-ROM] Read {:#04X} from {:#06X} ({:#06X})", byte, addr, mirror_down_addr));
                 byte
             }
 
@@ -144,18 +145,19 @@ impl Mem for Bus {
     }
 
     fn __write(&mut self, addr: u16, data: u8, quiet: bool) {
-        let quiet: bool = quiet || get_quiet_log();
+        // Force on for now
+        let quiet: bool = quiet || get_quiet_log() || true;
         match addr {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 self.cpu_vram[mirror_down_addr as usize] = data;
-                (!quiet).then(|| trace!("[RAM] Wrote {:#04X} to {:#06X}", data, mirror_down_addr));
+                (!quiet).then(|| trace!("[RAM] Wrote {:#04X} to {:#06X} ({:#06X})", data, addr, mirror_down_addr));
             }
             PPU_REGISTERS..=PPU_REGISTERS_END => {
                 let _mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
                 //todo!("PPU is not supported yet");
             }
-            PRG_ROM..=PRG_ROM_END => panic!("Attempted to write to PRG-ROM: {:#04X}", addr),
+            PRG_ROM..=PRG_ROM_END => panic!("Attempted to write to PRG-ROM: {:#06X}", addr),
 
             _ => warn!("Ignoring bus write at {:#06X}", addr),
         }

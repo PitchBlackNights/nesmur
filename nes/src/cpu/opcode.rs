@@ -102,18 +102,14 @@ impl OpCode {
             AddressingMode::Indirect_X => {
                 let base: u8 = cpu.bus().read(addr);
                 let ptr: u8 = base.wrapping_add(cpu.index_x);
-                let lo = cpu.bus().read(ptr as u16);
-                let hi = cpu.bus().read(ptr.wrapping_add(1) as u16);
-                debug!("base = {:#06X}", base as u16);
-                debug!("cpu.index_x = {:#04X}", cpu.index_x);
-                debug!("ptr = {:#06X}", ptr);
-                debug!("data = 0x{:02X}{:02X}", hi, lo);
+                let lo: u8 = cpu.bus().read(ptr as u16);
+                let hi: u8 = cpu.bus().read(ptr.wrapping_add(1) as u16);
                 (tools::bytes_to_u16(&[lo, hi]), false)
             }
             AddressingMode::Indirect_Y => {
                 let base: u8 = cpu.bus().read(addr);
-                let lo = cpu.bus().read(base as u16);
-                let hi = cpu.bus().read(base.wrapping_add(1) as u16);
+                let lo: u8 = cpu.bus().read(base as u16);
+                let hi: u8 = cpu.bus().read(base.wrapping_add(1) as u16);
                 let deref_base: u16 = tools::bytes_to_u16(&[lo, hi]);
                 let deref: u16 = deref_base.wrapping_add(cpu.index_y as u16);
                 (deref, tools::page_cross(deref, deref_base))

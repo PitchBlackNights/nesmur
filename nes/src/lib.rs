@@ -76,10 +76,11 @@ impl NES {
 
         let mut debug_log: BufWriter<File> = BufWriter::new(File::create("nestest.log").unwrap());
 
+        info!("Running CPU in debug mode...");
         for instr_num in 0..8991u32 {
             let breakpoint: bool = breakpoints.contains(&self.cpu.program_counter);
             let old_pc: u16 = self.cpu.program_counter;
-            
+
             writeln!(&mut debug_log, "{}", tools::trace(&self.cpu)).unwrap();
             self.cpu.step();
 
