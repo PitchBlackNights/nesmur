@@ -425,7 +425,7 @@ impl CPU {
             }
             NOP_ALT => {
                 match opcode.mode {
-                    Implicit => {},
+                    Implicit => {}
                     _ => {
                         let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                         let _data: u8 = self.bus().read(addr);

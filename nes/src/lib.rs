@@ -66,44 +66,6 @@ impl NES {
         }
     }
 
-    pub fn debug_cpu(&mut self) {
-        use std::fs::File;
-        use std::io::{BufWriter, Write};
-
-        self.reset();
-        self.cpu.program_counter = 0xC000;
-        let breakpoints: Vec<u16> = vec![];
-
-        let mut debug_log: BufWriter<File> = BufWriter::new(File::create("nestest.log").unwrap());
-
-        info!("Running CPU in debug mode...");
-        for instr_num in 0..8991u32 {
-            let breakpoint: bool = breakpoints.contains(&self.cpu.program_counter);
-            let old_pc: u16 = self.cpu.program_counter;
-
-            writeln!(&mut debug_log, "{}", tools::trace(&self.cpu)).unwrap();
-            self.cpu.step();
-
-            if breakpoint {
-                println!("HIT BREAKPOINT - {:#06X}", old_pc);
-                debug_log.flush().unwrap();
-                let mut prg_rom_log: BufWriter<File> =
-                    BufWriter::new(File::create(format!("bp_{}-memory.log", instr_num)).unwrap());
-                writeln!(
-                    &mut prg_rom_log,
-                    "{}",
-                    tools::format_mem(&self.bus().memory(), 0x0000, 0xFFFF)
-                ).unwrap();
-                prg_rom_log.flush().unwrap();
-                let mut _input: String = String::new();
-                std::io::stdin().read_line(&mut _input).unwrap();
-            }
-        }
-
-        debug_log.flush().unwrap();
-        std::process::exit(0);
-    }
-
     pub fn reset(&mut self) {
         info!("Resetting CPU...");
         self.cpu.reset();

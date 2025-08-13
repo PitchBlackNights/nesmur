@@ -1,45 +1,26 @@
-use crate::apu::APU;
-use crate::bus::Bus;
-use crate::cartridge::Rom;
-use crate::cpu::CPU;
-use crate::ppu::PPU;
-use crate::prelude::*;
-use std::cell::{Ref, RefMut};
+#[allow(unused_imports)]
+pub mod prelude {
+    pub use log::{debug, error, info, trace, warn};
+    pub use nes::bus::Mem;
+    pub use nes::tools;
+    pub use nes::tools::NESAccess;
+}
+use nes::NES;
+use nes::cartridge::Rom;
+use prelude::*;
 
-#[rustfmt::skip]
-pub trait NESAccess {
-    fn bus(&self) -> Ref<Bus> { panic!("Access to `Bus` is prohibited") }
-    fn bus_mut(&self) -> RefMut<Bus> { panic!("Access to `Bus` is prohibited") }
-    fn apu(&self) -> Ref<APU> { panic!("Access to `APU` is prohibited") }
-    fn apu_mut(&self) -> RefMut<APU> { panic!("Access to `APU` is prohibited") }
-    fn ppu(&self) -> Ref<PPU> { panic!("Access to `PPU` is prohibited") }
-    fn ppu_mut(&self) -> RefMut<PPU> { panic!("Access to `PPU` is prohibited") }
-    fn rom(&self) -> Ref<Rom> { panic!("Access to `Rom` is prohibited") }
-    fn rom_mut(&self) -> RefMut<Rom> { panic!("Access to `Rom` is prohibited") }
+pub fn setup_nes(rom_path: &str) -> NES {
+    let path: String = format!("tests/roms/{}", rom_path);
+    let rom_bytes: Vec<u8> = std::fs::read(path).unwrap();
+    let rom: Rom = Rom::new(&rom_bytes).unwrap();
+    NES::new(rom)
 }
 
-pub fn u16_to_bytes(value: u16) -> [u8; 2] {
-    [(value & 0x00FF) as u8, (value >> 8) as u8]
-}
-
-pub fn bytes_to_u16(bytes: &[u8; 2]) -> u16 {
-    ((bytes[1] as u16) << 8) | (bytes[0] as u16)
-}
-
-pub fn vec_to_u16(bytes: &Vec<u8>) -> u16 {
-    let bytes: [u8; 2] = bytes.to_owned().try_into().unwrap();
-    ((bytes[1] as u16) << 8) | (bytes[0] as u16)
-}
-
-pub fn page_cross(addr1: u16, addr2: u16) -> bool {
-    addr1 & 0xFF00 != addr2 & 0xFF00
-}
-
-pub fn trace(cpu: &CPU) -> String {
-    use crate::cpu::opcode::AddressingMode::*;
-    use crate::cpu::opcode::Instruction::*;
-    use crate::cpu::opcode::{OpCode, decode_opcode};
-    crate::bus::set_quiet_log(true);
+pub fn trace(cpu: &nes::cpu::CPU) -> String {
+    use nes::cpu::opcode::AddressingMode::*;
+    use nes::cpu::opcode::Instruction::*;
+    use nes::cpu::opcode::{OpCode, decode_opcode};
+    nes::bus::set_quiet_log(true);
 
     let opbyte: u8 = cpu.bus().read(cpu.program_counter);
     let opcode: &'static OpCode = decode_opcode(opbyte);
@@ -58,7 +39,7 @@ pub fn trace(cpu: &CPU) -> String {
 
     let tmp: String = match opcode.len {
         1 => match opcode.byte {
-            0x0a | 0x2a | 0x4a | 0x6a => String::from("A "),
+            0x0a | 0x2a | 0x4a | 0x6a => format!("A "),
             _ => String::from(""),
         },
         2 => {
@@ -169,56 +150,10 @@ pub fn trace(cpu: &CPU) -> String {
     .trim()
     .to_string();
 
-    crate::bus::set_quiet_log(false);
+    nes::bus::set_quiet_log(false);
     format!(
         "{:47} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
         asm_str, cpu.accumulator, cpu.index_x, cpu.index_y, cpu.status, cpu.stack_pointer,
     )
     .to_ascii_uppercase()
-}
-
-pub fn format_mem(memory: &[u8], start_addr: u16, end_addr: u16) -> String {
-    let mut buffer: String = String::from(
-        "ADDR   00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ASCII\n-------------------------------------------------------------------------\n",
-    );
-    for line_num in (start_addr >> 4usize)..(end_addr >> 4usize) + 1 {
-        let shift_line_num: u16 = line_num << 4usize;
-        let mut line: String = format!("{:04X}:  ", line_num << 4usize);
-
-        for byte_num in 0x00..0x07 + 1 {
-            if shift_line_num + byte_num < start_addr || shift_line_num + byte_num > end_addr {
-                line += "   ";
-            } else {
-                line += format!("{:02X} ", memory[(shift_line_num + byte_num) as usize]).as_str();
-            }
-        }
-        line += " ";
-
-        for byte_num in 0x08..0x0F + 1 {
-            if shift_line_num + byte_num < start_addr || shift_line_num + byte_num > end_addr {
-                line += "   ";
-            } else {
-                line += format!("{:02X} ", memory[(shift_line_num + byte_num) as usize]).as_str();
-            }
-        }
-        line += " ";
-
-        for byte_num in 0x00..0x0F + 1 {
-            if shift_line_num + byte_num < start_addr || shift_line_num + byte_num > end_addr {
-                line += " ";
-            } else {
-                let ascii_byte: u8 = memory[(shift_line_num + byte_num) as usize];
-                let ascii_char: String = if 0x20 >= ascii_byte || ascii_byte >= 0x7E {
-                    String::from(0x2E as char) // Char: `.`
-                } else {
-                    String::from(ascii_byte as char)
-                };
-
-                line += ascii_char.as_str();
-            }
-        }
-        buffer += (line + "\n").as_str();
-    }
-
-    buffer
 }

@@ -7,6 +7,7 @@ edition = "2024"
 log = "0.4"
 once_cell = "1.21"
 bitflags = "2.9"
+md5 = "0.8"
 
 [lints.clippy]
 uninlined-format-args = "allow"
