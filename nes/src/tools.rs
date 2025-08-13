@@ -39,6 +39,8 @@ pub fn trace(cpu: &CPU) -> String {
     use crate::cpu::opcode::AddressingMode::*;
     use crate::cpu::opcode::Instruction::*;
     use crate::cpu::opcode::{OpCode, decode_opcode};
+
+    let prev_bus_quiet_log: bool = crate::bus::get_quiet_log();
     crate::bus::set_quiet_log(true);
 
     let opbyte: u8 = cpu.bus().read(cpu.program_counter);
@@ -169,7 +171,7 @@ pub fn trace(cpu: &CPU) -> String {
     .trim()
     .to_string();
 
-    crate::bus::set_quiet_log(false);
+    crate::bus::set_quiet_log(prev_bus_quiet_log);
     format!(
         "{:47} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
         asm_str, cpu.accumulator, cpu.index_x, cpu.index_y, cpu.status, cpu.stack_pointer,

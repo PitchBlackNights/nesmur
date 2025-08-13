@@ -46,6 +46,13 @@ pub fn get_quiet_log() -> bool {
 pub fn set_quiet_log(value: bool) {
     unsafe { QUIET_LOG = value }
 }
+pub static mut PREV_QUIET_LOG: bool = false;
+pub fn get_prev_quiet_log() -> bool {
+    unsafe { PREV_QUIET_LOG }
+}
+pub fn set_prev_quiet_log(value: bool) {
+    unsafe { PREV_QUIET_LOG = value }
+}
 
 #[rustfmt::skip]
 impl NESAccess for Bus {
@@ -112,20 +119,34 @@ pub trait Mem {
     }
 }
 
+macro_rules! bus_trace {
+    ($($arg:tt)+) => ({
+        (!get_quiet_log()).then(|| {
+            log::log!(log::Level::Trace, $($arg)+)
+        });
+    })
+}
+
+macro_rules! bus_logging {
+    ($arg:ident) => {
+        let quiet_log = get_quiet_log();
+        set_prev_quiet_log(quiet_log);
+        set_quiet_log($arg | quiet_log);
+    };
+    () => {
+        set_quiet_log(get_prev_quiet_log());
+    }
+}
+
 impl Mem for Bus {
     fn __read(&self, addr: u16, quiet: bool) -> u8 {
-        // Force on for now
-        let quiet: bool = quiet || get_quiet_log();
-        match addr {
+        bus_logging!(quiet);
+
+        let data: u8 = match addr {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 let byte: u8 = self.cpu_vram[mirror_down_addr as usize];
-                (!quiet).then(|| {
-                    trace!(
-                        "[RAM] Read {:#04X} from {:#06X} ({:#06X})",
-                        byte, addr, mirror_down_addr
-                    )
-                });
+                bus_trace!("[RAM] Read {:#04X} from {:#06X} ({:#06X})", byte, addr, mirror_down_addr);
                 byte
             }
 
@@ -135,11 +156,24 @@ impl Mem for Bus {
                     addr
                 );
             }
-            0x2002 => self.ppu_mut().read_status(),
-            0x2004 => self.ppu().read_oam_data(),
-            0x2007 => self.ppu_mut().read_data(),
+            0x2002 => {
+                let byte: u8 = self.ppu_mut().read_status();
+                bus_trace!("[PPU] Read {:#04X} from {:#06X} (PPU Status)", byte, addr);
+                byte
+            }
+            0x2004 => {
+                let byte: u8 = self.ppu().read_oam_data();
+                bus_trace!("[PPU] Read {:#04X} from {:#06X} (PPU OAM Data)", byte, addr);
+                byte
+            }
+            0x2007 => {
+                let byte: u8 = self.ppu_mut().read_data();
+                bus_trace!("[PPU] Read {:#04X} from {:#06X} (PPU Data)", byte, addr);
+                byte
+            }
             0x2008..=PPU_REGISTERS_END => {
                 let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
+                bus_trace!("[PPU] Mirroring down read at {:#06X} to {:#06X}", addr, mirror_down_addr);
                 self.__read(mirror_down_addr, quiet)
             }
 
@@ -150,12 +184,7 @@ impl Mem for Bus {
                     mirror_down_addr %= 0x4000;
                 }
                 let byte: u8 = self.prg_rom[mirror_down_addr as usize];
-                (!quiet).then(|| {
-                    trace!(
-                        "[PRG-ROM] Read {:#04X} from {:#06X} ({:#06X})",
-                        byte, addr, mirror_down_addr
-                    )
-                });
+                bus_trace!("[PRG-ROM] Read {:#04X} from {:#06X} ({:#06X})", byte, addr, mirror_down_addr);
                 byte
             }
 
@@ -163,48 +192,54 @@ impl Mem for Bus {
                 warn!("Ignoring bus read at {:#06X}", addr);
                 0
             }
-        }
+        };
+
+        bus_logging!();
+        data
     }
 
     fn __write(&mut self, addr: u16, data: u8, quiet: bool) {
-        // Force on for now
-        let quiet: bool = quiet || get_quiet_log();
+        bus_logging!(quiet);
+
         match addr {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 self.cpu_vram[mirror_down_addr as usize] = data;
-                (!quiet).then(|| {
-                    trace!(
-                        "[RAM] Wrote {:#04X} to {:#06X} ({:#06X})",
-                        data, addr, mirror_down_addr
-                    )
-                });
+                bus_trace!("[RAM] Wrote {:#04X} to {:#06X} ({:#06X})", data, addr, mirror_down_addr);
             }
 
             PPU_REGISTERS => {
                 self.ppu_mut().write_to_ctrl(data);
+                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Control Register)", data, addr);
             }
             0x2001 => {
                 self.ppu_mut().write_to_mask(data);
+                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Mask Register)", data, addr);
             }
-            0x2002 => panic!("Attempted to write to a PPU status register: {:#06X}", addr),
+            0x2002 => panic!("Attempted to write to PPU status register"),
             0x2003 => {
                 self.ppu_mut().write_to_oam_addr(data);
+                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU OAM Address)", data, addr);
             }
             0x2004 => {
                 self.ppu_mut().write_to_oam_data(data);
+                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU OAM Data)", data, addr);
             }
             0x2005 => {
                 self.ppu_mut().write_to_scroll(data);
+                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Scroll Register)", data, addr);
             }
             0x2006 => {
                 self.ppu_mut().write_to_ppu_addr(data);
+                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Address)", data, addr);
             }
             0x2007 => {
                 self.ppu_mut().write_to_data(data);
+                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Data)", data, addr);
             }
             0x2008..=PPU_REGISTERS_END => {
                 let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
+                bus_trace!("[PPU] Mirroring down write at {:#06X} to {:#06X}", addr, mirror_down_addr);
                 self.__write(mirror_down_addr, data, quiet);
             }
 
@@ -212,5 +247,8 @@ impl Mem for Bus {
 
             _ => warn!("Ignoring bus write at {:#06X}", addr),
         }
+
+        bus_logging!();
     }
 }
+
