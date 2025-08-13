@@ -1,8 +1,10 @@
 #[allow(unused_imports)]
 mod prelude {
     pub use crate::bus::Mem;
+    pub use crate::ppu::NesPPU;
     pub use crate::tools;
     pub use crate::tools::NESAccess;
+    pub use bitflags::bitflags;
     pub use log::{debug, error, info, trace, warn};
 }
 pub mod apu;
@@ -47,9 +49,12 @@ pub struct NES {
 
 impl NES {
     pub fn new(rom: Rom) -> Self {
-        let apu: Rc<RefCell<APU>> = Rc::new(RefCell::new(APU::new()));
-        let ppu: Rc<RefCell<PPU>> = Rc::new(RefCell::new(PPU::new()));
         let rom: Rc<RefCell<Rom>> = Rc::new(RefCell::new(rom));
+        let apu: Rc<RefCell<APU>> = Rc::new(RefCell::new(APU::new()));
+        let ppu: Rc<RefCell<PPU>> = Rc::new(RefCell::new({
+            let rom: Rc<RefCell<Rom>> = rom.clone();
+            PPU::new(rom.borrow().chr_rom.clone(), rom.borrow().screen_mirroring)
+        }));
         let bus: Rc<RefCell<Bus>> = Rc::new(RefCell::new(Bus::new(
             rom.clone(),
             apu.clone(),

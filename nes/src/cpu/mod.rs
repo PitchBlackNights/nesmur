@@ -7,7 +7,6 @@ use crate::cpu::opcode::Instruction::*;
 use crate::cpu::opcode::OpCode;
 use crate::prelude::*;
 // use crate::tools;
-use bitflags::bitflags;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -47,6 +46,7 @@ impl NESAccess for CPU {
 }
 
 pub struct CPU {
+    pub running: bool,
     pub cycles: u64,
     pub accumulator: u8,
     pub index_x: u8,
@@ -63,6 +63,7 @@ impl CPU {
         let _ = &opcode::OPCODES.get(&0u8);
 
         CPU {
+            running: false,
             cycles: 0,
             accumulator: 0x00,
             index_x: 0x00,
@@ -84,31 +85,30 @@ impl CPU {
         self.program_counter = pc;
     }
 
-    pub fn step(&mut self) {
-        let opbyte: u8 = self.bus().read(self.program_counter);
-        self.program_counter += 1;
-        let program_counter_state: u16 = self.program_counter;
-        let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
-
-        self.execute_instruction(opcode);
-        self.cycles += opcode.cycles as u64;
-        // TODO: Tick the bus
-
-        if program_counter_state == self.program_counter {
-            self.program_counter += opcode.len as u16 - 1
-        }
-    }
-
     pub fn run(&mut self) {
         self.run_with_callback(|_| {});
     }
 
     pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
+        self.running = true;
+
         info!("Running CPU...");
-        loop {
+        while self.running {
             callback(self);
-            self.step();
+            let opbyte: u8 = self.bus().read(self.program_counter);
+            self.program_counter += 1;
+            let program_counter_state: u16 = self.program_counter;
+            let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
+
+            self.execute_instruction(opcode);
+            self.cycles += opcode.cycles as u64;
+            // TODO: Tick the bus
+
+            if program_counter_state == self.program_counter {
+                self.program_counter += opcode.len as u16 - 1
+            }
         }
+        info!("Stopping CPU...");
     }
 
     fn execute_instruction(&mut self, opcode: &OpCode) {
@@ -412,10 +412,7 @@ impl CPU {
             SEC => self.status.insert(Flags::CARRY),
             SED => self.status.insert(Flags::DECIMAL_MODE),
             SEI => self.status.insert(Flags::INTERRUPT_DISABLE),
-            BRK => panic!(
-                "CPU Operation '{:?}' is not implemented",
-                opcode.instruction
-            ),
+            BRK => self.running = false,
             NOP => {}
             RTI => {
                 self.status = Flags::from_bits_truncate(common::stack_pop(self));

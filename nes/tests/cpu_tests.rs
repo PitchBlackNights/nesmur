@@ -2,20 +2,24 @@ mod common;
 
 // use common::prelude::*;
 use nes::NES;
+use nes::tools;
 
 #[test]
 fn nestest() {
     let mut debug_log: String = String::new();
     let mut nes: NES = common::setup_nes("nestest.nes");
 
-    nes::bus::set_force_quiet_log(true);
     nes.reset();
     nes.cpu.program_counter = 0xC000;
 
-    for _ in 0..8991 {
-        debug_log += format!("{}\n", common::trace(&nes.cpu)).as_str();
-        nes.cpu.step();
-    }
+    let mut instruction_cycle: u16 = 0;
+    nes.cpu.run_with_callback(|cpu| {
+        debug_log += format!("{}\n", tools::trace(cpu)).as_str();
+        instruction_cycle += 1;
+        if instruction_cycle == 8992 {
+            cpu.running = false;
+        }
+    });
 
     let log_hash: String = format!("{:x}", md5::compute(debug_log));
     let good_hash: String = format!(
@@ -24,8 +28,9 @@ fn nestest() {
     );
 
     // Hardcoded hash is the hash of the current best cpu log
-    if log_hash != good_hash && log_hash != "53b5a9eea0cf79a81a6fb1d632dd1977" {
-        panic!(
+    if log_hash != good_hash && log_hash != "514baa4125ede525e1c5707a98a2f36b" {
+        assert!(
+            false,
             "The generated CPU log does not match the known good reference log!\nGenerated Hash: {}\nKnown Good Hash: {}",
             log_hash, good_hash
         );

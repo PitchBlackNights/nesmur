@@ -47,42 +47,36 @@ pub fn set_quiet_log(value: bool) {
     unsafe { QUIET_LOG = value }
 }
 
-pub static mut FORCE_QUIET_LOG: bool = false;
-pub fn get_force_quiet_log() -> bool {
-    unsafe { FORCE_QUIET_LOG }
-}
-pub fn set_force_quiet_log(value: bool) {
-    unsafe { FORCE_QUIET_LOG = value }
-}
-
 #[rustfmt::skip]
 impl NESAccess for Bus {
-    fn rom(&self) -> Ref<Rom> { self.rom.borrow() }
-    fn rom_mut(&self) -> RefMut<Rom> { self.rom.borrow_mut() }
+    fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
+    fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
 }
 
 pub struct Bus {
     cpu_vram: [u8; 2048],
-    rom: Rc<RefCell<Rom>>,
+    prg_rom: Vec<u8>,
+    ppu: Rc<RefCell<PPU>>,
 }
 
 impl Bus {
-    pub fn new(rom: Rc<RefCell<Rom>>, _apu: Rc<RefCell<APU>>, _ppu: Rc<RefCell<PPU>>) -> Bus {
+    pub fn new(rom: Rc<RefCell<Rom>>, _apu: Rc<RefCell<APU>>, ppu: Rc<RefCell<PPU>>) -> Bus {
         Bus {
             cpu_vram: [0; 2048],
-            rom,
+            prg_rom: rom.borrow().prg_rom.clone(),
+            ppu,
         }
     }
 
     pub fn memory(&self) -> Vec<u8> {
         let mut memory: Vec<u8> = vec![0u8; 0x10000];
-        let cpu_vram: Vec<u8> = self.cpu_vram.to_vec();
-        let prg_rom: &Vec<u8> = &self.rom().prg_rom;
+        let cpu_vram: &Vec<u8> = &self.cpu_vram.to_vec();
+        let prg_rom: &Vec<u8> = &self.prg_rom;
 
-        memory[0x0000..0x07FF + 1].copy_from_slice(&cpu_vram);
-        memory[0x0800..0x0FFF + 1].copy_from_slice(&cpu_vram);
-        memory[0x1000..0x17FF + 1].copy_from_slice(&cpu_vram);
-        memory[0x1800..0x1FFF + 1].copy_from_slice(&cpu_vram);
+        memory[0x0000..0x07FF + 1].copy_from_slice(cpu_vram);
+        memory[0x0800..0x0FFF + 1].copy_from_slice(cpu_vram);
+        memory[0x1000..0x17FF + 1].copy_from_slice(cpu_vram);
+        memory[0x1800..0x1FFF + 1].copy_from_slice(cpu_vram);
         // OTHER MEMORY
         memory[0x8000..0xBFFF + 1].copy_from_slice(prg_rom);
         memory[0xC000..0xFFFF + 1].copy_from_slice(prg_rom);
@@ -121,7 +115,7 @@ pub trait Mem {
 impl Mem for Bus {
     fn __read(&self, addr: u16, quiet: bool) -> u8 {
         // Force on for now
-        let quiet: bool = quiet || get_quiet_log() || get_force_quiet_log();
+        let quiet: bool = quiet || get_quiet_log();
         match addr {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
@@ -134,18 +128,28 @@ impl Mem for Bus {
                 });
                 byte
             }
-            PPU_REGISTERS..=PPU_REGISTERS_END => {
-                let _addr_mirror_down: u16 = addr & 0b0010_0000_0000_0111;
-                //todo!("PPU is not supported yet")
-                0
+
+            PPU_REGISTERS | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
+                panic!(
+                    "Attempted to read from write-only PPU address: {:#06X}",
+                    addr
+                );
             }
+            0x2002 => self.ppu_mut().read_status(),
+            0x2004 => self.ppu().read_oam_data(),
+            0x2007 => self.ppu_mut().read_data(),
+            0x2008..=PPU_REGISTERS_END => {
+                let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
+                self.__read(mirror_down_addr, quiet)
+            }
+
             PRG_ROM..=PRG_ROM_END => {
                 let mut mirror_down_addr: u16 = addr - 0x8000;
-                if self.rom().prg_rom.len() == 0x4000 && mirror_down_addr >= 0x4000 {
+                if self.prg_rom.len() == 0x4000 && mirror_down_addr >= 0x4000 {
                     // Mirror the data if needed
                     mirror_down_addr %= 0x4000;
                 }
-                let byte: u8 = self.rom().prg_rom[mirror_down_addr as usize];
+                let byte: u8 = self.prg_rom[mirror_down_addr as usize];
                 (!quiet).then(|| {
                     trace!(
                         "[PRG-ROM] Read {:#04X} from {:#06X} ({:#06X})",
@@ -164,7 +168,7 @@ impl Mem for Bus {
 
     fn __write(&mut self, addr: u16, data: u8, quiet: bool) {
         // Force on for now
-        let quiet: bool = quiet || get_quiet_log() || get_force_quiet_log();
+        let quiet: bool = quiet || get_quiet_log();
         match addr {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
@@ -176,10 +180,34 @@ impl Mem for Bus {
                     )
                 });
             }
-            PPU_REGISTERS..=PPU_REGISTERS_END => {
-                let _mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
-                //todo!("PPU is not supported yet");
+
+            PPU_REGISTERS => {
+                self.ppu_mut().write_to_ctrl(data);
             }
+            0x2001 => {
+                self.ppu_mut().write_to_mask(data);
+            }
+            0x2002 => panic!("Attempted to write to a PPU status register: {:#06X}", addr),
+            0x2003 => {
+                self.ppu_mut().write_to_oam_addr(data);
+            }
+            0x2004 => {
+                self.ppu_mut().write_to_oam_data(data);
+            }
+            0x2005 => {
+                self.ppu_mut().write_to_scroll(data);
+            }
+            0x2006 => {
+                self.ppu_mut().write_to_ppu_addr(data);
+            }
+            0x2007 => {
+                self.ppu_mut().write_to_data(data);
+            }
+            0x2008..=PPU_REGISTERS_END => {
+                let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
+                self.__write(mirror_down_addr, data, quiet);
+            }
+
             PRG_ROM..=PRG_ROM_END => panic!("Attempted to write to PRG-ROM: {:#06X}", addr),
 
             _ => warn!("Ignoring bus write at {:#06X}", addr),
