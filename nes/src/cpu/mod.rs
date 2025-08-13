@@ -1,10 +1,12 @@
 mod common;
 pub mod opcode;
+pub mod interrupt;
 
 use crate::bus::Bus;
 use crate::cpu::opcode::AddressingMode::*;
 use crate::cpu::opcode::Instruction::*;
 use crate::cpu::opcode::OpCode;
+use crate::cpu::interrupt::Interrupt;
 use crate::prelude::*;
 // use crate::tools;
 use std::cell::{Ref, RefCell, RefMut};
@@ -47,7 +49,7 @@ impl NESAccess for CPU {
 
 pub struct CPU {
     pub running: bool,
-    pub cycles: u64,
+    pub cycles: usize,
     pub accumulator: u8,
     pub index_x: u8,
     pub index_y: u8,
@@ -85,6 +87,20 @@ impl CPU {
         self.program_counter = pc;
     }
 
+    fn interrupt(&mut self, interrupt: Interrupt) {
+        common::stack_push_u16(self, self.program_counter);
+        let mut flag: Flags = self.status.clone();
+        flag.set(Flags::BREAK, interrupt.b_flag_mask & 0b010000 == 1);
+        flag.set(Flags::UNUSED, interrupt.b_flag_mask & 0b100000 == 1);
+
+        common::stack_push(self, flag.bits());
+        self.status.insert(Flags::INTERRUPT_DISABLE);
+
+        self.bus_mut().tick(interrupt.cpu_cycles);
+        let interrupt_vector: u16 = self.bus().read_u16(interrupt.vector_addr);
+        self.program_counter = interrupt_vector;
+    }
+
     pub fn run(&mut self) {
         self.run_with_callback(|_| {});
     }
@@ -94,6 +110,9 @@ impl CPU {
 
         info!("Running CPU...");
         while self.running {
+            if matches!(self.bus_mut().poll_nmi_status(), Some(_)) {
+                self.interrupt(interrupt::NMI);
+            }
             callback(self);
             let opbyte: u8 = self.bus().read(self.program_counter);
             self.program_counter += 1;
@@ -101,8 +120,8 @@ impl CPU {
             let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
 
             self.execute_instruction(opcode);
-            self.cycles += opcode.cycles as u64;
-            // TODO: Tick the bus
+            self.cycles += opcode.cycles;
+            self.bus_mut().tick(opcode.cycles);
 
             if program_counter_state == self.program_counter {
                 self.program_counter += opcode.len as u16 - 1
@@ -146,7 +165,7 @@ impl CPU {
                 let value: u8 = self.bus().read(addr);
                 common::set_accumulator(self, value);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             LDX => {
@@ -154,7 +173,7 @@ impl CPU {
                 let value: u8 = self.bus().read(addr);
                 common::set_index_x(self, value);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             LDY => {
@@ -162,7 +181,7 @@ impl CPU {
                 let value: u8 = self.bus().read(addr);
                 common::set_index_y(self, value);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             STA => {
@@ -216,7 +235,7 @@ impl CPU {
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data & self.accumulator);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             EOR => {
@@ -224,7 +243,7 @@ impl CPU {
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data ^ self.accumulator);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             ORA => {
@@ -232,7 +251,7 @@ impl CPU {
                 let data: u8 = self.bus().read(addr);
                 common::set_accumulator(self, data | self.accumulator);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             BIT => {
@@ -247,7 +266,7 @@ impl CPU {
                 let value: u8 = self.bus().read(addr);
                 common::add_to_accumulator(self, value);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             SBC => {
@@ -255,7 +274,7 @@ impl CPU {
                 let value: u8 = self.bus().read(addr);
                 common::sub_from_accumulator(self, value);
                 if page_cross {
-                    // TODO: Tick the bus
+                    self.bus_mut().tick(1);
                 }
             }
             CMP => {
@@ -427,7 +446,7 @@ impl CPU {
                         let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                         let _data: u8 = self.bus().read(addr);
                         if page_cross {
-                            // TODO: Tick the bus
+                            self.bus_mut().tick(1);
                         }
                     }
                 }

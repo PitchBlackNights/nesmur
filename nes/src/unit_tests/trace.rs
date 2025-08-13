@@ -10,7 +10,7 @@ fn test_format_trace() {
     // LDX #$01
     // DEX
     // DEY
-    // HLT
+    // BRK
     bus.write(0x0064, 0xA2);
     bus.write(0x0065, 0x01);
     bus.write(0x0066, 0xCA);

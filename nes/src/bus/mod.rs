@@ -3,6 +3,7 @@ use crate::cartridge::Rom;
 use crate::ppu::PPU;
 use crate::prelude::*;
 use std::cell::{Ref, RefCell, RefMut};
+use std::iter::Cycle;
 use std::rc::Rc;
 
 //  _______________ $10000  _______________
@@ -64,6 +65,7 @@ pub struct Bus {
     cpu_vram: [u8; 2048],
     prg_rom: Vec<u8>,
     ppu: Rc<RefCell<PPU>>,
+    cycles: usize,
 }
 
 impl Bus {
@@ -72,7 +74,17 @@ impl Bus {
             cpu_vram: [0; 2048],
             prg_rom: rom.borrow().prg_rom.clone(),
             ppu,
+            cycles: 0,
         }
+    }
+
+    pub fn tick(&mut self, cycles: usize) {
+        self.cycles += cycles;
+        self.ppu.tick(cycles * 3);
+    }
+
+    pub fn poll_nmi_status(&mut self) -> Option<u8> {
+        self.ppu().nmi_interrupt.take()
     }
 
     pub fn memory(&self) -> Vec<u8> {

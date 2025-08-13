@@ -9,7 +9,7 @@ pub struct OpCode {
     pub instruction: Instruction,
     pub mnemonic: &'static str,
     pub len: u8,
-    pub cycles: u8,
+    pub cycles: usize,
     pub mode: AddressingMode,
 }
 
@@ -18,7 +18,7 @@ impl OpCode {
         byte: u8,
         instruction: Instruction,
         mnemonic: &'static str,
-        cycles: u8,
+        cycles: usize,
         mode: AddressingMode,
     ) -> Self {
         let len: u8 = match mode {

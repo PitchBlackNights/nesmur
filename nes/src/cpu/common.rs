@@ -32,10 +32,10 @@ pub fn stack_pop_u16(cpu: &mut CPU) -> u16 {
 // ============================
 pub fn branch(cpu: &mut CPU, opcode: &OpCode, condition: bool) {
     if condition {
-        // TODO: Tick the bus
+        cpu.bus_mut().tick(1);
         let (addr, page_cross) = opcode.get_operand_address(cpu);
         if page_cross {
-            // TODO: Tick the bus
+            cpu.bus_mut().tick(1);
         }
         cpu.program_counter = addr;
     }
@@ -52,7 +52,7 @@ pub fn compare(cpu: &mut CPU, opcode: &OpCode, compare_with: u8) {
     update_flags_z(cpu, compare_with.wrapping_sub(data));
     update_flags_n(cpu, compare_with.wrapping_sub(data));
     if page_cross {
-        // TODO: Tick the bus
+        cpu.bus_mut().tick(1);
     }
 }
 
