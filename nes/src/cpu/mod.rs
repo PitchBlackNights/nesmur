@@ -1,12 +1,12 @@
 mod common;
-pub mod opcode;
 pub mod interrupt;
+pub mod opcode;
 
 use crate::bus::Bus;
+use crate::cpu::interrupt::Interrupt;
 use crate::cpu::opcode::AddressingMode::*;
 use crate::cpu::opcode::Instruction::*;
 use crate::cpu::opcode::OpCode;
-use crate::cpu::interrupt::Interrupt;
 use crate::prelude::*;
 // use crate::tools;
 use std::cell::{Ref, RefCell, RefMut};
@@ -90,8 +90,8 @@ impl CPU {
     fn interrupt(&mut self, interrupt: Interrupt) {
         common::stack_push_u16(self, self.program_counter);
         let mut flag: Flags = self.status.clone();
-        flag.set(Flags::BREAK, interrupt.b_flag_mask & 0b010000 == 1);
-        flag.set(Flags::UNUSED, interrupt.b_flag_mask & 0b100000 == 1);
+        flag.set(Flags::BREAK, interrupt.b_flag_mask == 0b0010_0000);
+        flag.set(Flags::UNUSED, interrupt.b_flag_mask == 0b0010_0000);
 
         common::stack_push(self, flag.bits());
         self.status.insert(Flags::INTERRUPT_DISABLE);
@@ -110,7 +110,7 @@ impl CPU {
 
         info!("Running CPU...");
         while self.running {
-            if matches!(self.bus_mut().poll_nmi_status(), Some(_)) {
+            if self.bus_mut().poll_nmi_status().is_some() {
                 self.interrupt(interrupt::NMI);
             }
             callback(self);
@@ -439,18 +439,16 @@ impl CPU {
                 self.status.insert(Flags::UNUSED);
                 self.program_counter = common::stack_pop_u16(self);
             }
-            NOP_ALT => {
-                match opcode.mode {
-                    Implicit => {}
-                    _ => {
-                        let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
-                        let _data: u8 = self.bus().read(addr);
-                        if page_cross {
-                            self.bus_mut().tick(1);
-                        }
+            NOP_ALT => match opcode.mode {
+                Implicit => {}
+                _ => {
+                    let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
+                    let _data: u8 = self.bus().read(addr);
+                    if page_cross {
+                        self.bus_mut().tick(1);
                     }
                 }
-            }
+            },
             SLO => {
                 let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 let mut data: u8 = self.bus().read(addr);

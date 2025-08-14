@@ -3,7 +3,6 @@ use crate::cartridge::Rom;
 use crate::ppu::PPU;
 use crate::prelude::*;
 use std::cell::{Ref, RefCell, RefMut};
-use std::iter::Cycle;
 use std::rc::Rc;
 
 //  _______________ $10000  _______________
@@ -80,11 +79,11 @@ impl Bus {
 
     pub fn tick(&mut self, cycles: usize) {
         self.cycles += cycles;
-        self.ppu.tick(cycles * 3);
+        self.ppu_mut().tick(cycles * 3);
     }
 
     pub fn poll_nmi_status(&mut self) -> Option<u8> {
-        self.ppu().nmi_interrupt.take()
+        self.ppu_mut().nmi_interrupt.take()
     }
 
     pub fn memory(&self) -> Vec<u8> {
@@ -147,7 +146,7 @@ macro_rules! bus_logging {
     };
     () => {
         set_quiet_log(get_prev_quiet_log());
-    }
+    };
 }
 
 impl Mem for Bus {
@@ -158,7 +157,12 @@ impl Mem for Bus {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 let byte: u8 = self.cpu_vram[mirror_down_addr as usize];
-                bus_trace!("[RAM] Read {:#04X} from {:#06X} ({:#06X})", byte, addr, mirror_down_addr);
+                bus_trace!(
+                    "[RAM] Read {:#04X} from {:#06X} ({:#06X})",
+                    byte,
+                    addr,
+                    mirror_down_addr
+                );
                 byte
             }
 
@@ -185,7 +189,11 @@ impl Mem for Bus {
             }
             0x2008..=PPU_REGISTERS_END => {
                 let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
-                bus_trace!("[PPU] Mirroring down read at {:#06X} to {:#06X}", addr, mirror_down_addr);
+                bus_trace!(
+                    "[PPU] Mirroring down read at {:#06X} to {:#06X}",
+                    addr,
+                    mirror_down_addr
+                );
                 self.__read(mirror_down_addr, quiet)
             }
 
@@ -196,7 +204,12 @@ impl Mem for Bus {
                     mirror_down_addr %= 0x4000;
                 }
                 let byte: u8 = self.prg_rom[mirror_down_addr as usize];
-                bus_trace!("[PRG-ROM] Read {:#04X} from {:#06X} ({:#06X})", byte, addr, mirror_down_addr);
+                bus_trace!(
+                    "[PRG-ROM] Read {:#04X} from {:#06X} ({:#06X})",
+                    byte,
+                    addr,
+                    mirror_down_addr
+                );
                 byte
             }
 
@@ -217,21 +230,38 @@ impl Mem for Bus {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 self.cpu_vram[mirror_down_addr as usize] = data;
-                bus_trace!("[RAM] Wrote {:#04X} to {:#06X} ({:#06X})", data, addr, mirror_down_addr);
+                bus_trace!(
+                    "[RAM] Wrote {:#04X} to {:#06X} ({:#06X})",
+                    data,
+                    addr,
+                    mirror_down_addr
+                );
             }
 
             PPU_REGISTERS => {
                 self.ppu_mut().write_to_ctrl(data);
-                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Control Register)", data, addr);
+                bus_trace!(
+                    "[PPU] Wrote {:#04X} to {:#06X} (PPU Control Register)",
+                    data,
+                    addr
+                );
             }
             0x2001 => {
                 self.ppu_mut().write_to_mask(data);
-                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Mask Register)", data, addr);
+                bus_trace!(
+                    "[PPU] Wrote {:#04X} to {:#06X} (PPU Mask Register)",
+                    data,
+                    addr
+                );
             }
             0x2002 => panic!("Attempted to write to PPU status register"),
             0x2003 => {
                 self.ppu_mut().write_to_oam_addr(data);
-                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU OAM Address)", data, addr);
+                bus_trace!(
+                    "[PPU] Wrote {:#04X} to {:#06X} (PPU OAM Address)",
+                    data,
+                    addr
+                );
             }
             0x2004 => {
                 self.ppu_mut().write_to_oam_data(data);
@@ -239,7 +269,11 @@ impl Mem for Bus {
             }
             0x2005 => {
                 self.ppu_mut().write_to_scroll(data);
-                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Scroll Register)", data, addr);
+                bus_trace!(
+                    "[PPU] Wrote {:#04X} to {:#06X} (PPU Scroll Register)",
+                    data,
+                    addr
+                );
             }
             0x2006 => {
                 self.ppu_mut().write_to_ppu_addr(data);
@@ -251,7 +285,11 @@ impl Mem for Bus {
             }
             0x2008..=PPU_REGISTERS_END => {
                 let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
-                bus_trace!("[PPU] Mirroring down write at {:#06X} to {:#06X}", addr, mirror_down_addr);
+                bus_trace!(
+                    "[PPU] Mirroring down write at {:#06X} to {:#06X}",
+                    addr,
+                    mirror_down_addr
+                );
                 self.__write(mirror_down_addr, data, quiet);
             }
 
@@ -263,4 +301,3 @@ impl Mem for Bus {
         bus_logging!();
     }
 }
-
