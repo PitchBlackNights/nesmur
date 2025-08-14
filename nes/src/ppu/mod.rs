@@ -24,7 +24,7 @@ pub struct PPU {
     internal_data_buf: u8,
 
     pub scanline: u16,
-    cycles: usize,
+    pub cycles: usize,
     pub nmi_interrupt: Option<u8>,
 }
 
@@ -93,6 +93,9 @@ impl PPU {
     pub fn tick(&mut self, cycles: usize) -> bool {
         self.cycles += cycles;
         if self.cycles >= 341 {
+            if self.is_sprite_0_hit(self.cycles) {
+                self.status.set_sprite_zero_hit(true);
+            }
             self.cycles -= 341;
             self.scanline += 1;
 
@@ -117,6 +120,12 @@ impl PPU {
 
     pub fn poll_nmi_interrupt(&mut self) -> Option<u8> {
         self.nmi_interrupt.take()
+    }
+
+    fn is_sprite_0_hit(&self, cycles: usize) -> bool {
+        let y: usize = self.oam_data[0] as usize;
+        let x: usize = self.oam_data[3] as usize;
+        (y == self.scanline as usize) && (x <= cycles) && self.mask.show_sprites()
     }
 }
 

@@ -11,9 +11,9 @@ pub mod apu;
 pub mod bus;
 pub mod cartridge;
 pub mod cpu;
+pub mod joypad;
 pub mod ppu;
 pub mod tools;
-pub mod joypad;
 #[cfg(test)]
 mod unit_tests;
 

@@ -4,7 +4,14 @@ use crate::cartridge::Rom;
 use crate::cpu::CPU;
 use crate::ppu::PPU;
 use crate::prelude::*;
+use once_cell::sync::Lazy;
 use std::cell::{Ref, RefMut};
+
+pub static NON_READABLE_ADDR: Lazy<Vec<u16>> = Lazy::new(|| {
+    vec![
+        0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x4016, 0x4017,
+    ]
+});
 
 #[rustfmt::skip]
 pub trait NESAccess<'a> {
@@ -54,7 +61,12 @@ pub fn trace(cpu: &CPU) -> String {
         Implicit | Accumulator | Immediate => (0, 0),
         _ => {
             let (addr, _): (u16, bool) = opcode.get_absolute_address(cpu, begin + 1);
-            (addr, cpu.bus_mut().read(addr))
+
+            if !NON_READABLE_ADDR.contains(&addr) {
+                (addr, cpu.bus_mut().read(addr))
+            } else {
+                (addr, 0)
+            }
         }
     };
 
@@ -117,9 +129,10 @@ pub fn trace(cpu: &CPU) -> String {
                     if opcode.byte == 0x6C {
                         // jmp indirect
                         let jmp_addr: u16 = if address & 0x00FF == 0x00FF {
+                            let mut temp_bus: RefMut<'_, Bus<'_>> = cpu.bus_mut();
                             tools::bytes_to_u16(&[
-                                cpu.bus_mut().read(address),
-                                cpu.bus_mut().read(address & 0xFF00),
+                                temp_bus.read(address),
+                                temp_bus.read(address & 0xFF00),
                             ])
                         } else {
                             cpu.bus_mut().read_u16(address)
@@ -173,8 +186,16 @@ pub fn trace(cpu: &CPU) -> String {
 
     crate::bus::set_quiet_log(prev_bus_quiet_log);
     format!(
-        "{:47} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
-        asm_str, cpu.accumulator, cpu.index_x, cpu.index_y, cpu.status, cpu.stack_pointer,
+        "{:47} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:{:>3},{:>3} CYC:{}",
+        asm_str,
+        cpu.accumulator,
+        cpu.index_x,
+        cpu.index_y,
+        cpu.status,
+        cpu.stack_pointer,
+        cpu.bus().ppu().scanline,
+        cpu.bus().ppu().cycles,
+        cpu.bus().cpu_cycles
     )
     .to_ascii_uppercase()
 }

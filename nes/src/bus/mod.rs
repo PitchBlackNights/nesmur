@@ -1,8 +1,8 @@
 use crate::apu::APU;
 use crate::cartridge::Rom;
+use crate::joypad::Joypad;
 use crate::ppu::PPU;
 use crate::prelude::*;
-use crate::joypad::Joypad;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -68,10 +68,11 @@ impl NESAccess<'_> for Bus<'_> {
 pub struct Bus<'rcall> {
     cpu_vram: [u8; 2048],
     prg_rom: Vec<u8>,
-    ppu: Rc<RefCell<PPU>>,
-    cycles: usize,
+    pub ppu: Rc<RefCell<PPU>>,
+    pub cpu_cycles: usize,
+    #[allow(clippy::type_complexity)]
     render_callback: Box<dyn FnMut(Rc<RefCell<PPU>>, &mut Joypad) + 'rcall>,
-    joypad1: Joypad,
+    pub joypad1: Joypad,
 }
 
 impl<'a> Bus<'a> {
@@ -88,16 +89,20 @@ impl<'a> Bus<'a> {
             cpu_vram: [0; 2048],
             prg_rom: rom.borrow().prg_rom.clone(),
             ppu,
-            cycles: 0,
+            cpu_cycles: 0,
             render_callback: Box::from(render_callback),
             joypad1: Joypad::new(),
         }
     }
 
-    pub fn tick(&mut self, cycles: usize) {
-        self.cycles += cycles;
-        let new_frame: bool = self.ppu_mut().tick(cycles * 3);
-        if new_frame {
+    pub fn tick(&mut self, cpu_cycles: usize) {
+        self.cpu_cycles += cpu_cycles;
+
+        let nmi_before: bool = self.ppu().nmi_interrupt.is_some();
+        self.ppu_mut().tick(cpu_cycles * 3);
+        let nmi_after: bool = self.ppu().nmi_interrupt.is_some();
+
+        if !nmi_before && nmi_after {
             (self.render_callback)(self.ppu.clone(), &mut self.joypad1);
         }
     }
@@ -222,9 +227,7 @@ impl Mem for Bus<'_> {
                 0
             }
 
-            JOYPAD_1 => {
-                self.joypad1.read()
-            }
+            JOYPAD_1 => self.joypad1.read(),
             JOYPAD_2 => {
                 // warn!("[JOY-2] Ignoring bus read at {:#06X}", addr);
                 0
@@ -341,7 +344,7 @@ impl Mem for Bus<'_> {
                 self.ppu_mut().write_oam_dma(&buffer);
 
                 // TODO: Handle this eventually
-                // let add_cycles: u16 = if self.cycles % 2 == 1 { 514 } else { 513 };
+                // let add_cycles: u16 = if self.cpu_cycles % 2 == 1 { 514 } else { 513 };
                 // self.tick(add_cycles); // TODO: This will cause weird effects as PPU will have 513/514 * 3 ticks
             }
 

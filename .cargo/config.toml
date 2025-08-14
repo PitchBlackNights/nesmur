@@ -2,4 +2,6 @@
 test-all = ["test", "-p", "nesmur", "-p", "nes"]
 test-nes = ["test", "-p", "nes"]
 test-main = ["test", "-p", "nesmur"]
+fmt-all =["fmt", "-p", "nesmur", "-p", "nes"]
 fmt-nes = ["fmt", "-p", "nes"]
+fmt-main =["fmt", "-p", "nesmur"]

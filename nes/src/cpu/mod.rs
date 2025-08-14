@@ -49,13 +49,13 @@ impl<'a> NESAccess<'a> for CPU<'a> {
 
 pub struct CPU<'a> {
     pub running: bool,
-    pub cycles: usize,
     pub accumulator: u8,
     pub index_x: u8,
     pub index_y: u8,
     pub stack_pointer: u8,
     pub program_counter: u16,
     pub status: Flags,
+    pub fresh: bool,
     pub bus: Rc<RefCell<Bus<'a>>>,
 }
 
@@ -66,13 +66,13 @@ impl<'a> CPU<'a> {
 
         CPU {
             running: false,
-            cycles: 0,
             accumulator: 0x00,
             index_x: 0x00,
             index_y: 0x00,
             stack_pointer: STACK_RESET,
             program_counter: 0x8000,
             status: Flags::from_bits_truncate(0b0010_0100),
+            fresh: true,
             bus,
         }
     }
@@ -85,6 +85,8 @@ impl<'a> CPU<'a> {
         self.status = Flags::from_bits_truncate(0b0010_0100);
         let pc: u16 = self.bus_mut().read_u16(0xFFFC);
         self.program_counter = pc;
+        self.fresh = false;
+        self.bus_mut().tick(7);
     }
 
     fn interrupt(&mut self, interrupt: Interrupt) {
@@ -108,6 +110,10 @@ impl<'a> CPU<'a> {
 
     pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
         self.running = true;
+        if self.fresh {
+            self.bus_mut().tick(7);
+            self.fresh = false;
+        }
 
         info!("Running CPU...");
         while self.running {
@@ -121,7 +127,6 @@ impl<'a> CPU<'a> {
             let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
 
             self.execute_instruction(opcode);
-            self.cycles += opcode.cycles;
             self.bus_mut().tick(opcode.cycles);
 
             if program_counter_state == self.program_counter {
@@ -505,10 +510,13 @@ impl<'a> CPU<'a> {
                 self.bus_mut().write(addr, data);
             }
             LAX => {
-                let (addr, _): (u16, bool) = opcode.get_operand_address(self);
+                let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
                 let data: u8 = self.bus_mut().read(addr);
                 common::set_accumulator(self, data);
                 self.index_x = self.accumulator;
+                if page_cross {
+                    self.bus_mut().tick(1);
+                }
             }
             DCP => {
                 let (addr, _): (u16, bool) = opcode.get_operand_address(self);

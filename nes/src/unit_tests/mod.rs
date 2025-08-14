@@ -1,9 +1,9 @@
 pub mod bus;
 pub mod cartridge;
 pub mod cpu;
+pub mod joypad;
 pub mod ppu;
 pub mod trace;
-pub mod joypad;
 
 use crate::NES;
 use crate::cartridge::{CHR_ROM_PAGE_SIZE, PRG_ROM_PAGE_SIZE, Rom};

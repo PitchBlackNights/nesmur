@@ -1,6 +1,8 @@
+use crate::bus::Bus;
 use crate::cpu::CPU;
 use crate::prelude::*;
 use once_cell::sync::Lazy;
+use std::cell::RefMut;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -93,7 +95,8 @@ impl OpCode {
                 // instead of the expected following byte.
                 let base: u16 = cpu.bus_mut().read_u16(addr);
                 let addr: u16 = if base & 0x00FF == 0x00FF {
-                    tools::bytes_to_u16(&[cpu.bus_mut().read(base), cpu.bus_mut().read(base & 0xFF00)])
+                    let mut temp_bus: RefMut<'_, Bus<'_>> = cpu.bus_mut();
+                    tools::bytes_to_u16(&[temp_bus.read(base), temp_bus.read(base & 0xFF00)])
                 } else {
                     cpu.bus_mut().read_u16(base)
                 };
