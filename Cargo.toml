@@ -25,3 +25,4 @@ members = ["nes"]
 
 [lints.clippy]
 uninlined-format-args = "allow"
+new-without-default = "allow"

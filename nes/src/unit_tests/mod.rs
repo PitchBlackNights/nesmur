@@ -50,11 +50,11 @@ fn test_rom(program: Vec<u8>) -> Rom {
     Rom::new(&test_rom).unwrap()
 }
 
-fn setup_nes_with_rom(data: Vec<u8>) -> NES {
+fn setup_nes_with_rom<'a>(data: Vec<u8>) -> NES<'a> {
     let rom: Rom = test_rom(data);
-    NES::new(rom)
+    NES::new(rom, |_| {})
 }
 
-fn setup_nes() -> NES {
+fn setup_nes<'a>() -> NES<'a> {
     setup_nes_with_rom(vec![])
 }

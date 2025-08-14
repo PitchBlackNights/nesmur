@@ -36,6 +36,10 @@ const RAM: u16 = 0x0000;
 const RAM_END: u16 = 0x1FFF;
 const PPU_REGISTERS: u16 = 0x2000;
 const PPU_REGISTERS_END: u16 = 0x3FFF;
+const APU_REGISTERS: u16 = 0x4000;
+const APU_REGISTERS_END: u16 = 0x4015;
+const JOYPAD_1: u16 = 0x4016;
+const JOYPAD_2: u16 = 0x4017;
 const PRG_ROM: u16 = 0x8000;
 const PRG_ROM_END: u16 = 0xFFFF;
 
@@ -55,35 +59,48 @@ pub fn set_prev_quiet_log(value: bool) {
 }
 
 #[rustfmt::skip]
-impl NESAccess for Bus {
+impl NESAccess<'_> for Bus<'_> {
     fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
     fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
 }
 
-pub struct Bus {
+pub struct Bus<'rcall> {
     cpu_vram: [u8; 2048],
     prg_rom: Vec<u8>,
     ppu: Rc<RefCell<PPU>>,
     cycles: usize,
+    render_callback: Box<dyn FnMut(Rc<RefCell<PPU>>) + 'rcall>,
 }
 
-impl Bus {
-    pub fn new(rom: Rc<RefCell<Rom>>, _apu: Rc<RefCell<APU>>, ppu: Rc<RefCell<PPU>>) -> Bus {
+impl<'a> Bus<'a> {
+    pub fn new<'rcall, F>(
+        rom: Rc<RefCell<Rom>>,
+        _apu: Rc<RefCell<APU>>,
+        ppu: Rc<RefCell<PPU>>,
+        render_callback: F,
+    ) -> Bus<'rcall>
+    where
+        F: FnMut(Rc<RefCell<PPU>>) + 'rcall,
+    {
         Bus {
             cpu_vram: [0; 2048],
             prg_rom: rom.borrow().prg_rom.clone(),
             ppu,
             cycles: 0,
+            render_callback: Box::from(render_callback),
         }
     }
 
     pub fn tick(&mut self, cycles: usize) {
         self.cycles += cycles;
-        self.ppu_mut().tick(cycles * 3);
+        let new_frame: bool = self.ppu_mut().tick(cycles * 3);
+        if new_frame {
+            (self.render_callback)(self.ppu.clone());
+        }
     }
 
     pub fn poll_nmi_status(&mut self) -> Option<u8> {
-        self.ppu_mut().nmi_interrupt.take()
+        self.ppu_mut().poll_nmi_interrupt()
     }
 
     pub fn memory(&self) -> Vec<u8> {
@@ -149,7 +166,7 @@ macro_rules! bus_logging {
     };
 }
 
-impl Mem for Bus {
+impl Mem for Bus<'_> {
     fn __read(&self, addr: u16, quiet: bool) -> u8 {
         bus_logging!(quiet);
 
@@ -195,6 +212,20 @@ impl Mem for Bus {
                     mirror_down_addr
                 );
                 self.__read(mirror_down_addr, quiet)
+            }
+
+            APU_REGISTERS..=APU_REGISTERS_END => {
+                // warn!("[APU] Ignoring bus read at {:#06X}", addr);
+                0
+            }
+
+            JOYPAD_1 => {
+                // warn!("[JOY-1] Ignoring bus read at {:#06X}", addr);
+                0
+            }
+            JOYPAD_2 => {
+                // warn!("[JOY-2] Ignoring bus read at {:#06X}", addr);
+                0
             }
 
             PRG_ROM..=PRG_ROM_END => {
@@ -291,6 +322,32 @@ impl Mem for Bus {
                     mirror_down_addr
                 );
                 self.__write(mirror_down_addr, data, quiet);
+            }
+
+            APU_REGISTERS..=0x4013 | APU_REGISTERS_END => {
+                // warn!("[APU] Ignoring bus write at {:#06X}", addr);
+            }
+
+            // https://wiki.nesdev.com/w/index.php/PPU_programmer_reference#OAM_DMA_.28.244014.29_.3E_write
+            0x4014 => {
+                let mut buffer: [u8; 256] = [0; 256];
+                let hi: u16 = (data as u16) << 8;
+                for i in 0..256u16 {
+                    buffer[i as usize] = self.__read(hi + i, quiet);
+                }
+
+                self.ppu_mut().write_oam_dma(&buffer);
+
+                // TODO: Handle this eventually
+                // let add_cycles: u16 = if self.cycles % 2 == 1 { 514 } else { 513 };
+                // self.tick(add_cycles); // TODO: This will cause weird effects as PPU will have 513/514 * 3 ticks
+            }
+
+            JOYPAD_1 => {
+                // warn!("[JOY-1] Ignoring bus write at {:#06X}", addr);
+            }
+            JOYPAD_2 => {
+                // warn!("[JOY-2] Ignoring bus write at {:#06X}", addr);
             }
 
             PRG_ROM..=PRG_ROM_END => panic!("Attempted to write to PRG-ROM: {:#06X}", addr),

@@ -2,3 +2,4 @@
 test-all = ["test", "-p", "nesmur", "-p", "nes"]
 test-nes = ["test", "-p", "nes"]
 test-main = ["test", "-p", "nesmur"]
+fmt-nes = ["fmt", "-p", "nes"]

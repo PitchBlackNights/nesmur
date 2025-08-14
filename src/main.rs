@@ -1,86 +1,19 @@
 use nes::cartridge::Rom;
-// use nes::NES;
+use nes::ppu::PPU;
+use nes::NES;
 use nesmur::cli_parser::Args;
-use nesmur::prelude::*;
 use nesmur::render::frame::Frame;
-use nesmur::render::palette;
 use nesmur::setup;
+use nesmur::{prelude::*, render};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
-use sdl2::{Sdl, VideoSubsystem};
+use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
-use sdl2::render::{Canvas, TextureCreator, Texture};
 use sdl2::EventPump;
-
-fn show_tile(chr_rom: &Vec<u8>, bank: usize, tile_n: usize) -> Frame {
-    assert!(bank <= 1);
-
-    let mut frame: Frame = Frame::new();
-    let bank: usize = (bank * 0x1000) as usize;
-
-    let tile: &[u8] = &chr_rom[(bank + tile_n * 16)..=(bank + tile_n * 16 + 15)];
-
-    for y in 0..=7 {
-        let mut upper: u8 = tile[y];
-        let mut lower: u8 = tile[y + 8];
-
-        for x in (0..=7).rev() {
-            let value: u8 = (1 & upper) << 1 | (1 & lower);
-            upper = upper >> 1;
-            lower = lower >> 1;
-            let rgb: (u8, u8, u8) = match value {
-                0 => palette::SYSTEM_PALLETE[0x01],
-                1 => palette::SYSTEM_PALLETE[0x23],
-                2 => palette::SYSTEM_PALLETE[0x27],
-                3 => palette::SYSTEM_PALLETE[0x30],
-                _ => panic!("can't be"),
-            };
-            frame.set_pixel(x, y, rgb)
-        }
-    }
-
-    frame
-}
-
-fn show_tile_bank(chr_rom: &Vec<u8>, bank: usize) ->Frame {
-    assert!(bank <= 1);
-
-    let mut frame: Frame = Frame::new();
-    let mut tile_y: usize = 0;
-    let mut tile_x: usize = 0;
-    let bank: usize = (bank * 0x1000) as usize;
-
-    for tile_n in 0..255 {
-        if tile_n != 0 && tile_n % 20 == 0 {
-            tile_y += 10;
-            tile_x = 0;
-        }
-        let tile: &[u8] = &chr_rom[(bank + tile_n * 16)..=(bank + tile_n * 16 + 15)];
-
-        for y in 0..=7 {
-            let mut upper: u8 = tile[y];
-            let mut lower: u8 = tile[y + 8];
-
-            for x in (0..=7).rev() {
-                let value: u8 = (1 & upper) << 1 | (1 & lower);
-                upper = upper >> 1;
-                lower = lower >> 1;
-                let rgb: (u8, u8, u8) = match value {
-                    0 => palette::SYSTEM_PALLETE[0x01],
-                    1 => palette::SYSTEM_PALLETE[0x23],
-                    2 => palette::SYSTEM_PALLETE[0x27],
-                    3 => palette::SYSTEM_PALLETE[0x30],
-                    _ => panic!("can't be"),
-                };
-                frame.set_pixel(tile_x + x, tile_y + y, rgb)
-            }
-        }
-
-        tile_x += 10;
-    }
-    frame
-}
+use sdl2::{Sdl, VideoSubsystem};
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
 
 fn main() {
     let _args: Args = setup::setup_logger_and_args();
@@ -100,10 +33,11 @@ fn main() {
     //     }
     // });
 
+    // Init SDL2
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
     let window: Window = video_subsystem
-        .window("Tile viewer", (256.0 * 3.0) as u32, (240.0 * 3.0) as u32)
+        .window("NESMUR", (256.0 * 3.0) as u32, (240.0 * 3.0) as u32)
         .position_centered()
         .build()
         .unwrap();
@@ -116,28 +50,34 @@ fn main() {
     let mut texture: Texture<'_> = creator
         .create_texture_target(PixelFormatEnum::RGB24, 256, 240)
         .unwrap();
+    let mut frame: Frame = Frame::new();
 
+    // Setup the NES
     let bytes: Vec<u8> = std::fs::read("pacman.nes").unwrap();
     let rom: Rom = Rom::new(&bytes).unwrap();
+    let mut nes: NES = NES::new(rom, move |ppu_ref: Rc<RefCell<PPU>>| {
+        let ppu: Ref<'_, PPU> = ppu_ref.borrow();
 
-    let right_bank: Frame = show_tile_bank(&rom.chr_rom, 0);
+        render::render(&ppu, &mut frame);
+        texture.update(None, &frame.data, 256 * 3).unwrap();
+        canvas.copy(&texture, None, None).unwrap();
+        canvas.present();
 
-    texture.update(None, &right_bank.data, 256 * 3).unwrap();
-    canvas.copy(&texture, None, None).unwrap();
-    canvas.present();
-
-    loop {
         for event in event_pump.poll_iter() {
             match event {
-              Event::Quit { .. }
-              | Event::KeyDown {
-                  keycode: Some(Keycode::Escape),
-                  ..
-              } => std::process::exit(0),
-              _ => { /* do nothing */ }
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => std::process::exit(0),
+                _ => { /* do nothing */ }
             }
-         }
-    }
+        }
+    });
+
+    nes::bus::set_quiet_log(true);
+    nes.cpu.reset();
+    nes.cpu.run();
 
     info!("Stopping Emulator...");
 }

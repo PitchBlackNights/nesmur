@@ -42,12 +42,12 @@ const STACK: u16 = 0x0100;
 const STACK_RESET: u8 = 0xFD;
 
 #[rustfmt::skip]
-impl NESAccess for CPU {
-    fn bus(&self) -> Ref<Bus> { self.bus.borrow() }
-    fn bus_mut(&self) -> RefMut<Bus> { self.bus.borrow_mut() }
+impl<'a> NESAccess<'a> for CPU<'a> {
+    fn bus(&self) -> Ref<'_, Bus<'a>> { self.bus.borrow() }
+    fn bus_mut(&self) -> RefMut<'_, Bus<'a>> { self.bus.borrow_mut() }
 }
 
-pub struct CPU {
+pub struct CPU<'a> {
     pub running: bool,
     pub cycles: usize,
     pub accumulator: u8,
@@ -56,11 +56,11 @@ pub struct CPU {
     pub stack_pointer: u8,
     pub program_counter: u16,
     pub status: Flags,
-    pub bus: Rc<RefCell<Bus>>,
+    pub bus: Rc<RefCell<Bus<'a>>>,
 }
 
-impl CPU {
-    pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
+impl<'a> CPU<'a> {
+    pub fn new(bus: Rc<RefCell<Bus<'a>>>) -> Self {
         // Hack to build OPCODES hashmap now instead of in `cpu::step()`
         let _ = &opcode::OPCODES.get(&0u8);
 

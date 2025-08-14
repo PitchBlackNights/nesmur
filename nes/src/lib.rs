@@ -26,9 +26,9 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 #[rustfmt::skip]
-impl NESAccess for NES {
-    fn bus(&self) -> Ref<Bus> { self.bus.borrow() }
-    fn bus_mut(&self) -> RefMut<Bus> { self.bus.borrow_mut() }
+impl<'a> NESAccess<'a> for NES<'a> {
+    fn bus(&self) -> Ref<'_, Bus<'a>> { self.bus.borrow() }
+    fn bus_mut(&self) -> RefMut<'_, Bus<'a>> { self.bus.borrow_mut() }
     fn apu(&self) -> Ref<APU> { self.apu.borrow() }
     fn apu_mut(&self) -> RefMut<APU> { self.apu.borrow_mut() }
     fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
@@ -37,9 +37,9 @@ impl NESAccess for NES {
     fn rom_mut(&self) -> RefMut<Rom> { self.rom.borrow_mut() }
 }
 
-pub struct NES {
-    pub cpu: CPU,
-    pub bus: Rc<RefCell<Bus>>,
+pub struct NES<'a> {
+    pub cpu: CPU<'a>,
+    pub bus: Rc<RefCell<Bus<'a>>>,
     /// ***CURRENTLY UNIMPLEMENTED***
     pub apu: Rc<RefCell<APU>>,
     /// ***CURRENTLY UNIMPLEMENTED***
@@ -47,8 +47,11 @@ pub struct NES {
     pub rom: Rc<RefCell<Rom>>,
 }
 
-impl NES {
-    pub fn new(rom: Rom) -> Self {
+impl<'a> NES<'a> {
+    pub fn new<'rcall, F>(rom: Rom, render_callback: F) -> Self
+    where
+        F: FnMut(Rc<RefCell<PPU>>) + 'rcall + 'a,
+    {
         let rom: Rc<RefCell<Rom>> = Rc::new(RefCell::new(rom));
         let apu: Rc<RefCell<APU>> = Rc::new(RefCell::new(APU::new()));
         let ppu: Rc<RefCell<PPU>> = Rc::new(RefCell::new({
@@ -59,6 +62,7 @@ impl NES {
             rom.clone(),
             apu.clone(),
             ppu.clone(),
+            render_callback,
         )));
         let cpu: CPU = CPU::new(bus.clone());
 

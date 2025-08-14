@@ -7,9 +7,9 @@ use crate::prelude::*;
 use std::cell::{Ref, RefMut};
 
 #[rustfmt::skip]
-pub trait NESAccess {
-    fn bus(&self) -> Ref<Bus> { panic!("Access to `Bus` is prohibited") }
-    fn bus_mut(&self) -> RefMut<Bus> { panic!("Access to `Bus` is prohibited") }
+pub trait NESAccess<'a> {
+    fn bus(&self) -> Ref<'_, Bus<'a>> { panic!("Access to `Bus` is prohibited") }
+    fn bus_mut(&self) -> RefMut<'_, Bus<'a>> { panic!("Access to `Bus` is prohibited") }
     fn apu(&self) -> Ref<APU> { panic!("Access to `APU` is prohibited") }
     fn apu_mut(&self) -> RefMut<APU> { panic!("Access to `APU` is prohibited") }
     fn ppu(&self) -> Ref<PPU> { panic!("Access to `PPU` is prohibited") }
