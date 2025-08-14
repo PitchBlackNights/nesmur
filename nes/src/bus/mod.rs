@@ -192,10 +192,11 @@ impl Mem for Bus<'_> {
             }
 
             PPU_REGISTERS | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
-                panic!(
-                    "Attempted to read from write-only PPU address: {:#06X}",
+                error!(
+                    "Attempted to read from write-only PPU address {:#06X}",
                     addr
                 );
+                0
             }
             0x2002 => {
                 let byte: u8 = self.ppu_mut().read_status();
@@ -290,7 +291,7 @@ impl Mem for Bus<'_> {
                     addr
                 );
             }
-            0x2002 => panic!("Attempted to write to PPU status register"),
+            0x2002 => error!("Attempted to write {:#04X} to PPU status register", data),
             0x2003 => {
                 self.ppu_mut().write_to_oam_addr(data);
                 bus_trace!(
@@ -355,7 +356,7 @@ impl Mem for Bus<'_> {
                 // warn!("[JOY-2] Ignoring bus write at {:#06X}", addr);
             }
 
-            PRG_ROM..=PRG_ROM_END => panic!("Attempted to write to PRG-ROM: {:#06X}", addr),
+            PRG_ROM..=PRG_ROM_END => error!("Attempted to write {:#04X} to PRG-ROM {:#06X}", data, addr),
 
             _ => warn!("Ignoring bus write at {:#06X}", addr),
         }

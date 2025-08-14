@@ -4,6 +4,7 @@ use registers::control::ControlRegister;
 use registers::mask::MaskRegister;
 use registers::scroll::ScrollRegister;
 use registers::status::StatusRegister;
+use crate::prelude::*;
 
 pub mod registers;
 
@@ -44,6 +45,9 @@ pub trait NesPPU {
 
 impl PPU {
     pub fn new(chr_rom: Vec<u8>, mirroring: Mirroring) -> Self {
+        let mut chr_rom: Vec<u8> = chr_rom;
+        chr_rom.resize(0x1FFF, 0x00);
+
         PPU {
             chr_rom,
             mirroring,
@@ -174,21 +178,24 @@ impl NesPPU for PPU {
     fn write_to_data(&mut self, value: u8) {
         let addr: u16 = self.addr.get();
         match addr {
-            0..=0x1fff => println!("attempt to write to chr rom space {}", addr),
-            0x2000..=0x2fff => {
+            0..=0x1FFF => {
+                // error!("[PPU] Attempted to write {:#04X} to CHR-ROM {:#06X}", value, addr);
+                self.chr_rom[addr as usize] = value;
+            }
+            0x2000..=0x2FFF => {
                 self.vram[self.mirror_vram_addr(addr) as usize] = value;
             }
-            0x3000..=0x3eff => unimplemented!("addr {} shouldn't be used in reallity", addr),
+            0x3000..=0x3EFF => unimplemented!("PPU Addr {:#06X} shouldn't be used in reality", addr),
 
             // Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
-            0x3f10 | 0x3f14 | 0x3f18 | 0x3f1c => {
-                let add_mirror: u16 = addr - 0x10;
-                self.palette_table[(add_mirror - 0x3f00) as usize] = value;
+            0x3F10 | 0x3F14 | 0x3F18 | 0x3F1C => {
+                let add_mirror: u16 = addr - 0x0010;
+                self.palette_table[(add_mirror - 0x3F00) as usize] = value;
             }
-            0x3f00..=0x3fff => {
+            0x3F00..=0x3FFF => {
                 self.palette_table[(addr - 0x3f00) as usize] = value;
             }
-            _ => panic!("unexpected access to mirrored space {}", addr),
+            _ => panic!("Unexpected access to mirrored PPU space {:#06X}", addr),
         }
         self.increment_vram_addr();
     }
@@ -199,26 +206,26 @@ impl NesPPU for PPU {
         self.increment_vram_addr();
 
         match addr {
-            0..=0x1fff => {
+            0..=0x1FFF => {
                 let result: u8 = self.internal_data_buf;
                 self.internal_data_buf = self.chr_rom[addr as usize];
                 result
             }
-            0x2000..=0x2fff => {
+            0x2000..=0x2FFF => {
                 let result: u8 = self.internal_data_buf;
                 self.internal_data_buf = self.vram[self.mirror_vram_addr(addr) as usize];
                 result
             }
-            0x3000..=0x3eff => unimplemented!("addr {} shouldn't be used in reallity", addr),
+            0x3000..=0x3EFF => unimplemented!("PPU Addr {:#06X} shouldn't be used in reality", addr),
 
             // Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
-            0x3f10 | 0x3f14 | 0x3f18 | 0x3f1c => {
-                let add_mirror: u16 = addr - 0x10;
-                self.palette_table[(add_mirror - 0x3f00) as usize]
+            0x3F10 | 0x3F14 | 0x3F18 | 0x3F1C => {
+                let add_mirror: u16 = addr - 0x0010;
+                self.palette_table[(add_mirror - 0x3F00) as usize]
             }
 
-            0x3f00..=0x3fff => self.palette_table[(addr - 0x3f00) as usize],
-            _ => panic!("unexpected access to mirrored space {}", addr),
+            0x3F00..=0x3FFF => self.palette_table[(addr - 0x3F00) as usize],
+            _ => panic!("Unexpected access to mirrored PPU space {:#06X}", addr),
         }
     }
 

@@ -64,13 +64,14 @@ impl<'a> CPU<'a> {
         // Hack to build OPCODES hashmap now instead of in `cpu::step()`
         let _ = &opcode::OPCODES.get(&0u8);
 
+        let pc: u16 = bus.borrow_mut().read_u16(0xFFFC);
         CPU {
             running: false,
             accumulator: 0x00,
             index_x: 0x00,
             index_y: 0x00,
             stack_pointer: STACK_RESET,
-            program_counter: 0x8000,
+            program_counter: pc,
             status: Flags::from_bits_truncate(0b0010_0100),
             fresh: true,
             bus,
@@ -78,11 +79,9 @@ impl<'a> CPU<'a> {
     }
 
     pub fn reset(&mut self) {
-        self.accumulator = 0x00;
-        self.index_x = 0x00;
-        self.index_y = 0x00;
-        self.stack_pointer = STACK_RESET;
-        self.status = Flags::from_bits_truncate(0b0010_0100);
+        self.stack_pointer -= 3;
+        self.status.insert(Flags::UNUSED);
+        self.status.insert(Flags::INTERRUPT_DISABLE);
         let pc: u16 = self.bus_mut().read_u16(0xFFFC);
         self.program_counter = pc;
         self.fresh = false;
