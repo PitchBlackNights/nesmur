@@ -56,33 +56,33 @@ impl OpCode {
 
     pub fn get_absolute_address(self, cpu: &CPU, addr: u16) -> (u16, bool) {
         match self.mode {
-            AddressingMode::ZeroPage => (cpu.bus().read(addr) as u16, false),
+            AddressingMode::ZeroPage => (cpu.bus_mut().read(addr) as u16, false),
             AddressingMode::ZeroPage_X => {
-                let pos: u8 = cpu.bus().read(addr);
+                let pos: u8 = cpu.bus_mut().read(addr);
                 let addr: u16 = pos.wrapping_add(cpu.index_x) as u16;
                 (addr, false)
             }
             AddressingMode::ZeroPage_Y => {
-                let pos: u8 = cpu.bus().read(addr);
+                let pos: u8 = cpu.bus_mut().read(addr);
                 let addr: u16 = pos.wrapping_add(cpu.index_y) as u16;
                 (addr, false)
             }
             AddressingMode::Relative => {
-                let jump: i8 = cpu.bus().read(addr) as i8;
+                let jump: i8 = cpu.bus_mut().read(addr) as i8;
                 let jump_addr: u16 = addr.wrapping_add(1).wrapping_add(jump as u16);
                 (
                     jump_addr,
                     tools::page_cross(addr.wrapping_add(1), jump_addr),
                 )
             }
-            AddressingMode::Absolute => (cpu.bus().read_u16(addr), false),
+            AddressingMode::Absolute => (cpu.bus_mut().read_u16(addr), false),
             AddressingMode::Absolute_X => {
-                let base: u16 = cpu.bus().read_u16(addr);
+                let base: u16 = cpu.bus_mut().read_u16(addr);
                 let addr: u16 = base.wrapping_add(cpu.index_x as u16);
                 (addr, tools::page_cross(base, addr))
             }
             AddressingMode::Absolute_Y => {
-                let base: u16 = cpu.bus().read_u16(addr);
+                let base: u16 = cpu.bus_mut().read_u16(addr);
                 let addr: u16 = base.wrapping_add(cpu.index_y as u16);
                 (addr, tools::page_cross(base, addr))
             }
@@ -91,25 +91,25 @@ impl OpCode {
                 // lower eight bits of the specified address is $FF; the upper
                 // eight bits are fetched from $xx00, 255 bytes earlier,
                 // instead of the expected following byte.
-                let base: u16 = cpu.bus().read_u16(addr);
+                let base: u16 = cpu.bus_mut().read_u16(addr);
                 let addr: u16 = if base & 0x00FF == 0x00FF {
-                    tools::bytes_to_u16(&[cpu.bus().read(base), cpu.bus().read(base & 0xFF00)])
+                    tools::bytes_to_u16(&[cpu.bus_mut().read(base), cpu.bus_mut().read(base & 0xFF00)])
                 } else {
-                    cpu.bus().read_u16(base)
+                    cpu.bus_mut().read_u16(base)
                 };
                 (addr, false)
             }
             AddressingMode::Indirect_X => {
-                let base: u8 = cpu.bus().read(addr);
+                let base: u8 = cpu.bus_mut().read(addr);
                 let ptr: u8 = base.wrapping_add(cpu.index_x);
-                let lo: u8 = cpu.bus().read(ptr as u16);
-                let hi: u8 = cpu.bus().read(ptr.wrapping_add(1) as u16);
+                let lo: u8 = cpu.bus_mut().read(ptr as u16);
+                let hi: u8 = cpu.bus_mut().read(ptr.wrapping_add(1) as u16);
                 (tools::bytes_to_u16(&[lo, hi]), false)
             }
             AddressingMode::Indirect_Y => {
-                let base: u8 = cpu.bus().read(addr);
-                let lo: u8 = cpu.bus().read(base as u16);
-                let hi: u8 = cpu.bus().read(base.wrapping_add(1) as u16);
+                let base: u8 = cpu.bus_mut().read(addr);
+                let lo: u8 = cpu.bus_mut().read(base as u16);
+                let hi: u8 = cpu.bus_mut().read(base.wrapping_add(1) as u16);
                 let deref_base: u16 = tools::bytes_to_u16(&[lo, hi]);
                 let deref: u16 = deref_base.wrapping_add(cpu.index_y as u16);
                 (deref, tools::page_cross(deref, deref_base))

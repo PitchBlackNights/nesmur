@@ -43,7 +43,7 @@ pub fn trace(cpu: &CPU) -> String {
     let prev_bus_quiet_log: bool = crate::bus::get_quiet_log();
     crate::bus::set_quiet_log(true);
 
-    let opbyte: u8 = cpu.bus().read(cpu.program_counter);
+    let opbyte: u8 = cpu.bus_mut().read(cpu.program_counter);
     let opcode: &'static OpCode = decode_opcode(opbyte);
 
     let begin: u16 = cpu.program_counter;
@@ -54,7 +54,7 @@ pub fn trace(cpu: &CPU) -> String {
         Implicit | Accumulator | Immediate => (0, 0),
         _ => {
             let (addr, _): (u16, bool) = opcode.get_absolute_address(cpu, begin + 1);
-            (addr, cpu.bus().read(addr))
+            (addr, cpu.bus_mut().read(addr))
         }
     };
 
@@ -64,7 +64,7 @@ pub fn trace(cpu: &CPU) -> String {
             _ => String::from(""),
         },
         2 => {
-            let address: u8 = cpu.bus().read(begin + 1);
+            let address: u8 = cpu.bus_mut().read(begin + 1);
             hex_dump.push(address);
 
             match opcode.mode {
@@ -105,12 +105,12 @@ pub fn trace(cpu: &CPU) -> String {
             }
         }
         3 => {
-            let address_lo: u8 = cpu.bus().read(begin + 1);
-            let address_hi: u8 = cpu.bus().read(begin + 2);
+            let address_lo: u8 = cpu.bus_mut().read(begin + 1);
+            let address_hi: u8 = cpu.bus_mut().read(begin + 2);
             hex_dump.push(address_lo);
             hex_dump.push(address_hi);
 
-            let address: u16 = cpu.bus().read_u16(begin + 1);
+            let address: u16 = cpu.bus_mut().read_u16(begin + 1);
 
             match opcode.mode {
                 Indirect => {
@@ -118,11 +118,11 @@ pub fn trace(cpu: &CPU) -> String {
                         // jmp indirect
                         let jmp_addr: u16 = if address & 0x00FF == 0x00FF {
                             tools::bytes_to_u16(&[
-                                cpu.bus().read(address),
-                                cpu.bus().read(address & 0xFF00),
+                                cpu.bus_mut().read(address),
+                                cpu.bus_mut().read(address & 0xFF00),
                             ])
                         } else {
-                            cpu.bus().read_u16(address)
+                            cpu.bus_mut().read_u16(address)
                         };
                         format!("(${:04X}) = {:04X}", address, jmp_addr)
                     } else {

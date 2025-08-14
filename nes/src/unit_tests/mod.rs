@@ -3,6 +3,7 @@ pub mod cartridge;
 pub mod cpu;
 pub mod ppu;
 pub mod trace;
+pub mod joypad;
 
 use crate::NES;
 use crate::cartridge::{CHR_ROM_PAGE_SIZE, PRG_ROM_PAGE_SIZE, Rom};
@@ -52,7 +53,7 @@ fn test_rom(program: Vec<u8>) -> Rom {
 
 fn setup_nes_with_rom<'a>(data: Vec<u8>) -> NES<'a> {
     let rom: Rom = test_rom(data);
-    NES::new(rom, |_| {})
+    NES::new(rom, |_ppu, _joypad1| {})
 }
 
 fn setup_nes<'a>() -> NES<'a> {

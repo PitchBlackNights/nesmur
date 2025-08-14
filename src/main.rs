@@ -14,6 +14,8 @@ use sdl2::EventPump;
 use sdl2::{Sdl, VideoSubsystem};
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
+use std::collections::HashMap;
+use nes::joypad::JoypadButton;
 
 fn main() {
     let _args: Args = setup::setup_logger_and_args();
@@ -52,10 +54,20 @@ fn main() {
         .unwrap();
     let mut frame: Frame = Frame::new();
 
+    let mut key_map: HashMap<Keycode, JoypadButton> = HashMap::new();
+    key_map.insert(Keycode::Down, JoypadButton::DOWN);
+    key_map.insert(Keycode::Up, JoypadButton::UP);
+    key_map.insert(Keycode::Right, JoypadButton::RIGHT);
+    key_map.insert(Keycode::Left, JoypadButton::LEFT);
+    key_map.insert(Keycode::Space, JoypadButton::SELECT);
+    key_map.insert(Keycode::Return, JoypadButton::START);
+    key_map.insert(Keycode::A, JoypadButton::BUTTON_A);
+    key_map.insert(Keycode::S, JoypadButton::BUTTON_B);
+
     // Setup the NES
     let bytes: Vec<u8> = std::fs::read("pacman.nes").unwrap();
     let rom: Rom = Rom::new(&bytes).unwrap();
-    let mut nes: NES = NES::new(rom, move |ppu_ref: Rc<RefCell<PPU>>| {
+    let mut nes: NES = NES::new(rom, move |ppu_ref: Rc<RefCell<PPU>>, joypad1| {
         let ppu: Ref<'_, PPU> = ppu_ref.borrow();
 
         render::render(&ppu, &mut frame);
@@ -70,6 +82,18 @@ fn main() {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => std::process::exit(0),
+
+                Event::KeyDown { keycode, .. } => {
+                    if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
+                        joypad1.set_button_pressed_status(*key, true);
+                    }
+                }
+                Event::KeyUp { keycode, .. } => {
+                    if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
+                        joypad1.set_button_pressed_status(*key, false);
+                    }
+                }
+
                 _ => { /* do nothing */ }
             }
         }

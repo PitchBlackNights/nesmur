@@ -18,7 +18,7 @@ pub fn stack_push_u16(cpu: &mut CPU, data: u16) {
 
 pub fn stack_pop(cpu: &mut CPU) -> u8 {
     cpu.stack_pointer = cpu.stack_pointer.wrapping_add(1);
-    cpu.bus().read(STACK + cpu.stack_pointer as u16)
+    cpu.bus_mut().read(STACK + cpu.stack_pointer as u16)
 }
 
 pub fn stack_pop_u16(cpu: &mut CPU) -> u16 {
@@ -43,7 +43,7 @@ pub fn branch(cpu: &mut CPU, opcode: &OpCode, condition: bool) {
 
 pub fn compare(cpu: &mut CPU, opcode: &OpCode, compare_with: u8) {
     let (addr, page_cross) = opcode.get_operand_address(cpu);
-    let data: u8 = cpu.bus().read(addr);
+    let data: u8 = cpu.bus_mut().read(addr);
     if data <= compare_with {
         cpu.status.insert(Flags::CARRY);
     } else {

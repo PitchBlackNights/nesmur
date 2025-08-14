@@ -13,6 +13,7 @@ pub mod cartridge;
 pub mod cpu;
 pub mod ppu;
 pub mod tools;
+pub mod joypad;
 #[cfg(test)]
 mod unit_tests;
 
@@ -20,6 +21,7 @@ use crate::apu::APU;
 use crate::bus::Bus;
 use crate::cartridge::Rom;
 use crate::cpu::CPU;
+use crate::joypad::Joypad;
 use crate::ppu::PPU;
 use crate::prelude::*;
 use std::cell::{Ref, RefCell, RefMut};
@@ -50,7 +52,7 @@ pub struct NES<'a> {
 impl<'a> NES<'a> {
     pub fn new<'rcall, F>(rom: Rom, render_callback: F) -> Self
     where
-        F: FnMut(Rc<RefCell<PPU>>) + 'rcall + 'a,
+        F: FnMut(Rc<RefCell<PPU>>, &mut Joypad) + 'rcall + 'a,
     {
         let rom: Rc<RefCell<Rom>> = Rc::new(RefCell::new(rom));
         let apu: Rc<RefCell<APU>> = Rc::new(RefCell::new(APU::new()));

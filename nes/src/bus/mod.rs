@@ -2,6 +2,7 @@ use crate::apu::APU;
 use crate::cartridge::Rom;
 use crate::ppu::PPU;
 use crate::prelude::*;
+use crate::joypad::Joypad;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -69,7 +70,8 @@ pub struct Bus<'rcall> {
     prg_rom: Vec<u8>,
     ppu: Rc<RefCell<PPU>>,
     cycles: usize,
-    render_callback: Box<dyn FnMut(Rc<RefCell<PPU>>) + 'rcall>,
+    render_callback: Box<dyn FnMut(Rc<RefCell<PPU>>, &mut Joypad) + 'rcall>,
+    joypad1: Joypad,
 }
 
 impl<'a> Bus<'a> {
@@ -80,7 +82,7 @@ impl<'a> Bus<'a> {
         render_callback: F,
     ) -> Bus<'rcall>
     where
-        F: FnMut(Rc<RefCell<PPU>>) + 'rcall,
+        F: FnMut(Rc<RefCell<PPU>>, &mut Joypad) + 'rcall,
     {
         Bus {
             cpu_vram: [0; 2048],
@@ -88,6 +90,7 @@ impl<'a> Bus<'a> {
             ppu,
             cycles: 0,
             render_callback: Box::from(render_callback),
+            joypad1: Joypad::new(),
         }
     }
 
@@ -95,7 +98,7 @@ impl<'a> Bus<'a> {
         self.cycles += cycles;
         let new_frame: bool = self.ppu_mut().tick(cycles * 3);
         if new_frame {
-            (self.render_callback)(self.ppu.clone());
+            (self.render_callback)(self.ppu.clone(), &mut self.joypad1);
         }
     }
 
@@ -119,21 +122,21 @@ impl<'a> Bus<'a> {
     }
 
     #[rustfmt::skip]
-    pub fn read(&self, addr: u16) -> u8 { self.__read(addr, false) }
+    pub fn read(&mut self, addr: u16) -> u8 { self.__read(addr, false) }
     #[rustfmt::skip]
     pub fn write(&mut self, addr: u16, data: u8) { self.__write(addr, data, false); }
     #[rustfmt::skip]
-    pub fn read_u16(&self, pos: u16) -> u16 { self.__read_u16(pos, false) }
+    pub fn read_u16(&mut self, pos: u16) -> u16 { self.__read_u16(pos, false) }
     #[rustfmt::skip]
     pub fn write_u16(&mut self, pos: u16, data: u16) { self.__write_u16(pos, data, false); }
 }
 
 pub trait Mem {
-    fn __read(&self, addr: u16, quiet: bool) -> u8;
+    fn __read(&mut self, addr: u16, quiet: bool) -> u8;
 
     fn __write(&mut self, addr: u16, data: u8, quiet: bool);
 
-    fn __read_u16(&self, pos: u16, quiet: bool) -> u16 {
+    fn __read_u16(&mut self, pos: u16, quiet: bool) -> u16 {
         let lo: u16 = self.__read(pos, quiet) as u16;
         let hi: u16 = self.__read(pos.wrapping_add(1), quiet) as u16;
         (hi << 8) | lo
@@ -167,7 +170,7 @@ macro_rules! bus_logging {
 }
 
 impl Mem for Bus<'_> {
-    fn __read(&self, addr: u16, quiet: bool) -> u8 {
+    fn __read(&mut self, addr: u16, quiet: bool) -> u8 {
         bus_logging!(quiet);
 
         let data: u8 = match addr {
@@ -220,8 +223,7 @@ impl Mem for Bus<'_> {
             }
 
             JOYPAD_1 => {
-                // warn!("[JOY-1] Ignoring bus read at {:#06X}", addr);
-                0
+                self.joypad1.read()
             }
             JOYPAD_2 => {
                 // warn!("[JOY-2] Ignoring bus read at {:#06X}", addr);
@@ -344,7 +346,7 @@ impl Mem for Bus<'_> {
             }
 
             JOYPAD_1 => {
-                // warn!("[JOY-1] Ignoring bus write at {:#06X}", addr);
+                self.joypad1.write(data);
             }
             JOYPAD_2 => {
                 // warn!("[JOY-2] Ignoring bus write at {:#06X}", addr);
