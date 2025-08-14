@@ -432,7 +432,12 @@ impl CPU {
             SEC => self.status.insert(Flags::CARRY),
             SED => self.status.insert(Flags::DECIMAL_MODE),
             SEI => self.status.insert(Flags::INTERRUPT_DISABLE),
-            BRK => self.running = false,
+            BRK => {
+                self.program_counter += 1;
+                if !self.status.contains(Flags::INTERRUPT_DISABLE) {
+                    self.interrupt(interrupt::BRK);
+                }
+            }
             NOP => {}
             RTI => {
                 self.status = Flags::from_bits_truncate(common::stack_pop(self));
@@ -593,7 +598,16 @@ impl CPU {
                 self.stack_pointer = data;
                 common::update_flags_zn(self, data);
             }
-            KIL => panic!("The `KIL` instruction was executed!"),
+            KIL => {
+                #[cfg(not(test))]
+                {
+                    panic!("The `KIL` instruction was executed!");
+                }
+                #[cfg(test)]
+                {
+                    self.running = false;
+                }
+            }
         };
     }
 }

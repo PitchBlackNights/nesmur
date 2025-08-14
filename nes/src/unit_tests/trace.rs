@@ -10,12 +10,12 @@ fn test_format_trace() {
     // LDX #$01
     // DEX
     // DEY
-    // BRK
+    // KIL
     bus.write(0x0064, 0xA2);
     bus.write(0x0065, 0x01);
     bus.write(0x0066, 0xCA);
     bus.write(0x0067, 0x88);
-    bus.write(0x0068, 0x00);
+    bus.write(0x0068, 0x02);
     drop(bus);
 
     nes.cpu.program_counter = 0x0064;
@@ -48,8 +48,10 @@ fn test_format_mem_access() {
 
     let mut bus: RefMut<'_, Bus> = nes.bus_mut();
     // ORA ($33), Y
+    // KIL
     bus.write(0x0064, 0x11);
     bus.write(0x0065, 0x33);
+    bus.write(0x0066, 0x02);
     // Data
     bus.write(0x0033, 0x00);
     bus.write(0x0034, 0x04);

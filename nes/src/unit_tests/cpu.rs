@@ -56,8 +56,8 @@ fn test_for_no_cycle_opcodes() {
 #[test]
 fn test_0xA9_LDA_immediate_load_data() {
     // LDA #$05
-    // BRK
-    let mut nes: NES = setup_nes_with_rom(vec![0xA9, 0x05, 0x00]);
+    // KIL
+    let mut nes: NES = setup_nes_with_rom(vec![0xA9, 0x05, 0x02]);
     nes.cpu.run();
 
     assert_eq!(nes.cpu.accumulator, 5);
@@ -68,8 +68,8 @@ fn test_0xA9_LDA_immediate_load_data() {
 #[test]
 fn test_0xAA_TAX_move_A_to_X() {
     // TAX
-    // BRK
-    let mut nes: NES = setup_nes_with_rom(vec![0xAA, 0x00]);
+    // KIL
+    let mut nes: NES = setup_nes_with_rom(vec![0xAA, 0x02]);
     nes.cpu.accumulator = 0x0A;
     nes.cpu.run();
 
@@ -81,8 +81,8 @@ fn test_5_ops_working_together() {
     // LDA #$C0
     // TAX
     // INX
-    // BRK
-    let mut nes: NES = setup_nes_with_rom(vec![0xA9, 0xC0, 0xAA, 0xE8, 0x00]);
+    // KIL
+    let mut nes: NES = setup_nes_with_rom(vec![0xA9, 0xC0, 0xAA, 0xE8, 0x02]);
     nes.cpu.run();
 
     assert_eq!(nes.cpu.index_x, 0xC1);
@@ -92,8 +92,8 @@ fn test_5_ops_working_together() {
 fn test_INX_overflow() {
     // INX
     // INX
-    // BRK
-    let mut nes: NES = setup_nes_with_rom(vec![0xE8, 0xE8, 0x00]);
+    // KIL
+    let mut nes: NES = setup_nes_with_rom(vec![0xE8, 0xE8, 0x02]);
     nes.cpu.index_x = 0xFF;
     nes.cpu.run();
 
@@ -103,8 +103,8 @@ fn test_INX_overflow() {
 #[test]
 fn test_LDA_from_memory() {
     // LDA $10
-    // BRK
-    let mut nes: NES = setup_nes_with_rom(vec![0xA5, 0x10, 0x00]);
+    // KIL
+    let mut nes: NES = setup_nes_with_rom(vec![0xA5, 0x10, 0x02]);
     nes.bus_mut().write(0x0010, 0x55);
     nes.cpu.run();
 

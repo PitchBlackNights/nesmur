@@ -15,24 +15,24 @@ pub struct Interrupt {
 
 pub const NMI: Interrupt = Interrupt {
     itype: InterruptType::NMI,
-    vector_addr: 0xFFFA
+    vector_addr: 0xFFFA,
     cpu_cycles: 2,
 };
 
 pub const IRQ: Interrupt = Interrupt {
     itype: InterruptType::IRQ,
-    vector_addr: 0xFFFE
+    vector_addr: 0xFFFE,
     cpu_cycles: 1,
 };
 
 pub const BRK: Interrupt = Interrupt {
     itype: InterruptType::BRK,
-    vector_addr: 0xFFFA
+    vector_addr: 0xFFFA,
     cpu_cycles: 0,
 };
 
 pub const PHP: Interrupt = Interrupt {
     itype: InterruptType::PHP,
-    vector_addr: 0xFFFA
+    vector_addr: 0xFFFA,
     cpu_cycles: 0,
 };

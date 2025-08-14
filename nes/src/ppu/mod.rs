@@ -22,7 +22,7 @@ pub struct PPU {
     pub palette_table: [u8; 32],
 
     internal_data_buf: u8,
-    
+
     scanline: u16,
     cycles: usize,
     pub nmi_interrupt: Option<u8>,
@@ -89,7 +89,7 @@ impl PPU {
     fn increment_vram_addr(&mut self) {
         self.addr.increment(self.ctrl.vram_addr_increment());
     }
-    
+
     pub fn tick(&mut self, cycles: usize) -> bool {
         self.cycles += cycles;
         if self.cycles >= 341 {
