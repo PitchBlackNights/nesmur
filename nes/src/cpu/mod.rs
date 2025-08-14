@@ -90,8 +90,9 @@ impl CPU {
     fn interrupt(&mut self, interrupt: Interrupt) {
         common::stack_push_u16(self, self.program_counter);
         let mut flag: Flags = self.status.clone();
-        flag.set(Flags::BREAK, interrupt.b_flag_mask == 0b0010_0000);
-        flag.set(Flags::UNUSED, interrupt.b_flag_mask == 0b0010_0000);
+        let set_break: bool = (interrupt == interrupt::BRK) || (interrupt == interrupt::PHP);
+        flag.set(Flags::BREAK, set_break);
+        flag.set(Flags::UNUSED, true);
 
         common::stack_push(self, flag.bits());
         self.status.insert(Flags::INTERRUPT_DISABLE);
