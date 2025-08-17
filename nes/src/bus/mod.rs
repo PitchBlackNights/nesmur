@@ -1,3 +1,5 @@
+pub mod mapper;
+
 use crate::apu::APU;
 use crate::cartridge::Rom;
 use crate::joypad::Joypad;
@@ -45,18 +47,20 @@ const PRG_ROM: u16 = 0x8000;
 const PRG_ROM_END: u16 = 0xFFFF;
 
 pub static mut QUIET_LOG: bool = false;
+pub static mut PREV_QUIET_LOG: bool = false;
 pub fn get_quiet_log() -> bool {
     unsafe { QUIET_LOG }
 }
 pub fn set_quiet_log(value: bool) {
     unsafe { QUIET_LOG = value }
 }
-pub static mut PREV_QUIET_LOG: bool = false;
-pub fn get_prev_quiet_log() -> bool {
-    unsafe { PREV_QUIET_LOG }
-}
-pub fn set_prev_quiet_log(value: bool) {
-    unsafe { PREV_QUIET_LOG = value }
+
+macro_rules! bus_trace {
+    ($($arg:tt)+) => ({
+        (!get_quiet_log()).then(|| {
+            log::log!(log::Level::Trace, $($arg)+)
+        });
+    })
 }
 
 #[rustfmt::skip]
@@ -111,74 +115,36 @@ impl<'a> Bus<'a> {
         self.ppu_mut().poll_nmi_interrupt()
     }
 
-    pub fn memory(&self) -> Vec<u8> {
-        let mut memory: Vec<u8> = vec![0u8; 0x10000];
-        let cpu_vram: &Vec<u8> = &self.cpu_vram.to_vec();
-        let prg_rom: &Vec<u8> = &self.prg_rom;
+    // pub fn memory(&self) -> Vec<u8> {
+    //     let mut memory: Vec<u8> = vec![0u8; 0x10000];
+    //     let cpu_vram: &Vec<u8> = &self.cpu_vram.to_vec();
+    //     let prg_rom: &Vec<u8> = &self.prg_rom;
 
-        memory[0x0000..0x07FF + 1].copy_from_slice(cpu_vram);
-        memory[0x0800..0x0FFF + 1].copy_from_slice(cpu_vram);
-        memory[0x1000..0x17FF + 1].copy_from_slice(cpu_vram);
-        memory[0x1800..0x1FFF + 1].copy_from_slice(cpu_vram);
-        // OTHER MEMORY
-        memory[0x8000..0xBFFF + 1].copy_from_slice(prg_rom);
-        memory[0xC000..0xFFFF + 1].copy_from_slice(prg_rom);
-        memory
-    }
+    //     memory[0x0000..0x07FF + 1].copy_from_slice(cpu_vram);
+    //     memory[0x0800..0x0FFF + 1].copy_from_slice(cpu_vram);
+    //     memory[0x1000..0x17FF + 1].copy_from_slice(cpu_vram);
+    //     memory[0x1800..0x1FFF + 1].copy_from_slice(cpu_vram);
+    //     // OTHER MEMORY
+    //     memory[0x8000..0xBFFF + 1].copy_from_slice(prg_rom);
+    //     memory[0xC000..0xFFFF + 1].copy_from_slice(prg_rom);
+    //     memory
+    // }
 
-    #[rustfmt::skip]
-    pub fn read(&mut self, addr: u16) -> u8 { self.__read(addr, false) }
-    #[rustfmt::skip]
-    pub fn write(&mut self, addr: u16, data: u8) { self.__write(addr, data, false); }
-    #[rustfmt::skip]
-    pub fn read_u16(&mut self, pos: u16) -> u16 { self.__read_u16(pos, false) }
-    #[rustfmt::skip]
-    pub fn write_u16(&mut self, pos: u16, data: u16) { self.__write_u16(pos, data, false); }
-}
-
-pub trait Mem {
-    fn __read(&mut self, addr: u16, quiet: bool) -> u8;
-
-    fn __write(&mut self, addr: u16, data: u8, quiet: bool);
-
-    fn __read_u16(&mut self, pos: u16, quiet: bool) -> u16 {
-        let lo: u16 = self.__read(pos, quiet) as u16;
-        let hi: u16 = self.__read(pos.wrapping_add(1), quiet) as u16;
+    pub fn read_u16(&mut self, pos: u16) -> u16 {
+        let lo: u16 = self.read(pos) as u16;
+        let hi: u16 = self.read(pos.wrapping_add(1)) as u16;
         (hi << 8) | lo
     }
 
-    fn __write_u16(&mut self, pos: u16, data: u16, quiet: bool) {
+    pub fn write_u16(&mut self, pos: u16, data: u16) {
         let hi: u8 = (data >> 8) as u8;
         let lo: u8 = (data & 0xff) as u8;
-        self.__write(pos, lo, quiet);
-        self.__write(pos.wrapping_add(1), hi, quiet);
+        self.write(pos, lo);
+        self.write(pos.wrapping_add(1), hi);
     }
-}
 
-macro_rules! bus_trace {
-    ($($arg:tt)+) => ({
-        (!get_quiet_log()).then(|| {
-            log::log!(log::Level::Trace, $($arg)+)
-        });
-    })
-}
-
-macro_rules! bus_logging {
-    ($arg:ident) => {
-        let quiet_log = get_quiet_log();
-        set_prev_quiet_log(quiet_log);
-        set_quiet_log($arg | quiet_log);
-    };
-    () => {
-        set_quiet_log(get_prev_quiet_log());
-    };
-}
-
-impl Mem for Bus<'_> {
-    fn __read(&mut self, addr: u16, quiet: bool) -> u8 {
-        bus_logging!(quiet);
-
-        let data: u8 = match addr {
+    pub fn read(&mut self, addr: u16) -> u8 {
+        match addr {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
                 let byte: u8 = self.cpu_vram[mirror_down_addr as usize];
@@ -220,7 +186,7 @@ impl Mem for Bus<'_> {
                     addr,
                     mirror_down_addr
                 );
-                self.__read(mirror_down_addr, quiet)
+                self.read(mirror_down_addr)
             }
 
             APU_REGISTERS..=APU_REGISTERS_END => {
@@ -254,15 +220,10 @@ impl Mem for Bus<'_> {
                 warn!("Ignoring bus read at {:#06X}", addr);
                 0
             }
-        };
-
-        bus_logging!();
-        data
+        }
     }
 
-    fn __write(&mut self, addr: u16, data: u8, quiet: bool) {
-        bus_logging!(quiet);
-
+    pub fn write(&mut self, addr: u16, data: u8) {
         match addr {
             RAM..=RAM_END => {
                 let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
@@ -327,7 +288,7 @@ impl Mem for Bus<'_> {
                     addr,
                     mirror_down_addr
                 );
-                self.__write(mirror_down_addr, data, quiet);
+                self.write(mirror_down_addr, data);
             }
 
             APU_REGISTERS..=0x4013 | APU_REGISTERS_END => {
@@ -339,7 +300,7 @@ impl Mem for Bus<'_> {
                 let mut buffer: [u8; 256] = [0; 256];
                 let hi: u16 = (data as u16) << 8;
                 for i in 0..256u16 {
-                    buffer[i as usize] = self.__read(hi + i, quiet);
+                    buffer[i as usize] = self.read(hi + i);
                 }
 
                 self.ppu_mut().write_oam_dma(&buffer);
@@ -356,11 +317,11 @@ impl Mem for Bus<'_> {
                 // warn!("[JOY-2] Ignoring bus write at {:#06X}", addr);
             }
 
-            PRG_ROM..=PRG_ROM_END => error!("Attempted to write {:#04X} to PRG-ROM {:#06X}", data, addr),
+            PRG_ROM..=PRG_ROM_END => {
+                error!("Attempted to write {:#04X} to PRG-ROM {:#06X}", data, addr)
+            }
 
             _ => warn!("Ignoring bus write at {:#06X}", addr),
         }
-
-        bus_logging!();
     }
 }

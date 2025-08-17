@@ -42,6 +42,26 @@ pub fn page_cross(addr1: u16, addr2: u16) -> bool {
     addr1 & 0xFF00 != addr2 & 0xFF00
 }
 
+pub fn format_byte_size(bytes: usize) -> String {
+    let display_scale: f32 = match bytes {
+        ..512 => 0.0, // 0 Bytes -> 511 Bytes
+        512..524_288 => 1024.0, // 0.5 KiB -> 511.99 KiB
+        524_288..536_870_912 => 1_048_576.0, // 0.5 MiB -> 511.99 MiB
+        536_870_912.. => 1_073_741_824.0, // 0.5 GiB -> 9999999+ GiB
+    };
+    let size_unit: &str = match display_scale {
+        0.0 => "B",
+        1024.0 => "KiB",
+        1_048_576.0 => "MiB",
+        1_073_741_824.0 => "GiB",
+        _ => panic!("This shouldn't happen!"),
+    };
+    match display_scale {
+        0.0 => format!("{} {}", bytes, size_unit),
+        _ => format!("{:.2} {}", bytes as f32 / display_scale, size_unit),
+    }
+}
+
 pub fn trace(cpu: &CPU) -> String {
     use crate::cpu::opcode::AddressingMode::*;
     use crate::cpu::opcode::Instruction::*;

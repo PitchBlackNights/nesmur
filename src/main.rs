@@ -16,9 +16,9 @@ use sdl2::{Sdl, VideoSubsystem};
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-use nes::cpu::CPU;
-use std::fs::File;
-use std::io::{BufWriter, Write};
+// use nes::cpu::CPU;
+// use std::fs::File;
+// use std::io::{BufWriter, Write};
 
 fn main() {
     let _args: Args = setup::setup_logger_and_args();
@@ -54,7 +54,8 @@ fn main() {
     key_map.insert(Keycode::S, JoypadButton::BUTTON_B);
 
     // Setup the NES
-    let bytes: Vec<u8> = std::fs::read("nes/tests/roms/cpu_timing_test.nes").unwrap();
+    // let bytes: Vec<u8> = std::fs::read("nes/tests/roms/instr_timing.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("smb.nes").unwrap();
     let rom: Rom = Rom::new(&bytes).unwrap();
 
     let mut nes: NES = NES::new(rom, move |ppu_ref: Rc<RefCell<PPU>>, joypad1| {
@@ -93,7 +94,7 @@ fn main() {
     nes::bus::set_quiet_log(true);
     // nes.reset();
     // nes.cpu.program_counter = 0xC000;
-    nes.cpu.run();
+    // nes.cpu.run();
 
     // let mut debug_log: String = String::new();
     // nes.cpu.run_with_callback(|cpu: &mut CPU<'_>| {

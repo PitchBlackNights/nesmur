@@ -36,7 +36,9 @@ fn create_rom(rom: TestRom) -> Vec<u8> {
 
 fn test_rom(program: Vec<u8>) -> Rom {
     let mut pgp_rom_contents: Vec<u8> = program;
-    pgp_rom_contents.resize(2 * PRG_ROM_PAGE_SIZE, 0);
+    pgp_rom_contents.resize(2 * PRG_ROM_PAGE_SIZE, 0x00);
+    pgp_rom_contents[0x7FFC] = 0x00;
+    pgp_rom_contents[0x7FFD] = 0x80;
 
     let test_rom: Vec<u8> = create_rom(TestRom {
         header: vec![

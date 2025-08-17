@@ -90,14 +90,13 @@ impl<'a> CPU<'a> {
 
     fn interrupt(&mut self, interrupt: Interrupt) {
         common::stack_push_u16(self, self.program_counter);
+
         let mut flag: Flags = self.status.clone();
-        let set_break: bool = (interrupt == interrupt::BRK) || (interrupt == interrupt::PHP);
-        flag.set(Flags::BREAK, set_break);
-        flag.set(Flags::UNUSED, true);
-
+        flag.set(Flags::BREAK, interrupt == interrupt::BRK);
+        flag.insert(Flags::UNUSED);
         common::stack_push(self, flag.bits());
-        self.status.insert(Flags::INTERRUPT_DISABLE);
 
+        self.status.insert(Flags::INTERRUPT_DISABLE);
         self.bus_mut().tick(interrupt.cpu_cycles);
         let interrupt_vector: u16 = self.bus_mut().read_u16(interrupt.vector_addr);
         self.program_counter = interrupt_vector;
@@ -119,7 +118,9 @@ impl<'a> CPU<'a> {
             if self.bus_mut().poll_nmi_status().is_some() {
                 self.interrupt(interrupt::NMI);
             }
+            
             callback(self);
+            
             let opbyte: u8 = self.bus_mut().read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state: u16 = self.program_counter;
@@ -136,34 +137,6 @@ impl<'a> CPU<'a> {
     }
 
     fn execute_instruction(&mut self, opcode: &OpCode) {
-        // debug!("==== Executing Operation ====");
-        // debug!("  Address: {:#06X},", self.program_counter - 1);
-        // debug!("  Byte: {:#04X},", opcode.byte);
-        // debug!("  Instruction: {:?},", opcode.instruction);
-        // debug!("  Mnemonic: \"{}\"", opcode.mnemonic);
-        // debug!("  Len: {}", opcode.len);
-        // debug!("  Mode: {:?}", opcode.mode);
-        // debug!("  Cycles: {}", opcode.cycles);
-        // debug!(
-        //     "  Operands: [{}]",
-        //     (1..opcode.len)
-        //         .map(|i| self.bus_mut().__read(self.program_counter + i as u16 - 1, true))
-        //         .map(|b| format!("{:#04X}", b))
-        //         .collect::<Vec<_>>()
-        //         .join(", ")
-        // );
-        // debug!(
-        //     "EXEOP -- {:#06X}\t{:?}\t{:?}\t[{}]",
-        //     self.program_counter - 1,
-        //     opcode.instruction,
-        //     opcode.mode,
-        //     (1..opcode.len)
-        //         .map(|i| self.bus_mut().__read(self.program_counter + i as u16 - 1, true))
-        //         .map(|b| format!("{:#04X}", b))
-        //         .collect::<Vec<_>>()
-        //         .join(", ")
-        // );
-
         match opcode.instruction {
             LDA => {
                 let (addr, page_cross): (u16, bool) = opcode.get_operand_address(self);
@@ -437,7 +410,6 @@ impl<'a> CPU<'a> {
             SED => self.status.insert(Flags::DECIMAL_MODE),
             SEI => self.status.insert(Flags::INTERRUPT_DISABLE),
             BRK => {
-                self.program_counter += 1;
                 if !self.status.contains(Flags::INTERRUPT_DISABLE) {
                     self.interrupt(interrupt::BRK);
                 }

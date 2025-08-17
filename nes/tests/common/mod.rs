@@ -1,15 +1,7 @@
 #[allow(unused_imports)]
-mod prelude {
-    pub use bitflags::bitflags;
-    pub use nes::bus::Mem;
-    pub use nes::ppu::NesPPU;
-    pub use nes::tools;
-    pub use nes::tools::NESAccess;
-    // pub use log::{debug, error, info, trace, warn};
-}
 use nes::NES;
 use nes::cartridge::Rom;
-// use prelude::*;
+// use nes::prelude::*;
 
 pub fn setup_nes(rom_path: &str) -> NES {
     let path: String = format!("tests/roms/{}", rom_path);

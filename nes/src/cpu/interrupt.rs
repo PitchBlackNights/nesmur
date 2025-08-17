@@ -3,7 +3,6 @@ pub enum InterruptType {
     NMI,
     IRQ,
     BRK,
-    PHP,
 }
 
 #[derive(PartialEq, Eq)]
@@ -27,12 +26,6 @@ pub const IRQ: Interrupt = Interrupt {
 
 pub const BRK: Interrupt = Interrupt {
     itype: InterruptType::BRK,
-    vector_addr: 0xFFFA,
-    cpu_cycles: 0,
-};
-
-pub const PHP: Interrupt = Interrupt {
-    itype: InterruptType::PHP,
-    vector_addr: 0xFFFA,
+    vector_addr: 0xFFFE,
     cpu_cycles: 0,
 };

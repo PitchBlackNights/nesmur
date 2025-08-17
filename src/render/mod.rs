@@ -59,7 +59,7 @@ fn render_name_table(
 ) {
     let bank: u16 = ppu.ctrl.bknd_pattern_addr();
 
-    let attribute_table: &[u8] = &name_table[0x3c0..0x400];
+    let attribute_table: &[u8] = &name_table[0x03C0..0x0400];
 
     #[allow(clippy::needless_range_loop)]
     for i in 0..0x03C0 {

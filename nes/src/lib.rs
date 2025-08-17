@@ -1,11 +1,10 @@
 #[allow(unused_imports)]
-mod prelude {
-    pub use crate::bus::Mem;
-    pub use crate::ppu::NesPPU;
+pub mod prelude {
     pub use crate::tools;
     pub use crate::tools::NESAccess;
     pub use bitflags::bitflags;
     pub use log::{debug, error, info, trace, warn};
+    pub use crate::bus::mapper::Mapper;
 }
 pub mod apu;
 pub mod bus;
@@ -81,4 +80,10 @@ impl<'a> NES<'a> {
         info!("Resetting CPU...");
         self.cpu.reset();
     }
+}
+
+#[allow(clippy::upper_case_acronyms)]
+pub enum Region {
+    NTSC,
+    PAL,
 }
