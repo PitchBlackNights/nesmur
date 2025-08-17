@@ -1,9 +1,11 @@
-use crate::apu::APU;
 use crate::bus::Bus;
-use crate::cartridge::Rom;
+use crate::cartridge::ROM;
 use crate::cpu::CPU;
+use crate::input_device::NESDevice;
+use crate::mapper::Mapper;
 use crate::ppu::PPU;
 use crate::prelude::*;
+use crate::{apu::APU, memory::Memory};
 use once_cell::sync::Lazy;
 use std::cell::{Ref, RefMut};
 
@@ -15,14 +17,20 @@ pub static NON_READABLE_ADDR: Lazy<Vec<u16>> = Lazy::new(|| {
 
 #[rustfmt::skip]
 pub trait NESAccess<'a> {
-    fn bus(&self) -> Ref<'_, Bus<'a>> { panic!("Access to `Bus` is prohibited") }
-    fn bus_mut(&self) -> RefMut<'_, Bus<'a>> { panic!("Access to `Bus` is prohibited") }
+    fn bus(&self) -> Ref<Bus<'a>> { panic!("Access to `Bus` is prohibited") }
+    fn bus_mut(&self) -> RefMut<Bus<'a>> { panic!("Mutable access to `Bus` is prohibited") }
     fn apu(&self) -> Ref<APU> { panic!("Access to `APU` is prohibited") }
-    fn apu_mut(&self) -> RefMut<APU> { panic!("Access to `APU` is prohibited") }
+    fn apu_mut(&self) -> RefMut<APU> { panic!("Mutable access to `APU` is prohibited") }
     fn ppu(&self) -> Ref<PPU> { panic!("Access to `PPU` is prohibited") }
-    fn ppu_mut(&self) -> RefMut<PPU> { panic!("Access to `PPU` is prohibited") }
-    fn rom(&self) -> Ref<Rom> { panic!("Access to `Rom` is prohibited") }
-    fn rom_mut(&self) -> RefMut<Rom> { panic!("Access to `Rom` is prohibited") }
+    fn ppu_mut(&self) -> RefMut<PPU> { panic!("Mutable access to `PPU` is prohibited") }
+    fn rom(&self) -> Ref<ROM> { panic!("Access to `Rom` is prohibited") }
+    fn rom_mut(&self) -> RefMut<ROM> { panic!("Mutable access to `Rom` is prohibited") }
+    fn mapper(&self) -> Ref<Box<dyn Mapper>> { panic!("Access to `Mapper` is prohibited") }
+    fn mapper_mut(&self) -> RefMut<Box<dyn Mapper>> { panic!("Mutable access to `Mapper` is prohibited") }
+    fn memory(&self) -> Ref<Memory> { panic!("Access to `Memory` is prohibited") }
+    fn memory_mut(&self) -> RefMut<Memory> { panic!("Mutable access to `Memory` is prohibited") }
+    fn device1(&self) -> Ref<Box<dyn NESDevice>> { panic!("Access to `Device 1` is prohibited") }
+    fn device1_mut(&self) -> RefMut<Box<dyn NESDevice>> { panic!("Mutable access to `Device 1` is prohibited") }
 }
 
 pub fn u16_to_bytes(value: u16) -> [u8; 2] {
@@ -44,10 +52,10 @@ pub fn page_cross(addr1: u16, addr2: u16) -> bool {
 
 pub fn format_byte_size(bytes: usize) -> String {
     let display_scale: f32 = match bytes {
-        ..512 => 0.0, // 0 Bytes -> 511 Bytes
-        512..524_288 => 1024.0, // 0.5 KiB -> 511.99 KiB
+        ..512 => 0.0,                        // 0 Bytes -> 511 Bytes
+        512..524_288 => 1024.0,              // 0.5 KiB -> 511.99 KiB
         524_288..536_870_912 => 1_048_576.0, // 0.5 MiB -> 511.99 MiB
-        536_870_912.. => 1_073_741_824.0, // 0.5 GiB -> 9999999+ GiB
+        536_870_912.. => 1_073_741_824.0,    // 0.5 GiB -> 9999999+ GiB
     };
     let size_unit: &str = match display_scale {
         0.0 => "B",

@@ -1,10 +1,10 @@
-// use super::*;
+use super::*;
 use crate::cartridge::Mirroring;
 use crate::ppu::PPU;
 
 #[test]
 fn test_ppu_vram_writes() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_ppu_addr(0x23);
     ppu.write_to_ppu_addr(0x05);
@@ -15,7 +15,7 @@ fn test_ppu_vram_writes() {
 
 #[test]
 fn test_ppu_vram_reads() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_ctrl(0);
     ppu.vram[0x0305] = 0x66;
@@ -29,7 +29,7 @@ fn test_ppu_vram_reads() {
 
 #[test]
 fn test_ppu_vram_reads_cross_page() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_ctrl(0);
     ppu.vram[0x01ff] = 0x66;
@@ -44,7 +44,7 @@ fn test_ppu_vram_reads_cross_page() {
 
 #[test]
 fn test_ppu_vram_reads_step_32() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_ctrl(0b100);
     ppu.vram[0x01ff] = 0x66;
@@ -64,7 +64,7 @@ fn test_ppu_vram_reads_step_32() {
 //   [0x2800 B ] [0x2C00 b ]
 #[test]
 fn test_vram_horizontal_mirror() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_ppu_addr(0x24);
     ppu.write_to_ppu_addr(0x05);
@@ -90,7 +90,7 @@ fn test_vram_horizontal_mirror() {
 //   [0x2800 a ] [0x2C00 b ]
 #[test]
 fn test_vram_vertical_mirror() {
-    let mut ppu: PPU = PPU::new(vec![0; 2048], Mirroring::Vertical);
+    let mut ppu: PPU = empty_ppu(Mirroring::Vertical);
 
     ppu.write_to_ppu_addr(0x20);
     ppu.write_to_ppu_addr(0x05);
@@ -113,7 +113,7 @@ fn test_vram_vertical_mirror() {
 
 #[test]
 fn test_read_status_resets_latch() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
     ppu.vram[0x0305] = 0x66;
 
     ppu.write_to_ppu_addr(0x21);
@@ -133,7 +133,7 @@ fn test_read_status_resets_latch() {
 
 #[test]
 fn test_ppu_vram_mirroring() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_ctrl(0);
     ppu.vram[0x0305] = 0x66;
@@ -146,7 +146,7 @@ fn test_ppu_vram_mirroring() {
 
 #[test]
 fn test_read_status_resets_vblank() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.status.set_vblank_status(true);
     let status: u8 = ppu.read_status();
@@ -157,7 +157,7 @@ fn test_read_status_resets_vblank() {
 
 #[test]
 fn test_oam_read_write() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_oam_addr(0x10);
     ppu.write_to_oam_data(0x66);
@@ -173,7 +173,7 @@ fn test_oam_read_write() {
 
 #[test]
 fn test_oam_dma() {
-    let mut ppu: PPU = PPU::new_empty_rom();
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     let mut data: [u8; 256] = [0x66; 256];
     data[0] = 0x77;

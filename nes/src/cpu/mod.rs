@@ -9,8 +9,6 @@ use crate::cpu::opcode::Instruction::*;
 use crate::cpu::opcode::OpCode;
 use crate::prelude::*;
 // use crate::tools;
-use std::cell::{Ref, RefCell, RefMut};
-use std::rc::Rc;
 
 bitflags! {
     /// Status Register (P) - http://wiki.nesdev.com/w/index.php/Status_flags
@@ -43,8 +41,8 @@ const STACK_RESET: u8 = 0xFD;
 
 #[rustfmt::skip]
 impl<'a> NESAccess<'a> for CPU<'a> {
-    fn bus(&self) -> Ref<'_, Bus<'a>> { self.bus.borrow() }
-    fn bus_mut(&self) -> RefMut<'_, Bus<'a>> { self.bus.borrow_mut() }
+    fn bus(&self) -> Ref<Bus<'a>> { self.bus.borrow() }
+    fn bus_mut(&self) -> RefMut<Bus<'a>> { self.bus.borrow_mut() }
 }
 
 pub struct CPU<'a> {
@@ -115,12 +113,13 @@ impl<'a> CPU<'a> {
 
         info!("Running CPU...");
         while self.running {
-            if self.bus_mut().poll_nmi_status().is_some() {
-                self.interrupt(interrupt::NMI);
+            let pending_interrupt: Option<Interrupt> = self.bus_mut().poll_interrupts();
+            if pending_interrupt.is_some() {
+                self.interrupt(pending_interrupt.unwrap());
             }
-            
+
             callback(self);
-            
+
             let opbyte: u8 = self.bus_mut().read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state: u16 = self.program_counter;

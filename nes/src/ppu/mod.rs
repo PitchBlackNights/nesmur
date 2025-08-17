@@ -1,15 +1,22 @@
+pub mod registers;
+
 use crate::cartridge::Mirroring;
+use crate::memory::Memory;
+use crate::prelude::*;
 use registers::addr::AddrRegister;
 use registers::control::ControlRegister;
 use registers::mask::MaskRegister;
 use registers::scroll::ScrollRegister;
 use registers::status::StatusRegister;
-// use crate::prelude::*;
 
-pub mod registers;
+#[rustfmt::skip]
+impl NESAccess<'_> for PPU {
+    fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
+    fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
+}
 
 pub struct PPU {
-    pub chr_rom: Vec<u8>,
+    memory: Rc<RefCell<Memory>>,
     pub mirroring: Mirroring,
     pub ctrl: ControlRegister,
     pub mask: MaskRegister,
@@ -27,12 +34,9 @@ pub struct PPU {
 }
 
 impl PPU {
-    pub fn new(mut chr_rom: Vec<u8>, mirroring: Mirroring) -> Self {
-        // let mut chr_rom: Vec<u8> = chr_rom;
-        chr_rom.resize(0x1FFF, 0x00);
-
+    pub fn new(memory: Rc<RefCell<Memory>>, mirroring: Mirroring) -> Self {
         PPU {
-            chr_rom,
+            memory,
             mirroring,
             ctrl: ControlRegister::new(),
             mask: MaskRegister::new(),
@@ -50,10 +54,6 @@ impl PPU {
         }
     }
 
-    pub fn new_empty_rom() -> Self {
-        PPU::new(vec![0; 2048], Mirroring::Horizontal)
-    }
-
     // Horizontal:
     //   [ A ] [ a ]
     //   [ B ] [ b ]
@@ -61,14 +61,14 @@ impl PPU {
     //   [ A ] [ B ]
     //   [ a ] [ b ]
     pub fn mirror_vram_addr(&self, addr: u16) -> u16 {
-        let mirrored_vram = addr & 0b10111111111111; // mirror down 0x3000-0x3eff to 0x2000 - 0x2eff
-        let vram_index = mirrored_vram - 0x2000; // to vram vector
-        let name_table = vram_index / 0x400;
+        let mirrored_vram: u16 = addr & 0b0010_1111_1111_1111; // mirror down 0x3000-0x3EFF to 0x2000 - 0x2EFF
+        let vram_index: u16 = mirrored_vram - 0x2000; // to vram vector
+        let name_table: u16 = vram_index / 0x0400;
         match (&self.mirroring, name_table) {
-            (Mirroring::Vertical, 2) | (Mirroring::Vertical, 3) => vram_index - 0x800,
-            (Mirroring::Horizontal, 2) => vram_index - 0x400,
-            (Mirroring::Horizontal, 1) => vram_index - 0x400,
-            (Mirroring::Horizontal, 3) => vram_index - 0x800,
+            (Mirroring::Vertical, 2) | (Mirroring::Vertical, 3) => vram_index - 0x0800,
+            (Mirroring::Horizontal, 2) => vram_index - 0x0400,
+            (Mirroring::Horizontal, 1) => vram_index - 0x0400,
+            (Mirroring::Horizontal, 3) => vram_index - 0x0800,
             _ => vram_index,
         }
     }
@@ -160,8 +160,14 @@ impl PPU {
         let addr: u16 = self.addr.get();
         match addr {
             0..=0x1FFF => {
-                // error!("[PPU] Attempted to write {:#04X} to CHR-ROM {:#06X}", value, addr);
-                self.chr_rom[addr as usize] = value;
+                if self.memory().use_chr_ram {
+                    self.memory_mut().chr_mem[addr as usize] = value;
+                } else {
+                    error!(
+                        "[PPU] Attempted to write {:#04X} to CHR-ROM {:#06X}",
+                        value, addr
+                    );
+                }
             }
             0x2000..=0x2FFF => {
                 self.vram[self.mirror_vram_addr(addr) as usize] = value;
@@ -191,7 +197,8 @@ impl PPU {
         match addr {
             0..=0x1FFF => {
                 let result: u8 = self.internal_data_buf;
-                self.internal_data_buf = self.chr_rom[addr as usize];
+                let chr_mem_data: u8 = self.memory().chr_mem[addr as usize];
+                self.internal_data_buf = chr_mem_data;
                 result
             }
             0x2000..=0x2FFF => {

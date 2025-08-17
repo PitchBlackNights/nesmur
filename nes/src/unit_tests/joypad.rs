@@ -1,11 +1,13 @@
 // use super::*;
-use crate::joypad::{Joypad, JoypadButton};
+use crate::input_device::joypad::{Joypad, JoypadButton};
+use crate::input_device::{NESDevice, NESDeviceType, new_device};
 
 #[test]
 fn test_strobe_mode() {
-    let mut joypad: Joypad = Joypad::new();
+    let mut joypad: Box<dyn NESDevice> = new_device(NESDeviceType::Joypad);
+
     joypad.write(1);
-    joypad.set_button_pressed_status(JoypadButton::BUTTON_A, true);
+    joypad.set_button_pressed_status(Box::new(JoypadButton::BUTTON_A), true);
     for _x in 0..10 {
         assert_eq!(joypad.read(), 1);
     }
@@ -16,10 +18,10 @@ fn test_strobe_mode_on_off() {
     let mut joypad: Joypad = Joypad::new();
 
     joypad.write(0);
-    joypad.set_button_pressed_status(JoypadButton::RIGHT, true);
-    joypad.set_button_pressed_status(JoypadButton::LEFT, true);
-    joypad.set_button_pressed_status(JoypadButton::SELECT, true);
-    joypad.set_button_pressed_status(JoypadButton::BUTTON_B, true);
+    joypad.set_button_pressed_status(Box::new(JoypadButton::RIGHT), true);
+    joypad.set_button_pressed_status(Box::new(JoypadButton::LEFT), true);
+    joypad.set_button_pressed_status(Box::new(JoypadButton::SELECT), true);
+    joypad.set_button_pressed_status(Box::new(JoypadButton::BUTTON_B), true);
 
     for _ in 0..=1 {
         assert_eq!(joypad.read(), 0);

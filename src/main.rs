@@ -1,5 +1,6 @@
-use nes::cartridge::Rom;
-use nes::joypad::JoypadButton;
+use nes::cartridge::ROM;
+use nes::input_device::joypad::JoypadButton;
+use nes::input_device::NESDevice;
 use nes::ppu::PPU;
 use nes::NES;
 use nesmur::cli_parser::Args;
@@ -13,7 +14,7 @@ use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 use sdl2::EventPump;
 use sdl2::{Sdl, VideoSubsystem};
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::Rc;
 // use nes::cpu::CPU;
@@ -56,45 +57,49 @@ fn main() {
     // Setup the NES
     // let bytes: Vec<u8> = std::fs::read("nes/tests/roms/instr_timing.nes").unwrap();
     let bytes: Vec<u8> = std::fs::read("smb.nes").unwrap();
-    let rom: Rom = Rom::new(&bytes).unwrap();
+    let rom: ROM = ROM::new(&bytes).unwrap();
 
-    let mut nes: NES = NES::new(rom, move |ppu_ref: Rc<RefCell<PPU>>, joypad1| {
-        let ppu: Ref<'_, PPU> = ppu_ref.borrow();
+    let mut nes: NES = NES::new(
+        rom,
+        move |ppu_ref: Rc<RefCell<PPU>>, device1_ref: &mut Rc<RefCell<Box<dyn NESDevice>>>| {
+            let ppu: Ref<PPU> = ppu_ref.borrow();
+            let mut device1: RefMut<Box<dyn NESDevice>> = device1_ref.borrow_mut();
 
-        render::render(&ppu, &mut frame);
-        texture.update(None, &frame.data, 256 * 3).unwrap();
-        canvas.copy(&texture, None, None).unwrap();
-        canvas.present();
+            render::render(&ppu, &mut frame);
+            texture.update(None, &frame.data, 256 * 3).unwrap();
+            canvas.copy(&texture, None, None).unwrap();
+            canvas.present();
 
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => std::process::exit(0),
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => std::process::exit(0),
 
-                Event::KeyDown { keycode, .. } => {
-                    if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
-                        joypad1.set_button_pressed_status(*key, true);
+                    Event::KeyDown { keycode, .. } => {
+                        if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
+                            device1.set_button_pressed_status(Box::new(*key), true);
+                        }
                     }
-                }
 
-                Event::KeyUp { keycode, .. } => {
-                    if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
-                        joypad1.set_button_pressed_status(*key, false);
+                    Event::KeyUp { keycode, .. } => {
+                        if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
+                            device1.set_button_pressed_status(Box::new(*key), false);
+                        }
                     }
-                }
 
-                _ => { /* do nothing */ }
+                    _ => { /* do nothing */ }
+                }
             }
-        }
-    });
+        },
+    );
 
     nes::bus::set_quiet_log(true);
     // nes.reset();
     // nes.cpu.program_counter = 0xC000;
-    // nes.cpu.run();
+    nes.cpu.run();
 
     // let mut debug_log: String = String::new();
     // nes.cpu.run_with_callback(|cpu: &mut CPU<'_>| {

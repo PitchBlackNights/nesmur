@@ -1,50 +1,9 @@
-pub mod mapper;
-
 use crate::apu::APU;
-use crate::cartridge::Rom;
-use crate::joypad::Joypad;
+use crate::cpu::interrupt::{self, Interrupt};
+use crate::input_device::NESDevice;
+use crate::memory::Memory;
 use crate::ppu::PPU;
 use crate::prelude::*;
-use std::cell::{Ref, RefCell, RefMut};
-use std::rc::Rc;
-
-//  _______________ $10000  _______________
-// | PRG-ROM       |       |               |
-// | Upper Bank    |       |               |
-// |_ _ _ _ _ _ _ _| $C000 | PRG-ROM       |
-// | PRG-ROM       |       |               |
-// | Lower Bank    |       |               |
-// |_______________| $8000 |_______________|
-// | SRAM          |       | SRAM          |
-// |_______________| $6000 |_______________|
-// | Expansion ROM |       | Expansion ROM |
-// |_______________| $4020 |_______________|
-// | I/O Registers |       |               |
-// |_ _ _ _ _ _ _ _| $4000 |               |
-// | Mirrors       |       | I/O Registers |
-// | $2000-$2007   |       |               |
-// |_ _ _ _ _ _ _ _| $2008 |               |
-// | PPU Registers |       |               |
-// |_______________| $2000 |_______________|
-// | Mirrors       |       |               |
-// | $0000-$07FF   |       |               |
-// |_ _ _ _ _ _ _ _| $0800 |               |
-// | RAM           |       | RAM           |
-// |_ _ _ _ _ _ _ _| $0200 |               |
-// | Stack         |       |               |
-// |_ _ _ _ _ _ _ _| $0100 |               |
-// | Zero Page     |       |               |
-// |_______________| $0000 |_______________|
-const RAM: u16 = 0x0000;
-const RAM_END: u16 = 0x1FFF;
-const PPU_REGISTERS: u16 = 0x2000;
-const PPU_REGISTERS_END: u16 = 0x3FFF;
-const APU_REGISTERS: u16 = 0x4000;
-const APU_REGISTERS_END: u16 = 0x4015;
-const JOYPAD_1: u16 = 0x4016;
-const JOYPAD_2: u16 = 0x4017;
-const PRG_ROM: u16 = 0x8000;
-const PRG_ROM_END: u16 = 0xFFFF;
 
 pub static mut QUIET_LOG: bool = false;
 pub static mut PREV_QUIET_LOG: bool = false;
@@ -55,9 +14,10 @@ pub fn set_quiet_log(value: bool) {
     unsafe { QUIET_LOG = value }
 }
 
+#[macro_export]
 macro_rules! bus_trace {
     ($($arg:tt)+) => ({
-        (!get_quiet_log()).then(|| {
+        (!$crate::bus::get_quiet_log()).then(|| {
             log::log!(log::Level::Trace, $($arg)+)
         });
     })
@@ -67,35 +27,44 @@ macro_rules! bus_trace {
 impl NESAccess<'_> for Bus<'_> {
     fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
     fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
+    fn mapper(&self) -> Ref<Box<dyn Mapper>> { self.mapper.borrow() }
+    fn mapper_mut(&self) -> RefMut<Box<dyn Mapper>> { self.mapper.borrow_mut() }
+    fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
+    fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
+    fn device1(&self) -> Ref<Box<dyn NESDevice>> { self.device1.borrow() }
+    fn device1_mut(&self) -> RefMut<Box<dyn NESDevice>> { self.device1.borrow_mut() }
 }
 
 pub struct Bus<'rcall> {
-    cpu_vram: [u8; 2048],
-    prg_rom: Vec<u8>,
-    pub ppu: Rc<RefCell<PPU>>,
     pub cpu_cycles: usize,
+    pub memory: Rc<RefCell<Memory>>,
+    pub mapper: Rc<RefCell<Box<dyn Mapper>>>,
+    pub ppu: Rc<RefCell<PPU>>,
+    pub device1: Rc<RefCell<Box<dyn NESDevice>>>,
     #[allow(clippy::type_complexity)]
-    render_callback: Box<dyn FnMut(Rc<RefCell<PPU>>, &mut Joypad) + 'rcall>,
-    pub joypad1: Joypad,
+    render_callback:
+        Box<dyn FnMut(Rc<RefCell<PPU>>, &mut Rc<RefCell<Box<dyn NESDevice>>>) + 'rcall>,
 }
 
 impl<'a> Bus<'a> {
     pub fn new<'rcall, F>(
-        rom: Rc<RefCell<Rom>>,
+        memory: Rc<RefCell<Memory>>,
+        mapper: Rc<RefCell<Box<dyn Mapper>>>,
         _apu: Rc<RefCell<APU>>,
         ppu: Rc<RefCell<PPU>>,
+        device1: Rc<RefCell<Box<dyn NESDevice>>>,
         render_callback: F,
     ) -> Bus<'rcall>
     where
-        F: FnMut(Rc<RefCell<PPU>>, &mut Joypad) + 'rcall,
+        F: FnMut(Rc<RefCell<PPU>>, &mut Rc<RefCell<Box<dyn NESDevice>>>) + 'rcall,
     {
         Bus {
-            cpu_vram: [0; 2048],
-            prg_rom: rom.borrow().prg_rom.clone(),
-            ppu,
             cpu_cycles: 0,
+            memory,
+            mapper,
+            ppu,
+            device1,
             render_callback: Box::from(render_callback),
-            joypad1: Joypad::new(),
         }
     }
 
@@ -107,12 +76,15 @@ impl<'a> Bus<'a> {
         let nmi_after: bool = self.ppu().nmi_interrupt.is_some();
 
         if !nmi_before && nmi_after {
-            (self.render_callback)(self.ppu.clone(), &mut self.joypad1);
+            (self.render_callback)(self.ppu.clone(), &mut self.device1);
         }
     }
 
-    pub fn poll_nmi_status(&mut self) -> Option<u8> {
-        self.ppu_mut().poll_nmi_interrupt()
+    pub fn poll_interrupts(&mut self) -> Option<Interrupt> {
+        if self.ppu_mut().poll_nmi_interrupt().is_some() {
+            return Some(interrupt::NMI);
+        }
+        None
     }
 
     // pub fn memory(&self) -> Vec<u8> {
@@ -144,184 +116,10 @@ impl<'a> Bus<'a> {
     }
 
     pub fn read(&mut self, addr: u16) -> u8 {
-        match addr {
-            RAM..=RAM_END => {
-                let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
-                let byte: u8 = self.cpu_vram[mirror_down_addr as usize];
-                bus_trace!(
-                    "[RAM] Read {:#04X} from {:#06X} ({:#06X})",
-                    byte,
-                    addr,
-                    mirror_down_addr
-                );
-                byte
-            }
-
-            PPU_REGISTERS | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
-                error!(
-                    "Attempted to read from write-only PPU address {:#06X}",
-                    addr
-                );
-                0
-            }
-            0x2002 => {
-                let byte: u8 = self.ppu_mut().read_status();
-                bus_trace!("[PPU] Read {:#04X} from {:#06X} (PPU Status)", byte, addr);
-                byte
-            }
-            0x2004 => {
-                let byte: u8 = self.ppu().read_oam_data();
-                bus_trace!("[PPU] Read {:#04X} from {:#06X} (PPU OAM Data)", byte, addr);
-                byte
-            }
-            0x2007 => {
-                let byte: u8 = self.ppu_mut().read_data();
-                bus_trace!("[PPU] Read {:#04X} from {:#06X} (PPU Data)", byte, addr);
-                byte
-            }
-            0x2008..=PPU_REGISTERS_END => {
-                let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
-                bus_trace!(
-                    "[PPU] Mirroring down read at {:#06X} to {:#06X}",
-                    addr,
-                    mirror_down_addr
-                );
-                self.read(mirror_down_addr)
-            }
-
-            APU_REGISTERS..=APU_REGISTERS_END => {
-                // warn!("[APU] Ignoring bus read at {:#06X}", addr);
-                0
-            }
-
-            JOYPAD_1 => self.joypad1.read(),
-            JOYPAD_2 => {
-                // warn!("[JOY-2] Ignoring bus read at {:#06X}", addr);
-                0
-            }
-
-            PRG_ROM..=PRG_ROM_END => {
-                let mut mirror_down_addr: u16 = addr - 0x8000;
-                if self.prg_rom.len() == 0x4000 && mirror_down_addr >= 0x4000 {
-                    // Mirror the data if needed
-                    mirror_down_addr %= 0x4000;
-                }
-                let byte: u8 = self.prg_rom[mirror_down_addr as usize];
-                bus_trace!(
-                    "[PRG-ROM] Read {:#04X} from {:#06X} ({:#06X})",
-                    byte,
-                    addr,
-                    mirror_down_addr
-                );
-                byte
-            }
-
-            _ => {
-                warn!("Ignoring bus read at {:#06X}", addr);
-                0
-            }
-        }
+        self.mapper_mut().read(addr)
     }
 
     pub fn write(&mut self, addr: u16, data: u8) {
-        match addr {
-            RAM..=RAM_END => {
-                let mirror_down_addr: u16 = addr & 0b0000_0111_1111_1111;
-                self.cpu_vram[mirror_down_addr as usize] = data;
-                bus_trace!(
-                    "[RAM] Wrote {:#04X} to {:#06X} ({:#06X})",
-                    data,
-                    addr,
-                    mirror_down_addr
-                );
-            }
-
-            PPU_REGISTERS => {
-                self.ppu_mut().write_to_ctrl(data);
-                bus_trace!(
-                    "[PPU] Wrote {:#04X} to {:#06X} (PPU Control Register)",
-                    data,
-                    addr
-                );
-            }
-            0x2001 => {
-                self.ppu_mut().write_to_mask(data);
-                bus_trace!(
-                    "[PPU] Wrote {:#04X} to {:#06X} (PPU Mask Register)",
-                    data,
-                    addr
-                );
-            }
-            0x2002 => error!("Attempted to write {:#04X} to PPU status register", data),
-            0x2003 => {
-                self.ppu_mut().write_to_oam_addr(data);
-                bus_trace!(
-                    "[PPU] Wrote {:#04X} to {:#06X} (PPU OAM Address)",
-                    data,
-                    addr
-                );
-            }
-            0x2004 => {
-                self.ppu_mut().write_to_oam_data(data);
-                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU OAM Data)", data, addr);
-            }
-            0x2005 => {
-                self.ppu_mut().write_to_scroll(data);
-                bus_trace!(
-                    "[PPU] Wrote {:#04X} to {:#06X} (PPU Scroll Register)",
-                    data,
-                    addr
-                );
-            }
-            0x2006 => {
-                self.ppu_mut().write_to_ppu_addr(data);
-                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Address)", data, addr);
-            }
-            0x2007 => {
-                self.ppu_mut().write_to_data(data);
-                bus_trace!("[PPU] Wrote {:#04X} to {:#06X} (PPU Data)", data, addr);
-            }
-            0x2008..=PPU_REGISTERS_END => {
-                let mirror_down_addr: u16 = addr & 0b0010_0000_0000_0111;
-                bus_trace!(
-                    "[PPU] Mirroring down write at {:#06X} to {:#06X}",
-                    addr,
-                    mirror_down_addr
-                );
-                self.write(mirror_down_addr, data);
-            }
-
-            APU_REGISTERS..=0x4013 | APU_REGISTERS_END => {
-                // warn!("[APU] Ignoring bus write at {:#06X}", addr);
-            }
-
-            // https://wiki.nesdev.com/w/index.php/PPU_programmer_reference#OAM_DMA_.28.244014.29_.3E_write
-            0x4014 => {
-                let mut buffer: [u8; 256] = [0; 256];
-                let hi: u16 = (data as u16) << 8;
-                for i in 0..256u16 {
-                    buffer[i as usize] = self.read(hi + i);
-                }
-
-                self.ppu_mut().write_oam_dma(&buffer);
-
-                // TODO: Handle this eventually
-                // let add_cycles: u16 = if self.cpu_cycles % 2 == 1 { 514 } else { 513 };
-                // self.tick(add_cycles); // TODO: This will cause weird effects as PPU will have 513/514 * 3 ticks
-            }
-
-            JOYPAD_1 => {
-                self.joypad1.write(data);
-            }
-            JOYPAD_2 => {
-                // warn!("[JOY-2] Ignoring bus write at {:#06X}", addr);
-            }
-
-            PRG_ROM..=PRG_ROM_END => {
-                error!("Attempted to write {:#04X} to PRG-ROM {:#06X}", data, addr)
-            }
-
-            _ => warn!("Ignoring bus write at {:#06X}", addr),
-        }
+        self.mapper_mut().write(addr, data);
     }
 }

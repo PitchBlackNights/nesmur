@@ -4,6 +4,7 @@ pub mod palette;
 use frame::Frame;
 use nes::cartridge::Mirroring;
 use nes::ppu::PPU;
+use nes::tools::NESAccess;
 
 fn bg_pallette(ppu: &PPU, attribute_table: &[u8], tile_column: usize, tile_row: usize) -> [u8; 4] {
     let attr_table_idx: usize = tile_row / 4 * 8 + tile_column / 4;
@@ -66,8 +67,8 @@ fn render_name_table(
         let tile_column: usize = i % 32;
         let tile_row: usize = i / 32;
         let tile_idx: u16 = name_table[i] as u16;
-        let tile: &[u8] =
-            &ppu.chr_rom[(bank + tile_idx * 16) as usize..=(bank + tile_idx * 16 + 15) as usize];
+        let tile: &[u8] = &ppu.memory().chr_mem
+            [(bank + tile_idx * 16) as usize..=(bank + tile_idx * 16 + 15) as usize];
         let palette: [u8; 4] = bg_pallette(ppu, attribute_table, tile_column, tile_row);
 
         for y in 0..=7 {
@@ -162,8 +163,8 @@ pub fn render(ppu: &PPU, frame: &mut Frame) {
         let sprite_palette: [u8; 4] = sprite_palette(ppu, pallette_idx);
         let bank: u16 = ppu.ctrl.sprt_pattern_addr();
 
-        let tile: &[u8] =
-            &ppu.chr_rom[(bank + tile_idx * 16) as usize..=(bank + tile_idx * 16 + 15) as usize];
+        let tile: &[u8] = &ppu.memory().chr_mem
+            [(bank + tile_idx * 16) as usize..=(bank + tile_idx * 16 + 15) as usize];
 
         for y in 0..=7 {
             let mut upper: u8 = tile[y];
