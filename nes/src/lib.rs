@@ -128,10 +128,10 @@ impl<'a> NES<'a> {
         }
     }
 
-    pub fn connect_input_device(&mut self, slot: u8, device: NESDeviceType) {
+    pub fn connect_input_device(&mut self, slot: u8, device_type: NESDeviceType) {
         assert!(slot >= 1 && slot <= 2);
 
-        let device: RcRef<BoxNESDevice> = Rc::new(RefCell::new(input_device::new_device(device)));
+        let device: RcRef<BoxNESDevice> = Rc::new(RefCell::new(input_device::new_device(device_type)));
         match slot {
             1 => self.device1 = Some(device),
             2 => self.device2 = Some(device),

@@ -1,5 +1,6 @@
 use nes::cartridge::ROM;
 use nes::input_device::joypad::JoypadButton;
+use nes::input_device::NESDeviceType;
 use nes::ppu::PPU;
 use nes::NES;
 use nes::{BoxNESDevice, RcRef};
@@ -133,8 +134,7 @@ fn main() {
     );
 
     nes::bus::set_quiet_log(true);
-    // nes.reset();
-    // nes.cpu.program_counter = 0xC000;
+    nes.connect_input_device(1, NESDeviceType::Joypad);
     nes.cpu.run();
 
     // let mut debug_log: String = String::new();

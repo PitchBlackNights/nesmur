@@ -258,7 +258,12 @@ impl Mapper for NROM {
             }
 
             MMIO_JOY1 => {
-                self.device1_mut().write(data);
+                if self.device1.is_some() {
+                    self.device1_mut().write(data);
+                }
+                if self.device2.is_some() {
+                    self.device2_mut().write(data);
+                }
             }
             MMIO_JOY2 => {
                 // warn!("[JOY-2] Ignoring bus write {:#04X} at {:#06X}", data, addr);
