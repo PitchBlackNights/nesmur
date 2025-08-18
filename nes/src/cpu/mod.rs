@@ -349,7 +349,7 @@ impl<'a> CPU<'a> {
                     common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                     data >>= 1;
                     if old_carry {
-                        data |= 0b10000000;
+                        data |= 0b1000_0000;
                     }
                     common::set_accumulator(self, data);
                 }
@@ -360,7 +360,7 @@ impl<'a> CPU<'a> {
                     common::update_flag_if(self, Flags::CARRY, data & 1 == 1);
                     data >>= 1;
                     if old_carry {
-                        data |= 0b10000000;
+                        data |= 0b1000_0000;
                     }
                     self.bus_mut().write(addr, data);
                     common::update_flags_n(self, data);

@@ -32,10 +32,10 @@ fn test_ppu_vram_reads_cross_page() {
     let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
     ppu.write_to_ctrl(0);
-    ppu.vram[0x01ff] = 0x66;
+    ppu.vram[0x01FF] = 0x66;
     ppu.vram[0x0200] = 0x77;
     ppu.write_to_ppu_addr(0x21);
-    ppu.write_to_ppu_addr(0xff);
+    ppu.write_to_ppu_addr(0xFF);
     ppu.read_data(); // Load into buffer
 
     assert_eq!(ppu.read_data(), 0x66);
@@ -46,12 +46,12 @@ fn test_ppu_vram_reads_cross_page() {
 fn test_ppu_vram_reads_step_32() {
     let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
 
-    ppu.write_to_ctrl(0b100);
-    ppu.vram[0x01ff] = 0x66;
-    ppu.vram[0x01ff + 32] = 0x77;
-    ppu.vram[0x01ff + 64] = 0x88;
+    ppu.write_to_ctrl(0b0000_0100);
+    ppu.vram[0x01FF] = 0x66;
+    ppu.vram[0x01FF + 32] = 0x77;
+    ppu.vram[0x01FF + 64] = 0x88;
     ppu.write_to_ppu_addr(0x21);
-    ppu.write_to_ppu_addr(0xff);
+    ppu.write_to_ppu_addr(0xFF);
     ppu.read_data(); // Load into buffer
 
     assert_eq!(ppu.read_data(), 0x66);
@@ -139,7 +139,7 @@ fn test_ppu_vram_mirroring() {
     ppu.vram[0x0305] = 0x66;
     ppu.write_to_ppu_addr(0x63); // 0x6305 -> 0x2305
     ppu.write_to_ppu_addr(0x05);
-    ppu.read_data(); // Load into_buffer
+    ppu.read_data(); // Load into buffer
 
     assert_eq!(ppu.read_data(), 0x66);
 }
@@ -180,7 +180,7 @@ fn test_oam_dma() {
     data[255] = 0x88;
     ppu.write_to_oam_addr(0x10);
     ppu.write_oam_dma(&data);
-    ppu.write_to_oam_addr(0xf); //wrap around
+    ppu.write_to_oam_addr(0x0F); // Wrap around
 
     assert_eq!(ppu.read_oam_data(), 0x88);
 

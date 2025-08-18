@@ -114,11 +114,11 @@ pub fn render(ppu: &PPU, frame: &mut Frame) {
             (Mirroring::Vertical, 0x2000)
             | (Mirroring::Vertical, 0x2800)
             | (Mirroring::Horizontal, 0x2000)
-            | (Mirroring::Horizontal, 0x2400) => (&ppu.vram[0..0x400], &ppu.vram[0x400..0x800]),
+            | (Mirroring::Horizontal, 0x2400) => (&ppu.vram[0..0x0400], &ppu.vram[0x0400..0x0800]),
             (Mirroring::Vertical, 0x2400)
             | (Mirroring::Vertical, 0x2C00)
             | (Mirroring::Horizontal, 0x2800)
-            | (Mirroring::Horizontal, 0x2C00) => (&ppu.vram[0x400..0x800], &ppu.vram[0..0x400]),
+            | (Mirroring::Horizontal, 0x2C00) => (&ppu.vram[0x0400..0x0800], &ppu.vram[0..0x0400]),
             (_, _) => {
                 panic!("Not supported mirroring type {:?}", ppu.mirroring);
             }

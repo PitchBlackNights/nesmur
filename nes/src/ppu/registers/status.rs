@@ -23,20 +23,21 @@ bitflags! {
     //            line); cleared after reading $2002 and at dot 1 of the
     //            pre-render line.
     pub struct StatusRegister: u8 {
-        const NOTUSED          = 0b00000001;
-        const NOTUSED2         = 0b00000010;
-        const NOTUSED3         = 0b00000100;
-        const NOTUSED4         = 0b00001000;
-        const NOTUSED5         = 0b00010000;
-        const SPRITE_OVERFLOW  = 0b00100000;
-        const SPRITE_ZERO_HIT  = 0b01000000;
-        const VBLANK_STARTED   = 0b10000000;
+        const NOTUSED          = 0b0000_0001;
+        const NOTUSED2         = 0b0000_0010;
+        const NOTUSED3         = 0b0000_0100;
+        const NOTUSED4         = 0b0000_1000;
+        const NOTUSED5         = 0b0001_0000;
+        const SPRITE_OVERFLOW  = 0b0010_0000;
+        const SPRITE_ZERO_HIT  = 0b0100_0000;
+        const VBLANK_STARTED   = 0b1000_0000;
     }
 }
 
 impl StatusRegister {
     pub fn new() -> Self {
-        StatusRegister::from_bits_truncate(0b00000000)
+        // https://www.nesdev.org/wiki/PPU_power_up_state
+        StatusRegister::from_bits_truncate(0b1010_0000)
     }
 
     pub fn set_vblank_status(&mut self, status: bool) {

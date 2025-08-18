@@ -101,7 +101,7 @@ pub fn trace(cpu: &CPU) -> String {
 
     let tmp: String = match opcode.len {
         1 => match opcode.byte {
-            0x0a | 0x2a | 0x4a | 0x6a => String::from("A "),
+            0x0A | 0x2A | 0x4A | 0x6A => String::from("A "),
             _ => String::from(""),
         },
         2 => {
