@@ -9,6 +9,7 @@ use crate::cartridge::{CHR_ROM_PAGE_SIZE, Mirroring, PRG_ROM_PAGE_SIZE, ROM, ROM
 use crate::memory::Memory;
 use crate::ppu::PPU;
 use crate::prelude::*;
+use crate::{BoxNESDevice, RcRef};
 
 struct TestRom {
     header: Vec<u8>,
@@ -68,7 +69,12 @@ fn test_rom(mut prg_rom: Vec<u8>) -> ROM {
 
 fn setup_nes_with_rom<'a>(data: Vec<u8>) -> NES<'a> {
     let rom: ROM = test_rom(data);
-    NES::new(rom, |_ppu, _joypad1| {})
+    NES::new(
+        rom,
+        |_ppu: RcRef<PPU>,
+         _device1: &mut Option<RcRef<BoxNESDevice>>,
+         _device2: &mut Option<RcRef<BoxNESDevice>>| {},
+    )
 }
 
 fn setup_nes<'a>() -> NES<'a> {

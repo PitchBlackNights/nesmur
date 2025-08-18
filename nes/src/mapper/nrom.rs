@@ -1,10 +1,10 @@
 use super::Mapper;
 use crate::bus_trace;
-use crate::input_device::NESDevice;
 use crate::memory::Memory;
 use crate::memory::mem_map::*;
 use crate::ppu::PPU;
 use crate::prelude::*;
+use crate::{BoxNESDevice, RcRef};
 
 #[rustfmt::skip]
 impl NESAccess<'_> for NROM {
@@ -22,32 +22,62 @@ impl NESAccess<'_> for NROM {
     }
     fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
     fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
-    fn device1(&self) -> Ref<Box<dyn NESDevice>> { self.device1.borrow() }
-    fn device1_mut(&self) -> RefMut<Box<dyn NESDevice>> { self.device1.borrow_mut() }
+    fn device1(&self) -> Ref<BoxNESDevice> {
+        if self.device1.is_none() {
+            panic!("Mapper tried to access \"Device 1\" before a reference was passed to it!");
+        }
+        self.device1.as_ref().unwrap().borrow()
+    }
+    fn device1_mut(&self) -> RefMut<BoxNESDevice> {
+        if self.device1.is_none() {
+            panic!("Mapper tried to access \"Device 1\" before a reference was passed to it!");
+        }
+        self.device1.as_ref().unwrap().borrow_mut()
+    }
+    fn device2(&self) -> Ref<BoxNESDevice> {
+        if self.device2.is_none() {
+            panic!("Mapper tried to access \"Device 2\" before a reference was passed to it!");
+        }
+        self.device2.as_ref().unwrap().borrow()
+    }
+    fn device2_mut(&self) -> RefMut<BoxNESDevice> {
+        if self.device2.is_none() {
+            panic!("Mapper tried to access \"Device 2\" before a reference was passed to it!");
+        }
+        self.device2.as_ref().unwrap().borrow_mut()
+    }
 }
 
 pub struct NROM {
-    ppu: Option<Rc<RefCell<PPU>>>,
-    memory: Rc<RefCell<Memory>>,
-    device1: Rc<RefCell<Box<dyn NESDevice>>>,
+    ppu: Option<RcRef<PPU>>,
+    memory: RcRef<Memory>,
+    device1: Option<RcRef<BoxNESDevice>>,
+    device2: Option<RcRef<BoxNESDevice>>,
 }
 
 impl NROM {
-    pub fn new(
-        memory: Rc<RefCell<Memory>>,
-        device1: Rc<RefCell<Box<dyn NESDevice>>>,
-    ) -> Self {
+    pub fn new(memory: RcRef<Memory>) -> Self {
         NROM {
             ppu: None,
             memory,
-            device1,
+            device1: None,
+            device2: None,
         }
     }
 }
 
 impl Mapper for NROM {
-    fn pass_ppu_ref(&mut self, ppu: Rc<RefCell<PPU>>) {
+    fn pass_ppu_ref(&mut self, ppu: RcRef<PPU>) {
         self.ppu = Some(ppu);
+    }
+
+    fn connect_input_device(&mut self, slot: u8, device: RcRef<BoxNESDevice>) {
+        assert!(slot >= 1 && slot <= 2);
+        match slot {
+            1 => self.device1 = Some(device),
+            2 => self.device2 = Some(device),
+            _ => panic!("This shouldn't happen!"),
+        };
     }
 
     fn read(&mut self, addr: u16) -> u8 {
@@ -102,10 +132,19 @@ impl Mapper for NROM {
                 0
             }
 
-            MMIO_JOY1 => self.device1_mut().read(),
+            MMIO_JOY1 => {
+                if self.device1.is_some() {
+                    self.device1_mut().read()
+                } else {
+                    0x00
+                }
+            }
             MMIO_JOY2 => {
-                // warn!("[JOY-2] Ignoring bus read at {:#06X}", addr);
-                0
+                if self.device2.is_some() {
+                    self.device2_mut().read()
+                } else {
+                    0x00
+                }
             }
 
             PRG_ROM..=PRG_ROM_END => {
@@ -222,7 +261,7 @@ impl Mapper for NROM {
                 self.device1_mut().write(data);
             }
             MMIO_JOY2 => {
-                warn!("[JOY-2] Ignoring bus write {:#04X} at {:#06X}", data, addr);
+                // warn!("[JOY-2] Ignoring bus write {:#04X} at {:#06X}", data, addr);
             }
 
             PRG_ROM..=PRG_ROM_END => {

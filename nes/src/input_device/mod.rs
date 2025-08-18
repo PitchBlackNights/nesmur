@@ -1,4 +1,5 @@
 pub mod joypad;
+use crate::BoxNESDevice;
 use std::any::Any;
 
 pub enum NESDeviceType {
@@ -17,7 +18,7 @@ pub trait NESDeviceButton {
     fn as_any(&self) -> &dyn Any;
 }
 
-pub fn new_device(device_type: NESDeviceType) -> Box<dyn NESDevice> {
+pub fn new_device(device_type: NESDeviceType) -> BoxNESDevice {
     match device_type {
         NESDeviceType::Joypad => Box::new(joypad::Joypad::new()),
     }

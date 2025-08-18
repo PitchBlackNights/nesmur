@@ -1,10 +1,9 @@
 use crate::bus::Bus;
 use crate::cartridge::ROM;
 use crate::cpu::CPU;
-use crate::input_device::NESDevice;
-use crate::mapper::Mapper;
 use crate::ppu::PPU;
 use crate::prelude::*;
+use crate::{BoxMapper, BoxNESDevice};
 use crate::{apu::APU, memory::Memory};
 use once_cell::sync::Lazy;
 use std::cell::{Ref, RefMut};
@@ -25,12 +24,14 @@ pub trait NESAccess<'a> {
     fn ppu_mut(&self) -> RefMut<PPU> { panic!("Mutable access to `PPU` is prohibited") }
     fn rom(&self) -> Ref<ROM> { panic!("Access to `Rom` is prohibited") }
     fn rom_mut(&self) -> RefMut<ROM> { panic!("Mutable access to `Rom` is prohibited") }
-    fn mapper(&self) -> Ref<Box<dyn Mapper>> { panic!("Access to `Mapper` is prohibited") }
-    fn mapper_mut(&self) -> RefMut<Box<dyn Mapper>> { panic!("Mutable access to `Mapper` is prohibited") }
+    fn mapper(&self) -> Ref<BoxMapper> { panic!("Access to `Mapper` is prohibited") }
+    fn mapper_mut(&self) -> RefMut<BoxMapper> { panic!("Mutable access to `Mapper` is prohibited") }
     fn memory(&self) -> Ref<Memory> { panic!("Access to `Memory` is prohibited") }
     fn memory_mut(&self) -> RefMut<Memory> { panic!("Mutable access to `Memory` is prohibited") }
-    fn device1(&self) -> Ref<Box<dyn NESDevice>> { panic!("Access to `Device 1` is prohibited") }
-    fn device1_mut(&self) -> RefMut<Box<dyn NESDevice>> { panic!("Mutable access to `Device 1` is prohibited") }
+    fn device1(&self) -> Ref<BoxNESDevice> { panic!("Access to `Device 1` is prohibited") }
+    fn device1_mut(&self) -> RefMut<BoxNESDevice> { panic!("Mutable access to `Device 1` is prohibited") }
+    fn device2(&self) -> Ref<BoxNESDevice> { panic!("Access to `Device 2` is prohibited") }
+    fn device2_mut(&self) -> RefMut<BoxNESDevice> { panic!("Mutable access to `Device 2` is prohibited") }
 }
 
 pub fn u16_to_bytes(value: u16) -> [u8; 2] {

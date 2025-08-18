@@ -2,6 +2,7 @@ mod common;
 pub mod interrupt;
 pub mod opcode;
 
+use crate::RcRef;
 use crate::bus::Bus;
 use crate::cpu::interrupt::Interrupt;
 use crate::cpu::opcode::AddressingMode::*;
@@ -54,11 +55,11 @@ pub struct CPU<'a> {
     pub program_counter: u16,
     pub status: Flags,
     pub fresh: bool,
-    pub bus: Rc<RefCell<Bus<'a>>>,
+    pub bus: RcRef<Bus<'a>>,
 }
 
 impl<'a> CPU<'a> {
-    pub fn new(bus: Rc<RefCell<Bus<'a>>>) -> Self {
+    pub fn new(bus: RcRef<Bus<'a>>) -> Self {
         // Hack to build OPCODES hashmap now instead of in `cpu::step()`
         let _ = &opcode::OPCODES.get(&0u8);
 

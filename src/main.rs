@@ -1,8 +1,8 @@
 use nes::cartridge::ROM;
 use nes::input_device::joypad::JoypadButton;
-use nes::input_device::NESDevice;
 use nes::ppu::PPU;
 use nes::NES;
+use nes::{BoxNESDevice, RcRef};
 use nesmur::cli_parser::Args;
 use nesmur::render::frame::Frame;
 use nesmur::setup;
@@ -14,9 +14,8 @@ use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 use sdl2::EventPump;
 use sdl2::{Sdl, VideoSubsystem};
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Ref, RefMut};
 use std::collections::HashMap;
-use std::rc::Rc;
 // use nes::cpu::CPU;
 // use std::fs::File;
 // use std::io::{BufWriter, Write};
@@ -44,15 +43,15 @@ fn main() {
         .unwrap();
     let mut frame: Frame = Frame::new();
 
-    let mut key_map: HashMap<Keycode, JoypadButton> = HashMap::new();
-    key_map.insert(Keycode::Down, JoypadButton::DOWN);
-    key_map.insert(Keycode::Up, JoypadButton::UP);
-    key_map.insert(Keycode::Right, JoypadButton::RIGHT);
-    key_map.insert(Keycode::Left, JoypadButton::LEFT);
-    key_map.insert(Keycode::Space, JoypadButton::SELECT);
-    key_map.insert(Keycode::Return, JoypadButton::START);
-    key_map.insert(Keycode::A, JoypadButton::BUTTON_A);
-    key_map.insert(Keycode::S, JoypadButton::BUTTON_B);
+    let mut key_map: HashMap<Keycode, (u8, JoypadButton)> = HashMap::new();
+    key_map.insert(Keycode::Down, (1, JoypadButton::DOWN));
+    key_map.insert(Keycode::Up, (1, JoypadButton::UP));
+    key_map.insert(Keycode::Right, (1, JoypadButton::RIGHT));
+    key_map.insert(Keycode::Left, (1, JoypadButton::LEFT));
+    key_map.insert(Keycode::Space, (1, JoypadButton::SELECT));
+    key_map.insert(Keycode::Return, (1, JoypadButton::START));
+    key_map.insert(Keycode::A, (1, JoypadButton::BUTTON_A));
+    key_map.insert(Keycode::S, (1, JoypadButton::BUTTON_B));
 
     // Setup the NES
     // let bytes: Vec<u8> = std::fs::read("nes/tests/roms/instr_timing.nes").unwrap();
@@ -61,9 +60,18 @@ fn main() {
 
     let mut nes: NES = NES::new(
         rom,
-        move |ppu_ref: Rc<RefCell<PPU>>, device1_ref: &mut Rc<RefCell<Box<dyn NESDevice>>>| {
+        move |ppu_ref: RcRef<PPU>,
+              device1_ref: &mut Option<RcRef<BoxNESDevice>>,
+              device2_ref: &mut Option<RcRef<BoxNESDevice>>| {
             let ppu: Ref<PPU> = ppu_ref.borrow();
-            let mut device1: RefMut<Box<dyn NESDevice>> = device1_ref.borrow_mut();
+            let mut device1: Option<RefMut<BoxNESDevice>> = match device1_ref {
+                Some(device_ref) => Some(device_ref.borrow_mut()),
+                None => None,
+            };
+            let mut device2: Option<RefMut<BoxNESDevice>> = match device2_ref {
+                Some(device_ref) => Some(device_ref.borrow_mut()),
+                None => None,
+            };
 
             render::render(&ppu, &mut frame);
             texture.update(None, &frame.data, 256 * 3).unwrap();
@@ -79,14 +87,42 @@ fn main() {
                     } => std::process::exit(0),
 
                     Event::KeyDown { keycode, .. } => {
-                        if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
-                            device1.set_button_pressed_status(Box::new(*key), true);
+                        if let Some((device_num, key)) =
+                            key_map.get(&keycode.unwrap_or(Keycode::Ampersand))
+                        {
+                            match device_num {
+                                1 => {
+                                    if let Some(device) = device1.as_mut() {
+                                        device.set_button_pressed_status(Box::new(*key), true);
+                                    }
+                                }
+                                2 => {
+                                    if let Some(device) = device2.as_mut() {
+                                        device.set_button_pressed_status(Box::new(*key), true);
+                                    }
+                                }
+                                _ => {}
+                            }
                         }
                     }
 
                     Event::KeyUp { keycode, .. } => {
-                        if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
-                            device1.set_button_pressed_status(Box::new(*key), false);
+                        if let Some((device_num, key)) =
+                            key_map.get(&keycode.unwrap_or(Keycode::Ampersand))
+                        {
+                            match device_num {
+                                1 => {
+                                    if let Some(device) = device1.as_mut() {
+                                        device.set_button_pressed_status(Box::new(*key), false);
+                                    }
+                                }
+                                2 => {
+                                    if let Some(device) = device2.as_mut() {
+                                        device.set_button_pressed_status(Box::new(*key), false);
+                                    }
+                                }
+                                _ => {}
+                            }
                         }
                     }
 

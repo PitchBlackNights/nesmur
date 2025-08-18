@@ -1,5 +1,6 @@
 pub mod registers;
 
+use crate::RcRef;
 use crate::cartridge::Mirroring;
 use crate::memory::Memory;
 use crate::prelude::*;
@@ -16,7 +17,7 @@ impl NESAccess<'_> for PPU {
 }
 
 pub struct PPU {
-    memory: Rc<RefCell<Memory>>,
+    memory: RcRef<Memory>,
     pub mirroring: Mirroring,
     pub ctrl: ControlRegister,
     pub mask: MaskRegister,
@@ -34,7 +35,7 @@ pub struct PPU {
 }
 
 impl PPU {
-    pub fn new(memory: Rc<RefCell<Memory>>, mirroring: Mirroring) -> Self {
+    pub fn new(memory: RcRef<Memory>, mirroring: Mirroring) -> Self {
         PPU {
             memory,
             mirroring,

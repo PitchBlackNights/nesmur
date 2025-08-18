@@ -1,10 +1,11 @@
 // use super::*;
-use crate::input_device::joypad::{Joypad, JoypadButton};
-use crate::input_device::{NESDevice, NESDeviceType, new_device};
+use crate::BoxNESDevice;
+use crate::input_device::joypad::JoypadButton;
+use crate::input_device::{NESDeviceType, new_device};
 
 #[test]
 fn test_strobe_mode() {
-    let mut joypad: Box<dyn NESDevice> = new_device(NESDeviceType::Joypad);
+    let mut joypad: BoxNESDevice = new_device(NESDeviceType::Joypad);
 
     joypad.write(1);
     joypad.set_button_pressed_status(Box::new(JoypadButton::BUTTON_A), true);
@@ -15,7 +16,7 @@ fn test_strobe_mode() {
 
 #[test]
 fn test_strobe_mode_on_off() {
-    let mut joypad: Joypad = Joypad::new();
+    let mut joypad: BoxNESDevice = new_device(NESDeviceType::Joypad);
 
     joypad.write(0);
     joypad.set_button_pressed_status(Box::new(JoypadButton::RIGHT), true);
