@@ -1,9 +1,9 @@
 use crate::bus::Bus;
 use crate::cpu::CPU;
 use crate::prelude::*;
-use once_cell::sync::Lazy;
 use std::cell::RefMut;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct OpCode {
@@ -169,7 +169,7 @@ macro_rules! define_opcodes {
             )+
         }
 
-        pub static OPCODES: Lazy<HashMap<u8, OpCode>> = Lazy::new(|| {
+        pub static OPCODES: LazyLock<HashMap<u8, OpCode>> = LazyLock::new(|| {
             trace!("Building OPCODES hashmap...");
             let mut map = HashMap::new();
             $(

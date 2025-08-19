@@ -27,11 +27,15 @@ use crate::cpu::CPU;
 use crate::input_device::{NESDevice, NESDeviceType};
 use crate::memory::Memory;
 use crate::ppu::PPU;
+use crate::ppu::renderer::Renderer;
 use crate::prelude::*;
 
 pub type RcRef<T> = Rc<RefCell<T>>;
 pub type BoxNESDevice = Box<dyn NESDevice>;
 pub type BoxMapper = Box<dyn Mapper>;
+
+pub const SCREEN_WIDTH: usize = 256;
+pub const SCREEN_HEIGHT: usize = 240;
 
 #[rustfmt::skip]
 impl<'a> NESAccess<'a> for NES<'a> {
@@ -49,33 +53,36 @@ impl<'a> NESAccess<'a> for NES<'a> {
     fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
     fn device1(&self) -> Ref<BoxNESDevice> {
         if self.device1.is_none() {
-            panic!("NES tried to access \"Device 1\" before a reference was passed to it!");
+            panic!("NES tried to access `Device 1` before a reference was passed to it!");
         }
         self.device1.as_ref().unwrap().borrow()
     }
     fn device1_mut(&self) -> RefMut<BoxNESDevice> {
         if self.device1.is_none() {
-            panic!("NES tried to access \"Device 1\" before a reference was passed to it!");
+            panic!("NES tried to access `Device 1` before a reference was passed to it!");
         }
         self.device1.as_ref().unwrap().borrow_mut()
     }
     fn device2(&self) -> Ref<BoxNESDevice> {
         if self.device2.is_none() {
-            panic!("NES tried to access \"Device 2\" before a reference was passed to it!");
+            panic!("NES tried to access `Device 2` before a reference was passed to it!");
         }
         self.device2.as_ref().unwrap().borrow()
     }
     fn device2_mut(&self) -> RefMut<BoxNESDevice> {
         if self.device2.is_none() {
-            panic!("NES tried to access \"Device 2\" before a reference was passed to it!");
+            panic!("NES tried to access `Device 2` before a reference was passed to it!");
         }
         self.device2.as_ref().unwrap().borrow_mut()
     }
+    fn renderer(&self) -> Ref<Renderer> { self.renderer.borrow() }
+    fn renderer_mut(&self) -> RefMut<Renderer> { self.renderer.borrow_mut() }
 }
 
 pub struct NES<'a> {
     pub memory: RcRef<Memory>,
     pub mapper: RcRef<BoxMapper>,
+    pub renderer: RcRef<Renderer>,
     pub device1: Option<RcRef<BoxNESDevice>>,
     pub device2: Option<RcRef<BoxNESDevice>>,
     pub cpu: CPU<'a>,
@@ -89,11 +96,15 @@ pub struct NES<'a> {
 impl<'a> NES<'a> {
     pub fn new<'rcall, F>(rom: ROM, render_callback: F) -> Self
     where
-        F: FnMut(RcRef<PPU>, &mut Option<RcRef<BoxNESDevice>>, &mut Option<RcRef<BoxNESDevice>>)
-            + 'rcall + 'a,
+        F: FnMut(
+                RcRef<Renderer>,
+                &mut Option<RcRef<BoxNESDevice>>,
+                &mut Option<RcRef<BoxNESDevice>>,
+            ) + 'rcall + 'a,
     {
         let rom: RcRef<ROM> = Rc::new(RefCell::new(rom));
         let memory: RcRef<Memory> = Rc::new(RefCell::new(Memory::new(rom.borrow())));
+        let renderer: RcRef<Renderer> = Rc::new(RefCell::new(Renderer::new()));
 
         let apu: RcRef<APU> = Rc::new(RefCell::new(APU::new()));
         let ppu: RcRef<PPU> = Rc::new(RefCell::new({
@@ -103,21 +114,22 @@ impl<'a> NES<'a> {
         let mapper: RcRef<BoxMapper> = Rc::new(RefCell::new(mapper::init_mapper(
             rom.borrow(),
             memory.clone(),
+            ppu.clone(),
         )));
         let bus: RcRef<Bus> = Rc::new(RefCell::new(Bus::new(
             memory.clone(),
             mapper.clone(),
+            renderer.clone(),
             apu.clone(),
             ppu.clone(),
             render_callback,
         )));
         let cpu: CPU = CPU::new(bus.clone());
 
-        mapper.borrow_mut().pass_ppu_ref(ppu.clone());
-
         NES {
             memory,
             mapper,
+            renderer,
             device1: None,
             device2: None,
             cpu,
@@ -129,9 +141,10 @@ impl<'a> NES<'a> {
     }
 
     pub fn connect_input_device(&mut self, slot: u8, device_type: NESDeviceType) {
-        assert!(slot >= 1 && slot <= 2);
+        assert!((1..=2).contains(&slot));
 
-        let device: RcRef<BoxNESDevice> = Rc::new(RefCell::new(input_device::new_device(device_type)));
+        let device: RcRef<BoxNESDevice> =
+            Rc::new(RefCell::new(input_device::new_device(device_type)));
         match slot {
             1 => self.device1 = Some(device),
             2 => self.device2 = Some(device),
@@ -145,8 +158,10 @@ impl<'a> NES<'a> {
     }
 
     pub fn reset(&mut self) {
-        info!("Resetting CPU...");
+        info!("Resetting NES...");
         self.cpu.reset();
+        self.ppu_mut().reset();
+        self.renderer_mut().reset();
     }
 }
 

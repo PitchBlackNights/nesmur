@@ -13,16 +13,10 @@ pub struct Memory {
 
 impl Memory {
     pub fn new(rom: Ref<ROM>) -> Self {
-        let mut prg_ram: Vec<u8> = Vec::with_capacity(rom.prg_ram_size);
-        prg_ram.resize(rom.prg_ram_size, 0x00);
-
-        let (chr_mem, use_chr_ram): (Vec<u8>, bool) = match rom.chr_rom.len() != 0 {
+        let prg_ram: Vec<u8> = vec![0x00; rom.prg_ram_size];
+        let (chr_mem, use_chr_ram): (Vec<u8>, bool) = match !rom.chr_rom.is_empty() {
             true => (rom.chr_rom.clone(), false),
-            false => {
-                let mut chr_ram: Vec<u8> = Vec::with_capacity(rom.chr_ram_size);
-                chr_ram.resize(rom.chr_ram_size, 0x00);
-                (chr_ram, true)
-            }
+            false => (vec![0x00; rom.chr_ram_size], true),
         };
 
         Memory {

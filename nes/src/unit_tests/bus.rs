@@ -1,4 +1,4 @@
-use super::*;
+use crate::unit_tests::*;
 
 #[test]
 fn test_mem_read_write_to_ram() {

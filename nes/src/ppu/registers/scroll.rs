@@ -13,6 +13,13 @@ impl ScrollRegister {
         }
     }
 
+    pub fn reset(&mut self) {
+        // https://www.nesdev.org/wiki/PPU_power_up_state
+        self.scroll_x = 0;
+        self.scroll_y = 0;
+        self.latch = false;
+    }
+
     pub fn write(&mut self, data: u8) {
         if !self.latch {
             self.scroll_x = data;

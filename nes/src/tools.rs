@@ -2,6 +2,7 @@ use crate::bus::Bus;
 use crate::cartridge::ROM;
 use crate::cpu::CPU;
 use crate::ppu::PPU;
+use crate::ppu::renderer::Renderer;
 use crate::prelude::*;
 use crate::{BoxMapper, BoxNESDevice};
 use crate::{apu::APU, memory::Memory};
@@ -32,6 +33,24 @@ pub trait NESAccess<'a> {
     fn device1_mut(&self) -> RefMut<BoxNESDevice> { panic!("Mutable access to `Device 1` is prohibited") }
     fn device2(&self) -> Ref<BoxNESDevice> { panic!("Access to `Device 2` is prohibited") }
     fn device2_mut(&self) -> RefMut<BoxNESDevice> { panic!("Mutable access to `Device 2` is prohibited") }
+    fn renderer(&self) -> Ref<Renderer> { panic!("Access to `Renderer` is prohibited") }
+    fn renderer_mut(&self) -> RefMut<Renderer> { panic!("Mutable access to `Renderer` is prohibited") }
+}
+
+pub fn nth_bit<T: Into<u16>, U: Into<u16>>(x: T, n: U) -> u8 {
+    ((x.into() >> n.into()) & 0b0000_0000_0000_0001) as u8
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BitPlane<T> {
+    pub hi: T,
+    pub lo: T,
+}
+
+impl<T> BitPlane<T> {
+    pub fn new(hi: T, lo: T) -> Self {
+        BitPlane { hi, lo }
+    }
 }
 
 pub fn u16_to_bytes(value: u16) -> [u8; 2] {
@@ -223,7 +242,7 @@ pub fn trace(cpu: &CPU) -> String {
         cpu.status,
         cpu.stack_pointer,
         cpu.bus().ppu().scanline,
-        cpu.bus().ppu().cycles,
+        cpu.bus().ppu().dot,
         cpu.bus().cpu_cycles
     )
     .to_ascii_uppercase()

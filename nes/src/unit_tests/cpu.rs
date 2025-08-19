@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
-use super::*;
 use crate::cpu::opcode::{Instruction, OPCODES, OpCode};
+use crate::unit_tests::*;
 
 #[test]
 fn test_for_missing_opcodes() {

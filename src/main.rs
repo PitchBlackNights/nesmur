@@ -1,13 +1,13 @@
 use nes::cartridge::ROM;
 use nes::input_device::joypad::JoypadButton;
-use nes::input_device::NESDeviceType;
-use nes::ppu::PPU;
-use nes::NES;
+use nes::input_device::{NESDevice, NESDeviceType};
+use nes::ppu::renderer::Renderer;
 use nes::{BoxNESDevice, RcRef};
+use nes::{NES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use nesmur::cli_parser::Args;
-use nesmur::render::frame::Frame;
+use nesmur::frame::Frame;
+use nesmur::prelude::*;
 use nesmur::setup;
-use nesmur::{prelude::*, render};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -17,6 +17,7 @@ use sdl2::EventPump;
 use sdl2::{Sdl, VideoSubsystem};
 use std::cell::{Ref, RefMut};
 use std::collections::HashMap;
+// use nes::ppu::PPU;
 // use nes::cpu::CPU;
 // use std::fs::File;
 // use std::io::{BufWriter, Write};
@@ -29,7 +30,11 @@ fn main() {
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
     let window: Window = video_subsystem
-        .window("NESMUR", (256.0 * 2.0) as u32, (240.0 * 2.0) as u32)
+        .window(
+            "NESMUR",
+            (SCREEN_WIDTH * 2) as u32,
+            (SCREEN_HEIGHT * 2) as u32,
+        )
         .position_centered()
         .build()
         .unwrap();
@@ -42,7 +47,7 @@ fn main() {
     let mut texture: Texture<'_> = creator
         .create_texture_target(PixelFormatEnum::RGB24, 256, 240)
         .unwrap();
-    let mut frame: Frame = Frame::new();
+    let mut frame: Frame = Frame::new(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     let mut key_map: HashMap<Keycode, (u8, JoypadButton)> = HashMap::new();
     key_map.insert(Keycode::Down, (1, JoypadButton::DOWN));
@@ -61,20 +66,18 @@ fn main() {
 
     let mut nes: NES = NES::new(
         rom,
-        move |ppu_ref: RcRef<PPU>,
+        move |renderer_ref: RcRef<Renderer>,
               device1_ref: &mut Option<RcRef<BoxNESDevice>>,
               device2_ref: &mut Option<RcRef<BoxNESDevice>>| {
-            let ppu: Ref<PPU> = ppu_ref.borrow();
-            let mut device1: Option<RefMut<BoxNESDevice>> = match device1_ref {
-                Some(device_ref) => Some(device_ref.borrow_mut()),
-                None => None,
-            };
-            let mut device2: Option<RefMut<BoxNESDevice>> = match device2_ref {
-                Some(device_ref) => Some(device_ref.borrow_mut()),
-                None => None,
-            };
+            let renderer: Ref<Renderer> = renderer_ref.borrow();
+            let mut device1: Option<RefMut<BoxNESDevice>> = device1_ref
+                .as_mut()
+                .map(|device_ref: &mut RcRef<Box<dyn NESDevice>>| device_ref.borrow_mut());
+            let mut device2: Option<RefMut<BoxNESDevice>> = device2_ref
+                .as_mut()
+                .map(|device_ref: &mut RcRef<Box<dyn NESDevice>>| device_ref.borrow_mut());
 
-            render::render(&ppu, &mut frame);
+            frame.update(&renderer.pixels);
             texture.update(None, &frame.data, 256 * 3).unwrap();
             canvas.copy(&texture, None, None).unwrap();
             canvas.present();

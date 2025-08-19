@@ -1,5 +1,4 @@
 use nes::cartridge::Rom;
-// use nes::NES;
 use nesmur::cli_parser::Args;
 use nesmur::prelude::*;
 use nesmur::render::frame::Frame;
@@ -12,6 +11,7 @@ use sdl2::{Sdl, VideoSubsystem};
 use sdl2::video::{Window, WindowContext};
 use sdl2::render::{Canvas, TextureCreator, Texture};
 use sdl2::EventPump;
+// use nes::NES;
 
 fn show_tile(chr_rom: &Vec<u8>, bank: usize, tile_n: usize) -> Frame {
     assert!(bank <= 1);

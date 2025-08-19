@@ -1,7 +1,7 @@
-// use super::*;
 use crate::BoxNESDevice;
 use crate::input_device::joypad::JoypadButton;
 use crate::input_device::{NESDeviceType, new_device};
+// use crate::unit_tests::*;
 
 #[test]
 fn test_strobe_mode() {

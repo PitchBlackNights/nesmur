@@ -34,7 +34,20 @@ pub enum Color {
 
 impl MaskRegister {
     pub fn new() -> Self {
-        MaskRegister::from_bits_truncate(0b00000000)
+        // https://www.nesdev.org/wiki/PPU_power_up_state
+        MaskRegister::from_bits_truncate(0b0000_0000)
+    }
+
+    pub fn reset(&mut self) {
+        // https://www.nesdev.org/wiki/PPU_power_up_state
+        self.remove(MaskRegister::GREYSCALE);
+        self.remove(MaskRegister::LEFTMOST_8PXL_BACKGROUND);
+        self.remove(MaskRegister::LEFTMOST_8PXL_SPRITE);
+        self.remove(MaskRegister::SHOW_BACKGROUND);
+        self.remove(MaskRegister::SHOW_SPRITES);
+        self.remove(MaskRegister::EMPHASISE_RED);
+        self.remove(MaskRegister::EMPHASISE_GREEN);
+        self.remove(MaskRegister::EMPHASISE_BLUE);
     }
 
     pub fn is_grayscale(&self) -> bool {
@@ -70,5 +83,17 @@ impl MaskRegister {
         }
 
         result
+    }
+
+    pub fn rendering(&self) -> bool {
+        self.show_sprites() || self.show_background()
+    }
+
+    pub fn rendering_background(&self, x: usize) -> bool {
+        self.show_background() && (self.leftmost_8pxl_background() || x >= 8)
+    }
+
+    pub fn rendering_sprites(&self, x: usize) -> bool {
+        self.show_sprites() && (self.leftmost_8pxl_sprite() || x >= 8)
     }
 }

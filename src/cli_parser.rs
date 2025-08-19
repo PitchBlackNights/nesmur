@@ -1,10 +1,10 @@
 use crate::ENV_VARS;
 use clap::{arg, crate_authors, value_parser, ArgMatches, Command};
-use once_cell::sync::Lazy;
 use std::error::Error;
+use std::sync::LazyLock;
 use std::{cmp, env, process};
 
-static LONG_VERSION: Lazy<String> = Lazy::new(|| {
+static LONG_VERSION: LazyLock<String> = LazyLock::new(|| {
     format!(
         " v{}\nAuthor(s): {}\nDescription: {}\nRepository: {}",
         env!("CARGO_PKG_VERSION"),
@@ -14,7 +14,8 @@ static LONG_VERSION: Lazy<String> = Lazy::new(|| {
     )
 });
 
-static SHORT_VERSION: Lazy<String> = Lazy::new(|| format!(" v{}", env!("CARGO_PKG_VERSION"),));
+static SHORT_VERSION: LazyLock<String> =
+    LazyLock::new(|| format!(" v{}", env!("CARGO_PKG_VERSION"),));
 
 /// Struct to describe passed command-line arguments
 #[derive(Debug)]

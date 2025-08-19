@@ -115,8 +115,8 @@ impl<'a> CPU<'a> {
         info!("Running CPU...");
         while self.running {
             let pending_interrupt: Option<Interrupt> = self.bus_mut().poll_interrupts();
-            if pending_interrupt.is_some() {
-                self.interrupt(pending_interrupt.unwrap());
+            if let Some(interrupt) = pending_interrupt {
+                self.interrupt(interrupt);
             }
 
             callback(self);

@@ -7,58 +7,48 @@ use crate::prelude::*;
 use crate::{BoxNESDevice, RcRef};
 
 #[rustfmt::skip]
-impl NESAccess<'_> for NROM {
-    fn ppu(&self) -> Ref<PPU> {
-        if self.ppu.is_none() {
-            panic!("Mapper tried to access PPU before a reference was passed to it!");
-        }
-        self.ppu.as_ref().unwrap().borrow()
-    }
-    fn ppu_mut(&self) -> RefMut<PPU> {
-        if self.ppu.is_none() {
-            panic!("Mapper tried to access PPU before a reference was passed to it!");
-        }
-        self.ppu.as_ref().unwrap().borrow_mut()
-    }
+impl NESAccess<'_> for Mapper000 {
+    fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
+    fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
     fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
     fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
     fn device1(&self) -> Ref<BoxNESDevice> {
         if self.device1.is_none() {
-            panic!("Mapper tried to access \"Device 1\" before a reference was passed to it!");
+            panic!("Mapper tried to access `Device 1` before a reference was passed to it!");
         }
         self.device1.as_ref().unwrap().borrow()
     }
     fn device1_mut(&self) -> RefMut<BoxNESDevice> {
         if self.device1.is_none() {
-            panic!("Mapper tried to access \"Device 1\" before a reference was passed to it!");
+            panic!("Mapper tried to access `Device 1` before a reference was passed to it!");
         }
         self.device1.as_ref().unwrap().borrow_mut()
     }
     fn device2(&self) -> Ref<BoxNESDevice> {
         if self.device2.is_none() {
-            panic!("Mapper tried to access \"Device 2\" before a reference was passed to it!");
+            panic!("Mapper tried to access `Device 2` before a reference was passed to it!");
         }
         self.device2.as_ref().unwrap().borrow()
     }
     fn device2_mut(&self) -> RefMut<BoxNESDevice> {
         if self.device2.is_none() {
-            panic!("Mapper tried to access \"Device 2\" before a reference was passed to it!");
+            panic!("Mapper tried to access `Device 2` before a reference was passed to it!");
         }
         self.device2.as_ref().unwrap().borrow_mut()
     }
 }
 
-pub struct NROM {
-    ppu: Option<RcRef<PPU>>,
+pub struct Mapper000 {
+    ppu: RcRef<PPU>,
     memory: RcRef<Memory>,
     device1: Option<RcRef<BoxNESDevice>>,
     device2: Option<RcRef<BoxNESDevice>>,
 }
 
-impl NROM {
-    pub fn new(memory: RcRef<Memory>) -> Self {
-        NROM {
-            ppu: None,
+impl Mapper000 {
+    pub fn new(memory: RcRef<Memory>, ppu: RcRef<PPU>) -> Self {
+        Mapper000 {
+            ppu,
             memory,
             device1: None,
             device2: None,
@@ -66,13 +56,9 @@ impl NROM {
     }
 }
 
-impl Mapper for NROM {
-    fn pass_ppu_ref(&mut self, ppu: RcRef<PPU>) {
-        self.ppu = Some(ppu);
-    }
-
+impl Mapper for Mapper000 {
     fn connect_input_device(&mut self, slot: u8, device: RcRef<BoxNESDevice>) {
-        assert!(slot >= 1 && slot <= 2);
+        assert!((1..=2).contains(&slot));
         match slot {
             1 => self.device1 = Some(device),
             2 => self.device2 = Some(device),

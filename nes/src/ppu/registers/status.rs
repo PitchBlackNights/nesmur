@@ -37,7 +37,7 @@ bitflags! {
 impl StatusRegister {
     pub fn new() -> Self {
         // https://www.nesdev.org/wiki/PPU_power_up_state
-        StatusRegister::from_bits_truncate(0b1010_0000)
+        StatusRegister::from_bits_truncate(0b0000_0000)
     }
 
     pub fn set_vblank_status(&mut self, status: bool) {
@@ -50,6 +50,14 @@ impl StatusRegister {
 
     pub fn set_sprite_overflow(&mut self, status: bool) {
         self.set(StatusRegister::SPRITE_OVERFLOW, status);
+    }
+
+    pub fn is_sprite_0_hit(&self) -> bool {
+        self.contains(StatusRegister::SPRITE_ZERO_HIT)
+    }
+
+    pub fn is_sprite_overflow(&self) -> bool {
+        self.contains(StatusRegister::SPRITE_OVERFLOW)
     }
 
     pub fn reset_vblank_status(&mut self) {

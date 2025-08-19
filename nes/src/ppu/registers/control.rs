@@ -18,6 +18,7 @@ bitflags! {
     // |          (0: read backdrop from EXT pins; 1: output color on EXT pins)
     // +--------- Generate an NMI at the start of the
     //            vertical blanking interval (0: off; 1: on)
+    #[derive(Clone, Copy)]
     pub struct ControlRegister: u8 {
         const NAMETABLE1              = 0b0000_0001;
         const NAMETABLE2              = 0b0000_0010;
@@ -32,11 +33,28 @@ bitflags! {
 
 impl ControlRegister {
     pub fn new() -> Self {
-        ControlRegister::from_bits_truncate(0b00000000)
+        // https://www.nesdev.org/wiki/PPU_power_up_state
+        ControlRegister::from_bits_truncate(0b0000_0000)
+    }
+
+    pub fn reset(&mut self) {
+        // https://www.nesdev.org/wiki/PPU_power_up_state
+        self.remove(ControlRegister::NAMETABLE1);
+        self.remove(ControlRegister::NAMETABLE2);
+        self.remove(ControlRegister::VRAM_ADD_INCREMENT);
+        self.remove(ControlRegister::SPRITE_PATTERN_ADDR);
+        self.remove(ControlRegister::BACKROUND_PATTERN_ADDR);
+        self.remove(ControlRegister::SPRITE_SIZE);
+        self.remove(ControlRegister::MASTER_SLAVE_SELECT);
+        self.remove(ControlRegister::GENERATE_NMI);
+    }
+
+    pub fn get_nametable(&self) -> u8 {
+        self.bits() & 0b0000_0011
     }
 
     pub fn nametable_addr(&self) -> u16 {
-        match self.bits() & 0b0000_0011 {
+        match self.get_nametable() {
             0 => 0x2000,
             1 => 0x2400,
             2 => 0x2800,
@@ -53,7 +71,7 @@ impl ControlRegister {
         }
     }
 
-    pub fn sprt_pattern_addr(&self) -> u16 {
+    pub fn sprite_pattern_addr(&self) -> u16 {
         if !self.contains(ControlRegister::SPRITE_PATTERN_ADDR) {
             0
         } else {
@@ -61,7 +79,7 @@ impl ControlRegister {
         }
     }
 
-    pub fn bknd_pattern_addr(&self) -> u16 {
+    pub fn background_pattern_addr(&self) -> u16 {
         if !self.contains(ControlRegister::BACKROUND_PATTERN_ADDR) {
             0
         } else {

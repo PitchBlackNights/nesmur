@@ -2,6 +2,7 @@ use crate::prelude::*;
 
 pub const NES_TAG: [u8; 4] = [0x4E, 0x45, 0x53, 0x1A];
 pub const PRG_ROM_PAGE_SIZE: usize = 16_384; // 16 KiB
+pub const PRG_RAM_PAGE_SIZE: usize = 8_192; // 8 KiB
 pub const CHR_ROM_PAGE_SIZE: usize = 8_192; // 8 KiB
 
 macro_rules! opt_debug {
@@ -65,13 +66,6 @@ impl ROM {
                 (false, false) => Mirroring::Horizontal,
             };
 
-        fn format_byte_size_option(bytes_opt: Option<usize>) -> Option<String> {
-            match bytes_opt {
-                Some(bytes) => Some(tools::format_byte_size(bytes)),
-                None => None,
-            }
-        }
-
         if ines_ver == 1 {
             match raw[7] & 0b0000_0011 {
                 0x0 => {}
@@ -100,7 +94,7 @@ impl ROM {
             let mut region: Option<ROMRegion> = None;
 
             // https://www.nesdev.org/wiki/INES#Flags_10
-            if &raw[11..=15] != [0x00, 0x00, 0x00, 0x00, 0x00] {
+            if raw[11..=15] != [0x00, 0x00, 0x00, 0x00, 0x00] {
                 mapper &= 0b0000_1111;
             } else {
                 prg_ram_size = if raw[10] & 0b0001_0000 != 0 {
@@ -124,7 +118,10 @@ impl ROM {
             debug!("  Mapper: {}", mapper);
             opt_debug!("  Region: {:?}", region);
             debug!("  PRG-ROM Size: {}", tools::format_byte_size(prg_rom_size));
-            opt_debug!("  PRG-RAM Size: {}", format_byte_size_option(prg_ram_size));
+            opt_debug!(
+                "  PRG-RAM Size: {}",
+                prg_ram_size.map(tools::format_byte_size)
+            );
             debug!("  CHR-ROM Size: {}", tools::format_byte_size(chr_rom_size));
             debug!("  CHR-RAM?: {}", uses_chr_ram);
             debug!("  Mirroring: {:?}", screen_mirroring);
@@ -252,9 +249,15 @@ impl ROM {
             debug!("  Submapper: {}", submapper);
             debug!("  Region: {:?}", region);
             debug!("  PRG-ROM Size: {}", tools::format_byte_size(prg_rom_size));
-            opt_debug!("  PRG-RAM Size: {}", format_byte_size_option(prg_ram_size));
+            opt_debug!(
+                "  PRG-RAM Size: {}",
+                prg_ram_size.map(tools::format_byte_size)
+            );
             debug!("  CHR-ROM Size: {}", tools::format_byte_size(chr_rom_size));
-            opt_debug!("  CHR-RAM Size: {}", format_byte_size_option(chr_ram_size));
+            opt_debug!(
+                "  CHR-RAM Size: {}",
+                chr_ram_size.map(tools::format_byte_size)
+            );
             debug!("  Mirroring: {:?}", screen_mirroring);
             debug!("  Trainer?: {}", uses_trainer);
             debug!("  Battery Mem?: {}", uses_bat_mem);

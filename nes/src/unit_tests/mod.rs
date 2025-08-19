@@ -5,18 +5,21 @@ pub mod ppu;
 pub mod trace;
 
 use crate::NES;
-use crate::cartridge::{CHR_ROM_PAGE_SIZE, Mirroring, PRG_ROM_PAGE_SIZE, ROM, ROMRegion};
+use crate::cartridge::{
+    CHR_ROM_PAGE_SIZE, Mirroring, PRG_RAM_PAGE_SIZE, PRG_ROM_PAGE_SIZE, ROM, ROMRegion,
+};
 use crate::memory::Memory;
 use crate::ppu::PPU;
+use crate::ppu::renderer::Renderer;
 use crate::prelude::*;
 use crate::{BoxNESDevice, RcRef};
 
-struct TestRom {
-    header: Vec<u8>,
-    trainer: Option<Vec<u8>>,
-    prg_rom: Vec<u8>,
-    chr_rom: Vec<u8>,
-}
+// struct TestRom {
+//     header: Vec<u8>,
+//     trainer: Option<Vec<u8>>,
+//     prg_rom: Vec<u8>,
+//     chr_rom: Vec<u8>,
+// }
 
 // fn create_rom(rom: TestRom) -> Vec<u8> {
 //     let mut result: Vec<u8> = Vec::with_capacity(
@@ -71,7 +74,7 @@ fn setup_nes_with_rom<'a>(data: Vec<u8>) -> NES<'a> {
     let rom: ROM = test_rom(data);
     NES::new(
         rom,
-        |_ppu: RcRef<PPU>,
+        |_renderer: RcRef<Renderer>,
          _device1: &mut Option<RcRef<BoxNESDevice>>,
          _device2: &mut Option<RcRef<BoxNESDevice>>| {},
     )
@@ -82,15 +85,16 @@ fn setup_nes<'a>() -> NES<'a> {
 }
 
 fn empty_ppu(mirroring: Mirroring) -> PPU {
-    let mut chr_mem: Vec<u8> = Vec::with_capacity(CHR_ROM_PAGE_SIZE);
-    chr_mem.resize(CHR_ROM_PAGE_SIZE, 0x00);
-
     let memory: Memory = Memory {
         cpu_vram: [0x00; 2048],
         prg_rom: vec![],
         prg_ram: vec![],
-        chr_mem,
+        chr_mem: vec![0x00; CHR_ROM_PAGE_SIZE],
         use_chr_ram: false,
     };
-    PPU::new(Rc::new(RefCell::new(memory)), mirroring)
+
+    let mut ppu: PPU = PPU::new(Rc::new(RefCell::new(memory)), mirroring);
+    ppu.cycles = 9886;
+
+    ppu
 }

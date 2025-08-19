@@ -1,6 +1,29 @@
-use super::*;
 use crate::cartridge::Mirroring;
 use crate::ppu::PPU;
+use crate::unit_tests::*;
+
+#[test]
+fn test_step() {
+    let mut ppu: PPU = empty_ppu(Mirroring::Horizontal);
+    ppu.dot = 0;
+    ppu.scanline = 0;
+    ppu.step();
+    assert_eq!(ppu.dot, 1);
+    assert_eq!(ppu.scanline, 0);
+
+    ppu.dot = 340;
+    ppu.scanline = 0;
+    ppu.step();
+    assert_eq!(ppu.dot, 0);
+    assert_eq!(ppu.scanline, 1);
+
+    ppu.dot = 340;
+    ppu.scanline = 261;
+    ppu.step();
+    assert_eq!(ppu.dot, 0);
+    assert_eq!(ppu.scanline, 0);
+    assert_eq!(ppu.odd_frame, true);
+}
 
 #[test]
 fn test_ppu_vram_writes() {
@@ -23,7 +46,7 @@ fn test_ppu_vram_reads() {
     ppu.write_to_ppu_addr(0x05);
     ppu.read_data(); // Load into buffer
 
-    assert_eq!(ppu.addr.get(), 0x2306);
+    assert_eq!(ppu.vram_addr.get(), 0x2306);
     assert_eq!(ppu.read_data(), 0x66);
 }
 
