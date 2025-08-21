@@ -14,7 +14,7 @@ fn nestest() {
     nes.cpu.program_counter = 0xC000;
 
     let mut instruction_cycle: u16 = 0;
-    nes.cpu.run_with_callback(|cpu: &mut CPU<'_>| {
+    nes.run_with_callback(|cpu: &mut CPU| {
         debug_log += format!("{}\n", tools::trace(cpu)).as_str();
         instruction_cycle += 1;
         if instruction_cycle == 8991 {

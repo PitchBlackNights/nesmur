@@ -95,7 +95,7 @@ impl OpCode {
                 // instead of the expected following byte.
                 let base: u16 = cpu.bus_mut().read_u16(addr);
                 let addr: u16 = if base & 0x00FF == 0x00FF {
-                    let mut temp_bus: RefMut<'_, Bus<'_>> = cpu.bus_mut();
+                    let mut temp_bus: RefMut<Bus> = cpu.bus_mut();
                     tools::bytes_to_u16(&[temp_bus.read(base), temp_bus.read(base & 0xFF00)])
                 } else {
                     cpu.bus_mut().read_u16(base)

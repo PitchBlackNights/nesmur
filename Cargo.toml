@@ -6,14 +6,24 @@ edition = "2021"
 
 [dependencies]
 nes = { path = "./nes" }
+
 env_logger = "0.11.8"
 log = "0.4.27"
 colored = "3.0.0"
 chrono = "0.4.41"
 clap = { version = "4.5.45", features = ["cargo"] }
 phf = { version = "0.12.1" }
-sdl2 = "0.38.0"
 rustc-hash = "2.1.1"
+crossbeam = "0.8.4"
+imgui = "0.12.0"
+imgui-winit-support = "0.13.0"
+imgui-glow-renderer = "0.13.0"
+raw-window-handle = "0.6.2"
+glow = "0.14.2"
+glutin = "0.32.3"
+glutin-winit = "0.5.0"
+winit = "0.30.12"
+image = "0.25.6"
 
 [build-dependencies]
 vergen-git2 = { version = "1.0.7", features = ["build", "cargo", "rustc", "si", "emit_and_set"]}

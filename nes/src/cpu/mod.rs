@@ -41,12 +41,12 @@ const STACK: u16 = 0x0100;
 const STACK_RESET: u8 = 0xFD;
 
 #[rustfmt::skip]
-impl<'a> NESAccess<'a> for CPU<'a> {
-    fn bus(&self) -> Ref<Bus<'a>> { self.bus.borrow() }
-    fn bus_mut(&self) -> RefMut<Bus<'a>> { self.bus.borrow_mut() }
+impl NESAccess for CPU {
+    fn bus(&self) -> Ref<Bus> { self.bus.borrow() }
+    fn bus_mut(&self) -> RefMut<Bus> { self.bus.borrow_mut() }
 }
 
-pub struct CPU<'a> {
+pub struct CPU {
     pub running: bool,
     pub accumulator: u8,
     pub index_x: u8,
@@ -55,11 +55,11 @@ pub struct CPU<'a> {
     pub program_counter: u16,
     pub status: Flags,
     pub fresh: bool,
-    pub bus: RcRef<Bus<'a>>,
+    pub bus: RcRef<Bus>,
 }
 
-impl<'a> CPU<'a> {
-    pub fn new(bus: RcRef<Bus<'a>>) -> Self {
+impl CPU {
+    pub fn new(bus: RcRef<Bus>) -> Self {
         // Hack to build OPCODES hashmap now instead of in `cpu::step()`
         let _ = &opcode::OPCODES.get(&0u8);
 
@@ -99,10 +99,6 @@ impl<'a> CPU<'a> {
         self.bus_mut().tick(interrupt.cpu_cycles);
         let interrupt_vector: u16 = self.bus_mut().read_u16(interrupt.vector_addr);
         self.program_counter = interrupt_vector;
-    }
-
-    pub fn run(&mut self) {
-        self.run_with_callback(|_| {});
     }
 
     pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {

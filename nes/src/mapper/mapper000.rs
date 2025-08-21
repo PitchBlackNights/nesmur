@@ -7,7 +7,7 @@ use crate::prelude::*;
 use crate::{BoxNESDevice, RcRef};
 
 #[rustfmt::skip]
-impl NESAccess<'_> for Mapper000 {
+impl NESAccess for Mapper000 {
     fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
     fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
     fn memory(&self) -> Ref<Memory> { self.memory.borrow() }

@@ -16,9 +16,9 @@ pub static NON_READABLE_ADDR: Lazy<Vec<u16>> = Lazy::new(|| {
 });
 
 #[rustfmt::skip]
-pub trait NESAccess<'a> {
-    fn bus(&self) -> Ref<Bus<'a>> { panic!("Access to `Bus` is prohibited") }
-    fn bus_mut(&self) -> RefMut<Bus<'a>> { panic!("Mutable access to `Bus` is prohibited") }
+pub trait NESAccess {
+    fn bus(&self) -> Ref<Bus> { panic!("Access to `Bus` is prohibited") }
+    fn bus_mut(&self) -> RefMut<Bus> { panic!("Mutable access to `Bus` is prohibited") }
     fn apu(&self) -> Ref<APU> { panic!("Access to `APU` is prohibited") }
     fn apu_mut(&self) -> RefMut<APU> { panic!("Mutable access to `APU` is prohibited") }
     fn ppu(&self) -> Ref<PPU> { panic!("Access to `PPU` is prohibited") }
@@ -177,7 +177,7 @@ pub fn trace(cpu: &CPU) -> String {
                     if opcode.byte == 0x6C {
                         // jmp indirect
                         let jmp_addr: u16 = if address & 0x00FF == 0x00FF {
-                            let mut temp_bus: RefMut<'_, Bus<'_>> = cpu.bus_mut();
+                            let mut temp_bus: RefMut<Bus> = cpu.bus_mut();
                             tools::bytes_to_u16(&[
                                 temp_bus.read(address),
                                 temp_bus.read(address & 0xFF00),

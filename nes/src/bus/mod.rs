@@ -4,7 +4,7 @@ use crate::memory::Memory;
 use crate::ppu::PPU;
 use crate::ppu::renderer::Renderer;
 use crate::prelude::*;
-use crate::{BoxMapper, BoxNESDevice, RcRef};
+use crate::{BoxMapper, RcRef};
 
 pub static mut QUIET_LOG: bool = false;
 pub static mut PREV_QUIET_LOG: bool = false;
@@ -25,85 +25,50 @@ macro_rules! bus_trace {
 }
 
 #[rustfmt::skip]
-impl NESAccess<'_> for Bus<'_> {
+impl NESAccess for Bus {
     fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
     fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
     fn mapper(&self) -> Ref<BoxMapper> { self.mapper.borrow() }
     fn mapper_mut(&self) -> RefMut<BoxMapper> { self.mapper.borrow_mut() }
     fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
     fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
-    fn device1(&self) -> Ref<BoxNESDevice> {
-        if self.device1.is_none() {
-            panic!("Bus tried to access `Device 1` before a reference was passed to it!");
-        }
-        self.device1.as_ref().unwrap().borrow()
-    }
-    fn device1_mut(&self) -> RefMut<BoxNESDevice> {
-        if self.device1.is_none() {
-            panic!("Bus tried to access `Device 1` before a reference was passed to it!");
-        }
-        self.device1.as_ref().unwrap().borrow_mut()
-    }
-    fn device2(&self) -> Ref<BoxNESDevice> {
-        if self.device2.is_none() {
-            panic!("Bus tried to access `Device 2` before a reference was passed to it!");
-        }
-        self.device2.as_ref().unwrap().borrow()
-    }
-    fn device2_mut(&self) -> RefMut<BoxNESDevice> {
-        if self.device2.is_none() {
-            panic!("Bus tried to access `Device 2` before a reference was passed to it!");
-        }
-        self.device2.as_ref().unwrap().borrow_mut()
-    }
     fn renderer(&self) -> Ref<Renderer> { self.renderer.borrow() }
     fn renderer_mut(&self) -> RefMut<Renderer> { self.renderer.borrow_mut() }
 }
 
-pub struct Bus<'rcall> {
+pub struct Bus {
     pub cpu_cycles: usize,
     pub memory: RcRef<Memory>,
     pub mapper: RcRef<BoxMapper>,
     pub renderer: RcRef<Renderer>,
     pub ppu: RcRef<PPU>,
-    pub device1: Option<RcRef<BoxNESDevice>>,
-    pub device2: Option<RcRef<BoxNESDevice>>,
     #[allow(clippy::type_complexity)]
-    render_callback: Box<
-        dyn FnMut(
-                RcRef<Renderer>,
-                &mut Option<RcRef<BoxNESDevice>>,
-                &mut Option<RcRef<BoxNESDevice>>,
-            ) + 'rcall,
-    >,
+    render_callback: Box<dyn FnMut()>,
 }
 
-impl<'a> Bus<'a> {
-    pub fn new<'rcall, F>(
+impl Bus {
+    pub fn new(
         memory: RcRef<Memory>,
         mapper: RcRef<BoxMapper>,
         renderer: RcRef<Renderer>,
         _apu: RcRef<APU>,
         ppu: RcRef<PPU>,
-        render_callback: F,
-    ) -> Bus<'rcall>
-    where
-        F: FnMut(
-                RcRef<Renderer>,
-                &mut Option<RcRef<BoxNESDevice>>,
-                &mut Option<RcRef<BoxNESDevice>>,
-            ) + 'rcall,
-    {
+    ) -> Bus {
         Bus {
             cpu_cycles: 0,
             memory,
             mapper,
             renderer,
             ppu,
-            device1: None,
-            device2: None,
-            render_callback: Box::from(render_callback),
+            render_callback: Box::from(|| {}),
         }
+    }
+
+    pub fn render_callback<F>(&mut self, callback: F)
+    where
+        F: FnMut() + 'static,
+    {
+        self.render_callback = Box::new(callback);
     }
 
     pub fn tick(&mut self, cpu_cycles: usize) {
@@ -115,11 +80,7 @@ impl<'a> Bus<'a> {
             let nmi_after: bool = self.ppu().nmi_interrupt.is_some();
 
             if !nmi_before && nmi_after {
-                (self.render_callback)(
-                    self.renderer.clone(),
-                    &mut self.device1.clone(),
-                    &mut self.device2.clone(),
-                );
+                (self.render_callback)();
             }
         }
     }
@@ -129,15 +90,6 @@ impl<'a> Bus<'a> {
             return Some(interrupt::NMI);
         }
         None
-    }
-
-    pub fn connect_input_device(&mut self, slot: u8, device: RcRef<BoxNESDevice>) {
-        assert!((1..=2).contains(&slot));
-        match slot {
-            1 => self.device1 = Some(device),
-            2 => self.device2 = Some(device),
-            _ => panic!("This shouldn't happen!"),
-        };
     }
 
     // pub fn memory(&self) -> Vec<u8> {

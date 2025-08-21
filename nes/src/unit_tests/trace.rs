@@ -24,7 +24,7 @@ fn test_format_trace() {
     nes.cpu.index_y = 3;
 
     let mut result: Vec<String> = vec![];
-    nes.cpu.run_with_callback(|cpu| {
+    nes.run_with_callback(|cpu| {
         result.push(tools::trace(cpu));
     });
 
@@ -62,7 +62,7 @@ fn test_format_mem_access() {
     nes.cpu.index_y = 0x00;
 
     let mut result: Vec<String> = vec![];
-    nes.cpu.run_with_callback(|cpu| {
+    nes.run_with_callback(|cpu| {
         result.push(tools::trace(cpu));
     });
 

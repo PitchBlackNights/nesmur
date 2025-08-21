@@ -38,9 +38,9 @@ pub const SCREEN_WIDTH: usize = 256;
 pub const SCREEN_HEIGHT: usize = 240;
 
 #[rustfmt::skip]
-impl<'a> NESAccess<'a> for NES<'a> {
-    fn bus(&self) -> Ref<Bus<'a>> { self.bus.borrow() }
-    fn bus_mut(&self) -> RefMut<Bus<'a>> { self.bus.borrow_mut() }
+impl NESAccess for NES {
+    fn bus(&self) -> Ref<Bus> { self.bus.borrow() }
+    fn bus_mut(&self) -> RefMut<Bus> { self.bus.borrow_mut() }
     fn apu(&self) -> Ref<APU> { self.apu.borrow() }
     fn apu_mut(&self) -> RefMut<APU> { self.apu.borrow_mut() }
     fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
@@ -79,29 +79,24 @@ impl<'a> NESAccess<'a> for NES<'a> {
     fn renderer_mut(&self) -> RefMut<Renderer> { self.renderer.borrow_mut() }
 }
 
-pub struct NES<'a> {
+pub struct NES {
     pub memory: RcRef<Memory>,
     pub mapper: RcRef<BoxMapper>,
     pub renderer: RcRef<Renderer>,
+
     pub device1: Option<RcRef<BoxNESDevice>>,
     pub device2: Option<RcRef<BoxNESDevice>>,
-    pub cpu: CPU<'a>,
-    pub bus: RcRef<Bus<'a>>,
+
+    pub cpu: CPU,
+    pub bus: RcRef<Bus>,
     /// ***CURRENTLY UNIMPLEMENTED***
     pub apu: RcRef<APU>,
     pub ppu: RcRef<PPU>,
     pub rom: RcRef<ROM>,
 }
 
-impl<'a> NES<'a> {
-    pub fn new<'rcall, F>(rom: ROM, render_callback: F) -> Self
-    where
-        F: FnMut(
-                RcRef<Renderer>,
-                &mut Option<RcRef<BoxNESDevice>>,
-                &mut Option<RcRef<BoxNESDevice>>,
-            ) + 'rcall + 'a,
-    {
+impl NES {
+    pub fn new(rom: ROM) -> Self {
         let rom: RcRef<ROM> = Rc::new(RefCell::new(rom));
         let memory: RcRef<Memory> = Rc::new(RefCell::new(Memory::new(rom.borrow())));
         let renderer: RcRef<Renderer> = Rc::new(RefCell::new(Renderer::new()));
@@ -122,7 +117,6 @@ impl<'a> NES<'a> {
             renderer.clone(),
             apu.clone(),
             ppu.clone(),
-            render_callback,
         )));
         let cpu: CPU = CPU::new(bus.clone());
 
@@ -130,14 +124,57 @@ impl<'a> NES<'a> {
             memory,
             mapper,
             renderer,
+
             device1: None,
             device2: None,
+
             cpu,
             bus,
             apu,
             ppu,
             rom,
         }
+    }
+
+    pub fn reset(&mut self) {
+        info!("Resetting NES...");
+        self.cpu.reset();
+        self.ppu_mut().reset();
+        self.renderer_mut().reset();
+    }
+
+    pub fn run(&mut self) {
+        self.cpu.run_with_callback(|_| {});
+    }
+
+    pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
+        self.cpu.run_with_callback(|cpu: &mut CPU| {
+            callback(cpu);
+        });
+    }
+
+    pub fn render_callback<F>(&self, callback: F)
+    where
+        F: FnMut(
+                RcRef<Renderer>,
+                &mut Option<RcRef<BoxNESDevice>>,
+                &mut Option<RcRef<BoxNESDevice>>,
+            ) + 'static,
+    {
+        let renderer: RcRef<Renderer> = self.renderer.clone();
+        let device1: Option<RcRef<BoxNESDevice>> = self.device1.clone();
+        let device2: Option<RcRef<BoxNESDevice>> = self.device2.clone();
+        let render_callback: RcRef<F> = Rc::new(RefCell::new(callback));
+
+        self.bus_mut().render_callback(move || {
+            let mut device1_clone: Option<RcRef<BoxNESDevice>> = device1.clone();
+            let mut device2_clone: Option<RcRef<BoxNESDevice>> = device2.clone();
+            (render_callback.clone().borrow_mut())(
+                renderer.clone(),
+                &mut device1_clone,
+                &mut device2_clone,
+            );
+        });
     }
 
     pub fn connect_input_device(&mut self, slot: u8, device_type: NESDeviceType) {
@@ -151,17 +188,8 @@ impl<'a> NES<'a> {
             _ => panic!("This shouldn't happen!"),
         }
 
-        self.bus_mut()
-            .connect_input_device(slot, self.device1.clone().unwrap());
         self.mapper_mut()
             .connect_input_device(slot, self.device1.clone().unwrap());
-    }
-
-    pub fn reset(&mut self) {
-        info!("Resetting NES...");
-        self.cpu.reset();
-        self.ppu_mut().reset();
-        self.renderer_mut().reset();
     }
 }
 

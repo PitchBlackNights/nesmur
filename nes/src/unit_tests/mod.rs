@@ -10,9 +10,7 @@ use crate::cartridge::{
 };
 use crate::memory::Memory;
 use crate::ppu::PPU;
-use crate::ppu::renderer::Renderer;
 use crate::prelude::*;
-use crate::{BoxNESDevice, RcRef};
 
 // struct TestRom {
 //     header: Vec<u8>,
@@ -70,17 +68,12 @@ fn test_rom(mut prg_rom: Vec<u8>) -> ROM {
     }
 }
 
-fn setup_nes_with_rom<'a>(data: Vec<u8>) -> NES<'a> {
+fn setup_nes_with_rom(data: Vec<u8>) -> NES {
     let rom: ROM = test_rom(data);
-    NES::new(
-        rom,
-        |_renderer: RcRef<Renderer>,
-         _device1: &mut Option<RcRef<BoxNESDevice>>,
-         _device2: &mut Option<RcRef<BoxNESDevice>>| {},
-    )
+    NES::new(rom)
 }
 
-fn setup_nes<'a>() -> NES<'a> {
+fn setup_nes() -> NES {
     setup_nes_with_rom(vec![])
 }
 

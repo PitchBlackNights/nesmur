@@ -15,7 +15,7 @@ use registers::status::StatusRegister;
 // use registers::scroll::ScrollRegister;
 
 #[rustfmt::skip]
-impl NESAccess<'_> for PPU {
+impl NESAccess for PPU {
     fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
     fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
 }
