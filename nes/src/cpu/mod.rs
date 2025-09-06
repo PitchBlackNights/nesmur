@@ -101,35 +101,31 @@ impl CPU {
         self.program_counter = interrupt_vector;
     }
 
-    pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
+    pub fn pre_step(&mut self) {
         self.running = true;
         if self.fresh {
             self.bus_mut().tick(7);
             self.fresh = false;
         }
 
-        info!("Running CPU...");
-        while self.running {
-            let pending_interrupt: Option<Interrupt> = self.bus_mut().poll_interrupts();
-            if let Some(interrupt) = pending_interrupt {
-                self.interrupt(interrupt);
-            }
-
-            callback(self);
-
-            let opbyte: u8 = self.bus_mut().read(self.program_counter);
-            self.program_counter += 1;
-            let program_counter_state: u16 = self.program_counter;
-            let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
-
-            self.execute_instruction(opcode);
-            self.bus_mut().tick(opcode.cycles);
-
-            if program_counter_state == self.program_counter {
-                self.program_counter += opcode.len as u16 - 1
-            }
+        let pending_interrupt: Option<Interrupt> = self.bus_mut().poll_interrupts();
+        if let Some(interrupt) = pending_interrupt {
+            self.interrupt(interrupt);
         }
-        info!("Stopping CPU...");
+    }
+
+    pub fn step(&mut self) {
+        let opbyte: u8 = self.bus_mut().read(self.program_counter);
+        self.program_counter += 1;
+        let program_counter_state: u16 = self.program_counter;
+        let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
+
+        self.execute_instruction(opcode);
+        self.bus_mut().tick(opcode.cycles);
+
+        if program_counter_state == self.program_counter {
+            self.program_counter += opcode.len as u16 - 1
+        }
     }
 
     fn execute_instruction(&mut self, opcode: &OpCode) {

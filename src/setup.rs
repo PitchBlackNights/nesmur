@@ -7,6 +7,7 @@ use env_logger::fmt::Formatter;
 use env_logger::Builder;
 use log::{LevelFilter, Record};
 use std::io::Write;
+use std::thread::{self, Thread};
 
 /// Sets up the program by:
 /// 1. Set default environment variables generated at build
@@ -62,17 +63,21 @@ fn init_logger(verbose_level: u8) {
             let module_path: String = record.module_path().unwrap_or("UNKNOWN").to_string();
             let level: String = record.level().to_string();
 
+            let current_thread: Thread = thread::current();
+            let thread_name: &str = current_thread.name().unwrap_or("<unnamed>");
+
             // Log output format
             let log_output: String = if verbose_level >= 2 {
                 format!(
-                    "[{}] [{}/{}]: {}",
+                    "[{}] [{}/{}] [{}]: {}",
                     timestamp,
                     module_path,
                     level,
+                    thread_name,
                     record.args()
                 )
             } else {
-                format!("[{}] [{}/{}]: {}", timestamp, target, level, record.args())
+                format!("[{}] [{}/{}] [{}]: {}", timestamp, target, level, thread_name, record.args())
             };
 
             // Apply severity color to the whole log line

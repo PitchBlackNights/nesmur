@@ -4,7 +4,7 @@ use crate::{
     gl_error,
     shared_ctx::{app::SharedAppCtx, window::*},
     thread_com::{ThreadCom, ThreadComError, ThreadMsg},
-    NESState,
+    NESEvent, NESState, NesmurEvent,
 };
 use glow::HasContext;
 use glutin::{
@@ -15,65 +15,77 @@ use imgui::{ColorStackToken, Condition, StyleColor, StyleStackToken, StyleVar, U
 use imgui_glow_renderer::Renderer;
 use imgui_winit_support::WinitPlatform;
 use nes::{SCREEN_HEIGHT, SCREEN_WIDTH};
-use winit::window::Window;
+use winit::{event_loop::EventLoopProxy, window::Window};
 
 #[derive(Debug)]
 pub struct NesmurUI {
-    pub win_ctx: SharedWindowCtx,
-    pub thread_com: ThreadCom,
     pub nes_game_window: NESGameWindow,
-    pub app: SharedAppCtx,
+    event_loop_proxy: Option<EventLoopProxy<NesmurEvent>>,
+    win_ctx: SharedWindowCtx,
+    app: SharedAppCtx,
 }
 
 impl NesmurUI {
     pub fn new() -> Self {
         NesmurUI {
-            win_ctx: SharedWindowCtx::default(),
-            thread_com: ThreadCom::new(),
             nes_game_window: NESGameWindow::new(),
+            event_loop_proxy: None,
+            win_ctx: SharedWindowCtx::default(),
             app: SharedAppCtx::default(),
         }
     }
 
-    pub fn init(&mut self) {
+    pub fn init(
+        &mut self,
+        shared_window_ctx: &SharedWindowCtx,
+        shared_app_ctx: &SharedAppCtx,
+        event_loop_proxy: &EventLoopProxy<NesmurEvent>,
+    ) {
+        self.win_ctx = shared_window_ctx.clone();
+        self.app = shared_app_ctx.clone();
+        self.event_loop_proxy = Some(event_loop_proxy.clone());
+
         self.nes_game_window.generate(
             get_from_swc!(self.win_ctx.opengl),
             get_from_swc!(mut self.win_ctx.imgui_textures),
         );
     }
 
-    pub fn redraw(&self) -> &mut Ui {
-        let framerate: f32 = self.imgui_context().io().framerate;
+    fn send_app_event(&self, evnet: NesmurEvent) {
+        if self.event_loop_proxy.is_none() {
+            panic!("UI tried to access its EventLoopProxy before it was created!");
+        }
 
+        let proxy: &EventLoopProxy<NesmurEvent> = self.event_loop_proxy.as_ref().unwrap();
+        proxy
+            .send_event(evnet)
+            .expect("The app's EventLoop somehow does not exist!");
+    }
+
+    pub fn redraw(&self, nes_framerate: f32, nes_frametime: f32) -> &mut Ui {
+        let framerate: f32 = self.imgui_context().io().framerate;
         let ui: &mut Ui = self.imgui_context_mut().frame();
-        let style: ColorStackToken<'_> =
-            ui.push_style_color(StyleColor::WindowBg, [0.0, 0.0, 0.0, 1.0]);
-        let style2: ColorStackToken<'_> =
-            ui.push_style_color(StyleColor::TitleBgCollapsed, [0.0, 0.0, 0.0, 1.0]);
-        let style3: ColorStackToken<'_> =
-            ui.push_style_color(StyleColor::WindowBg, [0.15, 0.15, 0.15, 1.0]);
 
         self.nes_game_window.show(ui);
-        self.show_control_panel(ui, framerate);
+        self.show_control_panel(ui, framerate, nes_framerate, nes_frametime);
         // OTHER WINDOWS
-
-        style.pop();
-        style2.pop();
-        style3.pop();
 
         ui
     }
 
-    fn show_control_panel(&self, ui: &Ui, framerate: f32) {
-        let mut app: SharedAppCtx = self.app.clone();
+    fn show_control_panel(&self, ui: &Ui, framerate: f32, nes_framerate: f32, nes_frametime: f32) {
+        let app: SharedAppCtx = self.app.clone();
 
         ui.window("Control Panel")
             .size([150.0, 300.0], Condition::Once)
             .position([512.0, 0.0], Condition::Once)
             .resizable(false)
             .build(|| {
-                ui.text(format!(" UI FPS: {:.2}", framerate));
-                ui.text(format!("NES FPS: {:.2}", framerate));
+                ui.text(format!(" UI FPS: {:.0}", framerate));
+                ui.separator();
+
+                ui.text(format!("NES FPS: {:.0}", nes_framerate));
+                ui.text(format!("NES  FT: {:.3} ms", nes_frametime));
                 ui.separator();
 
                 ui.text(format!("State: {:?}", app.nes_state()));
@@ -81,7 +93,7 @@ impl NesmurUI {
                 match app.nes_state() {
                     NESState::Stopped => {
                         if ui.button("Start") {
-                            app.nes_state.set(NESState::Running);
+                            self.send_app_event(NesmurEvent::NES(NESEvent::Start));
                         }
                         ui.disabled(true, || {
                             ui.button("Pause");
@@ -91,10 +103,10 @@ impl NesmurUI {
 
                     NESState::Running => {
                         if ui.button("Stop") {
-                            app.nes_state.set(NESState::Stopped);
+                            self.send_app_event(NesmurEvent::NES(NESEvent::Stop));
                         }
                         if ui.button("Pause") {
-                            app.nes_state.set(NESState::Paused);
+                            self.send_app_event(NesmurEvent::NES(NESEvent::Pause));
                         }
                         ui.disabled(true, || {
                             ui.button("Step");
@@ -103,13 +115,13 @@ impl NesmurUI {
 
                     NESState::Paused | NESState::Stepping => {
                         if ui.button("Stop") {
-                            app.nes_state.set(NESState::Stopped);
+                            self.send_app_event(NesmurEvent::NES(NESEvent::Stop));
                         }
                         if ui.button("Resume") {
-                            app.nes_state.set(NESState::Running);
+                            self.send_app_event(NesmurEvent::NES(NESEvent::Resume));
                         }
                         if ui.button("Step") {
-                            app.nes_state.set(NESState::Stepping);
+                            self.send_app_event(NesmurEvent::NES(NESEvent::Step));
                         }
                     }
                 };
@@ -160,21 +172,21 @@ impl NESGameWindow {
             opengl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
-                glow::LINEAR as _,
+                glow::NEAREST as _,
             );
             gl_error!(opengl);
             opengl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
-                glow::LINEAR as _,
+                glow::NEAREST as _,
             );
             gl_error!(opengl);
             opengl.tex_image_2d(
                 glow::TEXTURE_2D,
                 0,
-                glow::RGB as _,
-                self.width as _,
-                self.height as _,
+                glow::RGB as i32,
+                self.width as i32,
+                self.height as i32,
                 0,
                 glow::RGB,
                 glow::UNSIGNED_BYTE,

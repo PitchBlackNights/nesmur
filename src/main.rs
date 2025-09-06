@@ -18,6 +18,7 @@ use imgui_winit_support::WinitPlatform;
 use nesmur::{
     cli_parser::Args,
     gl_error,
+    nes_manager::NESManager,
     prelude::*,
     setup,
     shared_ctx::{app::*, window::*},
@@ -30,8 +31,8 @@ use std::{num::NonZeroU32, time::Instant};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{Event, KeyEvent, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    event::{self, Event, KeyEvent, WindowEvent},
+    event_loop::{self, ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
     keyboard::PhysicalKey,
     window::{Window, WindowAttributes, WindowId},
 };
@@ -42,21 +43,45 @@ fn main() {
 
     let event_loop: EventLoop<NesmurEvent> =
         EventLoop::<NesmurEvent>::with_user_event().build().unwrap();
-    event_loop.set_control_flow(ControlFlow::Wait);
-    let _ = event_loop.run_app(&mut Nesmur::new());
+    event_loop.set_control_flow(ControlFlow::Poll);
+
+    let proxy: EventLoopProxy<NesmurEvent> = event_loop.create_proxy();
+    let _ = event_loop.run_app(&mut Nesmur::new(proxy));
 
     info!("Stopping Emulator...");
 }
 
+impl std::fmt::Debug for Nesmur {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Nesmur")
+            .field("last_frame", &self.last_ui_time)
+            .field("nes_state", &self.nes_state)
+            .field("uninitialized", &self.uninitialized)
+            .field("ui", &self.ui)
+            .field("shared_window_ctx", &self.shared_window_ctx)
+            .field("shared_app_ctx", &self.shared_app_ctx)
+            .field("window", &self.window.as_ref().unwrap())
+            .field("window_context", &self.window_context.as_ref().unwrap())
+            .field("window_surface", &self.window_surface.as_ref().unwrap())
+            .field("opengl", &self.opengl.as_ref().unwrap())
+            .field("winit_platform", &self.winit_platform.as_ref().unwrap())
+            .field("imgui_context", &self.imgui_context.as_ref().unwrap())
+            .field("imgui_textures", &self.imgui_textures.as_ref().unwrap())
+            .field("imgui_renderer", &"Renderer { .. }")
+            .finish()
+    }
+}
+
 struct Nesmur {
-    last_frame: Instant,
-    nes_state: NESState,
     uninitialized: bool,
-    thread_com: ThreadCom,
+    event_loop_proxy: EventLoopProxy<NesmurEvent>,
+    nes_manager: NESManager,
+    nes_state: NESState,
     ui: NesmurUI,
+    last_ui_time: Instant,
 
     shared_window_ctx: SharedWindowCtx,
-    // VVV  DON'T USE IN THE MAIN APP
+    /// DON'T USE IN THE MAIN APP
     shared_app_ctx: SharedAppCtx,
 
     // Meant only to keep the data from being dropped.
@@ -71,39 +96,15 @@ struct Nesmur {
     imgui_renderer: Option<Renderer>,
 }
 
-impl std::fmt::Debug for Nesmur {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Nesmur")
-            .field("last_frame", &self.last_frame)
-            .field("nes_state", &self.nes_state)
-            .field("uninitialized", &self.uninitialized)
-            .field("thread_com", &self.thread_com)
-            .field("ui", &self.ui)
-
-            .field("shared_window_ctx", &self.shared_window_ctx)
-            .field("shared_app_ctx", &self.shared_app_ctx)
-
-
-            .field("window", &self.window.as_ref().unwrap())
-            .field("window_context", &self.window_context.as_ref().unwrap())
-            .field("window_surface", &self.window_surface.as_ref().unwrap())
-            .field("opengl", &self.opengl.as_ref().unwrap())
-            .field("winit_platform", &self.winit_platform.as_ref().unwrap())
-            .field("imgui_context", &self.imgui_context.as_ref().unwrap())
-            .field("imgui_textures", &self.imgui_textures.as_ref().unwrap())
-            .field("imgui_renderer", &"Renderer { .. }")
-            .finish()
-    }
-}
-
 impl Nesmur {
-    fn new() -> Self {
+    fn new(event_loop_proxy: EventLoopProxy<NesmurEvent>) -> Self {
         Nesmur {
-            last_frame: Instant::now(),
-            nes_state: NESState::Stopped,
             uninitialized: true,
-            thread_com: ThreadCom::new(),
+            event_loop_proxy,
+            nes_manager: NESManager::new(),
+            nes_state: NESState::Stopped,
             ui: NesmurUI::new(),
+            last_ui_time: Instant::now(),
 
             shared_window_ctx: SharedWindowCtx::default(),
             shared_app_ctx: SharedAppCtx::default(),
@@ -188,9 +189,7 @@ impl Nesmur {
             imgui_winit_support::HiDpiMode::Rounded,
         );
 
-        imgui_context
-            .fonts()
-            .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
+        nesmur::theme::apply_context(&mut imgui_context);
         imgui_context.io_mut().font_global_scale = (1.0 / winit_platform.hidpi_factor()) as f32;
 
         // ===============================
@@ -272,57 +271,54 @@ impl Nesmur {
         self.shared_window_ctx.imgui_context = self.imgui_context.as_mut().unwrap();
         self.shared_window_ctx.imgui_textures = self.imgui_textures.as_mut().unwrap();
         self.shared_window_ctx.imgui_renderer = self.imgui_renderer.as_mut().unwrap();
-        self.ui.win_ctx = self.shared_window_ctx.clone();
-
         self.shared_app_ctx.nes_state = SharedNESState(&mut self.nes_state);
-        self.ui.app = self.shared_app_ctx.clone();
 
-        // Initialize thread communication channels and also pass them to the UI
-        self.thread_com.init_channels();
-        self.ui.thread_com = self.thread_com.clone();
-
-        // Do what little UI initialization there is
-        self.ui.init();
-
+        // Do what little UI initialization there is to do
+        self.ui.init(
+            &self.shared_window_ctx,
+            &self.shared_app_ctx,
+            &self.event_loop_proxy,
+        );
         self.uninitialized = false;
-        self.last_frame = Instant::now();
-
-        // dbg!(self);
+        self.last_ui_time = Instant::now();
 
         trace!("Finished initializing window");
     }
 }
 
 impl ApplicationHandler<NesmurEvent> for Nesmur {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        trace!("Received event: Resumed");
-        if self.uninitialized {
-            self.init(event_loop);
-        }
-        trace!("Finished event");
-    }
-
-    fn new_events(&mut self, _event_loop: &ActiveEventLoop, _cause: winit::event::StartCause) {
-        // trace!("Received event: NewEvent(StartCause::{:?})", cause);
-
-        if self.uninitialized {
-            return;
-        }
-        let now: Instant = Instant::now();
-        self.imgui_context_mut()
-            .io_mut()
-            .update_delta_time(now.duration_since(self.last_frame));
-        self.last_frame = now;
-        // trace!("Finished event");
-    }
-
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: NesmurEvent) {
-        trace!("Received event: UserEvent(NesmurEvent::{:?})", event);
-
         if self.uninitialized {
             return;
         }
-        trace!("Finished event");
+
+        match event {
+            NesmurEvent::NES(NESEvent::Start) => {
+                debug!("NESEvent: Start");
+                self.nes_manager.start_nes();
+                self.nes_state = NESState::Running;
+            }
+            NesmurEvent::NES(NESEvent::Stop) => {
+                debug!("NESEvent: Stop");
+                self.nes_manager.stop_nes();
+                self.nes_state = NESState::Stopped;
+            }
+            NesmurEvent::NES(NESEvent::Pause) => {
+                debug!("NESEvent: Pause");
+                self.nes_state = NESState::Paused;
+            }
+            NesmurEvent::NES(NESEvent::Resume) => {
+                debug!("NESEvent: Resume");
+                self.nes_state = NESState::Running;
+            }
+            NesmurEvent::NES(NESEvent::Step) => {
+                debug!("NESEvent: Step");
+                self.nes_state = NESState::Stepping;
+            }
+
+            #[allow(unreachable_patterns)]
+            _ => warn!("Unhandled UserEvent: NesmurEvent::{:?}", event),
+        };
     }
 
     fn window_event(
@@ -334,6 +330,7 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
         if self.uninitialized {
             return;
         }
+
         match event {
             WindowEvent::RedrawRequested => {
                 unsafe {
@@ -341,12 +338,13 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
                     self.opengl().clear_color(0.5, 0.5, 0.5, 1.0);
                 };
 
-                let ui: &mut Ui = self.ui.redraw();
+                let ui: &mut Ui = self
+                    .ui
+                    .redraw(self.nes_manager.framerate, self.nes_manager.frametime);
 
                 self.winit_platform_mut().prepare_render(ui, self.window());
                 let imgui_draw_data: &DrawData = self.imgui_context_mut().render();
                 gl_error!(self.opengl());
-                // dbg!(self.textures());
 
                 self.imgui_renderer_mut()
                     .render(self.opengl(), self.textures(), imgui_draw_data)
@@ -357,15 +355,6 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
                     .swap_buffers(self.context())
                     .expect("Failed to swap framebuffers");
                 gl_error!(self.opengl());
-
-                unsafe {
-                    let gl_debug_log: Vec<glow::DebugMessageLogEntry> =
-                        self.opengl().get_debug_message_log(255);
-                    for debug_message in gl_debug_log {
-                        debug!("[====OpenGL====] {:?}", debug_message);
-                    }
-                }
-                // std::process::exit(0);
             }
 
             WindowEvent::KeyboardInput {
@@ -378,11 +367,10 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
                 ..
             } => {
                 trace!(
-                    "Received event: WindowEvent::KeyboardInput -> key_code: {:?}, state: {:?}",
+                    "KeyboardInput -> key_code: {:?}, state: {:?}",
                     key_code,
                     state
                 );
-                trace!("Finished event");
             }
 
             WindowEvent::Resized(new_size) => {
@@ -404,29 +392,45 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
             }
 
             WindowEvent::CloseRequested => {
-                trace!("Received event: WindowEvent::CloseRequested");
+                trace!("Window close was requested");
                 event_loop.exit();
-                trace!("Finished event");
             }
 
             event => {
-                // trace!("Received event: WindowEvent::{:?}", event);
                 let super_event: Event<()> = Event::WindowEvent { window_id, event };
-                // dbg!(self.imgui_context_mut());
                 self.winit_platform_mut().handle_event(
                     self.imgui_context_mut().io_mut(),
                     self.window(),
                     &super_event,
                 );
-                // trace!("Finished event");
             }
         }
+    }
+
+    fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
+        if self.uninitialized {
+            if cause == winit::event::StartCause::Init {
+                self.init(event_loop);
+            }
+            return;
+        }
+
+        self.nes_manager.handle_nes_messages();
+
+        let now: Instant = Instant::now();
+        self.imgui_context_mut()
+            .io_mut()
+            .update_delta_time(now.duration_since(self.last_ui_time));
+        self.last_ui_time = now;
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         if self.uninitialized {
             return;
         }
+
         self.winit_platform()
             .prepare_frame(self.imgui_context_mut().io_mut(), self.window())
             .unwrap();
@@ -434,10 +438,11 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        trace!("Received event: Exiting");
+        trace!("Exiting window loop...");
         if self.uninitialized {
-            panic!("Program is exiting before it was even initialized!");
+            panic!("Program exited before it was even initialized!");
         }
+
         self.imgui_renderer_mut().destroy(self.opengl());
     }
 }

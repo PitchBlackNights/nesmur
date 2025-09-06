@@ -144,13 +144,30 @@ impl NES {
     }
 
     pub fn run(&mut self) {
-        self.cpu.run_with_callback(|_| {});
+        self.run_with_callback(|_| {});
     }
 
     pub fn run_with_callback(&mut self, mut callback: impl FnMut(&mut CPU)) {
-        self.cpu.run_with_callback(|cpu: &mut CPU| {
-            callback(cpu);
-        });
+        loop {
+            self.cpu.pre_step();
+            callback(&mut self.cpu);
+            if self.cpu.running {
+                self.cpu.step();
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub fn step(&mut self, mut callback: impl FnMut(&mut CPU)) -> bool {
+        self.cpu.pre_step();
+        callback(&mut self.cpu);
+        if self.cpu.running {
+            self.cpu.step();
+            true
+        } else {
+            false
+        }
     }
 
     pub fn render_callback<F>(&self, callback: F)

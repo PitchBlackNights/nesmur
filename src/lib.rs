@@ -1,10 +1,14 @@
+use std::thread::{Builder, JoinHandle};
+
 pub mod cli_parser;
 pub mod setup;
 pub mod prelude {
     #[allow(unused_imports)]
     pub use log::{debug, error, info, trace, warn};
 }
+pub mod nes_manager;
 pub mod shared_ctx;
+pub mod theme;
 pub mod thread_com;
 pub mod ui;
 
@@ -33,6 +37,15 @@ pub enum NESEvent {
     Pause,
     Resume,
     Step,
+}
+
+pub fn new_named_thread<F, T>(name: &str, func: F) -> std::io::Result<JoinHandle<T>>
+where
+    F: FnOnce() -> T,
+    F: Send + 'static,
+    T: Send + 'static,
+{
+    Builder::new().name(name.to_string()).spawn(func)
 }
 
 #[macro_export]

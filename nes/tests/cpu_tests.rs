@@ -9,6 +9,11 @@ use std::io::{BufWriter, Write};
 
 #[test]
 fn nestest() {
+    const GOOD_NESTEST_LOG: &'static str =
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/logs/good-nestest.log");
+    const NESTEST_LOG: &'static str =
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/logs/nestest.log");
+
     let mut debug_log: String = String::new();
     let mut nes: NES = common::setup_nes("nestest.nes");
     nes.cpu.program_counter = 0xC000;
@@ -25,12 +30,12 @@ fn nestest() {
     let log_hash: String = format!("{:x}", md5::compute(&debug_log));
     let good_hash: String = format!(
         "{:x}",
-        md5::compute(std::fs::read_to_string("good-nestest.log").unwrap())
+        md5::compute(std::fs::read_to_string(GOOD_NESTEST_LOG).unwrap())
     );
 
     // Hardcoded hash is the hash of the current best cpu log
     if log_hash != good_hash && log_hash != "a9bc0c53220971c7d3ab15b228121d38" {
-        let mut log_file: BufWriter<File> = BufWriter::new(File::create("nestest.log").unwrap());
+        let mut log_file: BufWriter<File> = BufWriter::new(File::create(NESTEST_LOG).unwrap());
         write!(&mut log_file, "{}", &debug_log).unwrap();
         log_file.flush().unwrap();
         assert!(
