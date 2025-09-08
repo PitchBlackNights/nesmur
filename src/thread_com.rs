@@ -2,7 +2,9 @@ use crossbeam::channel::{
     self, Receiver, RecvTimeoutError, SendTimeoutError, Sender, TryRecvError, TrySendError,
 };
 use nes::ppu::renderer::RGB;
-use std::time::Duration;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub enum ThreadComError {
@@ -14,30 +16,52 @@ pub enum ThreadComError {
     Uninitialized,
 }
 
-#[derive(Debug)]
 pub enum ThreadMsg {
     NewFrame(Duration, Vec<RGB>),
     Stop,
 }
 
+#[derive(Debug)]
+pub struct ThreadMsgObj(&'static str, ThreadMsg);
+
+impl std::fmt::Debug for ThreadMsg {
+    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            ThreadMsg::NewFrame(frametime, pixels) => {
+                write!(
+                    out,
+                    "NewFrame({:.03}ms, [(u8, u8, u8); {}])",
+                    frametime.as_micros() as f64 / 1000.0,
+                    pixels.len()
+                )
+            }
+            ThreadMsg::Stop => write!(out, "Stop"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ThreadCom {
-    tx: Sender<ThreadMsg>,
-    rx: Receiver<ThreadMsg>,
+    tx: Sender<ThreadMsgObj>,
+    rx: Receiver<ThreadMsgObj>,
+    pending: Arc<Mutex<VecDeque<ThreadMsgObj>>>,
 }
 
 impl ThreadCom {
     pub fn new(channel_size: Option<usize>) -> Self {
-        let (tx, rx): (Sender<ThreadMsg>, Receiver<ThreadMsg>) = match channel_size {
-            Some(size) => channel::bounded::<ThreadMsg>(size),
-            None => channel::unbounded::<ThreadMsg>(),
+        let (tx, rx): (Sender<ThreadMsgObj>, Receiver<ThreadMsgObj>) = match channel_size {
+            Some(size) => channel::bounded::<ThreadMsgObj>(size),
+            None => channel::unbounded::<ThreadMsgObj>(),
         };
-
-        ThreadCom { tx, rx }
+        ThreadCom {
+            tx,
+            rx,
+            pending: Arc::new(Mutex::new(VecDeque::new())),
+        }
     }
 
-    pub fn send(&self, msg: ThreadMsg) -> Result<(), ThreadComError> {
-        match self.tx.try_send(msg) {
+    pub fn send(&self, destination: &'static str, msg: ThreadMsg) -> Result<(), ThreadComError> {
+        match self.tx.try_send(ThreadMsgObj(destination, msg)) {
             Ok(_) => Ok(()),
             Err(TrySendError::Full(_)) => Err(ThreadComError::Full),
             Err(TrySendError::Disconnected(_)) => Err(ThreadComError::Disconnected),
@@ -46,56 +70,164 @@ impl ThreadCom {
 
     pub fn await_send(
         &self,
+        destination: &'static str,
         msg: ThreadMsg,
         timeout_millis: Option<u64>,
     ) -> Result<(), ThreadComError> {
+        let message: ThreadMsgObj = ThreadMsgObj(destination, msg);
         match timeout_millis {
             Some(timeout_millis) => {
                 match self
                     .tx
-                    .send_timeout(msg, Duration::from_millis(timeout_millis))
+                    .send_timeout(message, Duration::from_millis(timeout_millis))
                 {
                     Ok(_) => Ok(()),
                     Err(SendTimeoutError::Timeout(_)) => Err(ThreadComError::Timeout),
                     Err(SendTimeoutError::Disconnected(_)) => Err(ThreadComError::Disconnected),
                 }
             }
-            None => match self.tx.send(msg) {
+            None => match self.tx.send(message) {
                 Ok(_) => Ok(()),
                 Err(_) => Err(ThreadComError::Disconnected),
             },
         }
     }
 
-    pub fn get_waiting_messages(&self) -> Vec<ThreadMsg> {
-        self.rx.try_iter().collect()
+    pub fn get_waiting_messages(&self, destination: &'static str) -> Vec<ThreadMsg> {
+        let mut messages: Vec<ThreadMsg> = Vec::new();
+        let mut pending = self.pending.lock().unwrap();
+
+        // First, drain matching messages from pending
+        let mut i = 0;
+        while i < pending.len() {
+            if pending[i].0 == destination {
+                messages.push(pending.remove(i).unwrap().1);
+            } else {
+                i += 1;
+            }
+        }
+
+        // Then, try to receive new messages from the channel
+        for msg_obj in self.rx.try_iter() {
+            if msg_obj.0 == destination {
+                messages.push(msg_obj.1);
+            } else {
+                pending.push_back(msg_obj);
+            }
+        }
+        messages
     }
 
-    pub fn get_message(&self) -> Result<ThreadMsg, ThreadComError> {
+    pub fn get_message(&self, destination: &'static str) -> Result<ThreadMsg, ThreadComError> {
+        let mut pending: MutexGuard<'_, VecDeque<ThreadMsgObj>> = self.pending.lock().unwrap();
+        // Check pending first
+        let mut i: usize = 0;
+        while i < pending.len() {
+            if pending[i].0 == destination {
+                return Ok(pending.remove(i).unwrap().1);
+            } else {
+                i += 1;
+            }
+        }
+
+        // Try to receive from channel
         match self.rx.try_recv() {
-            Ok(msg) => Ok(msg),
+            Ok(msg_obj) => {
+                if msg_obj.0 == destination {
+                    Ok(msg_obj.1)
+                } else {
+                    pending.push_back(msg_obj);
+                    Err(ThreadComError::Empty)
+                }
+            }
             Err(TryRecvError::Empty) => Err(ThreadComError::Empty),
             Err(TryRecvError::Disconnected) => Err(ThreadComError::Disconnected),
         }
     }
 
-    pub fn await_message(&self, timeout_millis: Option<u64>) -> Result<ThreadMsg, ThreadComError> {
+    pub fn await_message(
+        &self,
+        destination: &'static str,
+        timeout_millis: Option<u64>,
+    ) -> Result<ThreadMsg, ThreadComError> {
+        let mut pending: MutexGuard<'_, VecDeque<ThreadMsgObj>> = self.pending.lock().unwrap();
+        // Check pending first
+        let mut i = 0;
+        while i < pending.len() {
+            if pending[i].0 == destination {
+                return Ok(pending.remove(i).unwrap().1);
+            } else {
+                i += 1;
+            }
+        }
+        drop(pending); // Release lock before blocking
+
         match timeout_millis {
             Some(timeout_millis) => {
-                match self.rx.recv_timeout(Duration::from_millis(timeout_millis)) {
-                    Ok(msg) => Ok(msg),
-                    Err(RecvTimeoutError::Timeout) => Err(ThreadComError::Timeout),
-                    Err(RecvTimeoutError::Disconnected) => Err(ThreadComError::Disconnected),
+                let deadline: Instant = Instant::now() + Duration::from_millis(timeout_millis);
+                loop {
+                    let now: Instant = Instant::now();
+                    let remaining: Duration = if deadline > now {
+                        deadline - now
+                    } else {
+                        Duration::from_millis(0)
+                    };
+
+                    match self.rx.recv_timeout(remaining) {
+                        Ok(msg_obj) => {
+                            if msg_obj.0 == destination {
+                                return Ok(msg_obj.1);
+                            } else {
+                                let mut pending: MutexGuard<'_, VecDeque<ThreadMsgObj>> =
+                                    self.pending.lock().unwrap();
+                                pending.push_back(msg_obj);
+                                // Continue loop until timeout
+                            }
+                        }
+                        Err(RecvTimeoutError::Timeout) => return Err(ThreadComError::Timeout),
+                        Err(RecvTimeoutError::Disconnected) => {
+                            return Err(ThreadComError::Disconnected)
+                        }
+                    }
                 }
             }
-            None => match self.rx.recv() {
-                Ok(msg) => Ok(msg),
-                Err(_) => Err(ThreadComError::Dropped),
+            None => loop {
+                match self.rx.recv() {
+                    Ok(msg_obj) => {
+                        if msg_obj.0 == destination {
+                            return Ok(msg_obj.1);
+                        } else {
+                            let mut pending: MutexGuard<'_, VecDeque<ThreadMsgObj>> =
+                                self.pending.lock().unwrap();
+                            pending.push_back(msg_obj);
+                            // Continue loop
+                        }
+                    }
+                    Err(_) => return Err(ThreadComError::Dropped),
+                }
             },
         }
     }
 
-    pub fn is_rx_empty(&self) -> bool {
-        self.rx.is_empty()
+    pub fn is_rx_empty(&self, destination: &'static str) -> bool {
+        let pending: MutexGuard<'_, VecDeque<ThreadMsgObj>> = self.pending.lock().unwrap();
+        if pending
+            .iter()
+            .any(|msg_obj: &ThreadMsgObj| msg_obj.0 == destination)
+        {
+            return false;
+        }
+        drop(pending);
+
+        for msg_obj in self.rx.try_iter() {
+            let mut pending: MutexGuard<'_, VecDeque<ThreadMsgObj>> = self.pending.lock().unwrap();
+            if msg_obj.0 == destination {
+                pending.push_back(msg_obj);
+                return false;
+            } else {
+                pending.push_back(msg_obj);
+            }
+        }
+        true
     }
 }

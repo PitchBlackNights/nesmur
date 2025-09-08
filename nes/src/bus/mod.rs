@@ -18,7 +18,7 @@ pub fn set_quiet_log(value: bool) {
 #[macro_export]
 macro_rules! bus_trace {
     ($($arg:tt)+) => ({
-        (!$crate::bus::get_quiet_log()).then(|| {
+        (!$crate::bus::get_quiet_log() && $crate::DO_BUS_TRACE).then(|| {
             log::log!(log::Level::Trace, $($arg)+)
         });
     })

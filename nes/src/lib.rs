@@ -34,6 +34,7 @@ pub type RcRef<T> = Rc<RefCell<T>>;
 pub type BoxNESDevice = Box<dyn NESDevice>;
 pub type BoxMapper = Box<dyn Mapper>;
 
+pub const DO_BUS_TRACE: bool = false;
 pub const SCREEN_WIDTH: usize = 256;
 pub const SCREEN_HEIGHT: usize = 240;
 

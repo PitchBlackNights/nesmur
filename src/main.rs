@@ -413,8 +413,10 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
         if self.uninitialized {
             if cause == winit::event::StartCause::Init {
                 self.init(event_loop);
+                self.event_loop_proxy.send_event(NesmurEvent::NES(NESEvent::Start)).unwrap();
+            } else {
+                return;
             }
-            return;
         }
 
         self.nes_manager.handle_nes_messages();

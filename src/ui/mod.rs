@@ -4,7 +4,7 @@ use crate::{
     gl_error,
     shared_ctx::{app::SharedAppCtx, window::*},
     thread_com::{ThreadCom, ThreadComError, ThreadMsg},
-    NESEvent, NESState, NesmurEvent,
+    NESEvent, NESState, NesmurEvent, prelude::*,
 };
 use glow::HasContext;
 use glutin::{
@@ -14,8 +14,9 @@ use glutin::{
 use imgui::{ColorStackToken, Condition, StyleColor, StyleStackToken, StyleVar, Ui};
 use imgui_glow_renderer::Renderer;
 use imgui_winit_support::WinitPlatform;
-use nes::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use nes::{ppu::renderer::RGB, SCREEN_HEIGHT, SCREEN_WIDTH};
 use winit::{event_loop::EventLoopProxy, window::Window};
+use std::hash::BuildHasher;
 
 #[derive(Debug)]
 pub struct NesmurUI {
@@ -135,6 +136,7 @@ pub struct NESGameWindow {
     pub image_data: Vec<u8>,
     width: usize,
     height: usize,
+    prev_pixel_hash: u64,
 }
 
 impl NESGameWindow {
@@ -144,6 +146,25 @@ impl NESGameWindow {
             image_data: Vec::with_capacity(SCREEN_WIDTH * SCREEN_HEIGHT * 3),
             width: SCREEN_WIDTH,
             height: SCREEN_HEIGHT,
+            prev_pixel_hash: 0,
+        }
+    }
+
+    pub fn update(&mut self, pixels: &Vec<RGB>) {
+        if pixels.len() != self.width * self.height {
+            error!("NESGameWindow was not initialized with the same dimensions as the NES Pixel Buffer!");
+            return;
+        }
+
+        let new_hash: u64 = rustc_hash::FxBuildHasher.hash_one(pixels);
+        if new_hash != self.prev_pixel_hash {
+            self.prev_pixel_hash = new_hash;
+            for (index, color) in pixels.iter().enumerate() {
+                let idx: usize = index * 3;
+                self.image_data[idx] = color.0;
+                self.image_data[idx + 1] = color.1;
+                self.image_data[idx + 2] = color.2;
+            }
         }
     }
 

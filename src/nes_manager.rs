@@ -21,28 +21,24 @@ enum FrameSenderMsg {
 }
 
 struct FrameSender {
-    thread_handle: Option<JoinHandle<()>>,
+    thread_com: ThreadCom,
+    thread_handle: JoinHandle<()>,
+    tx: Sender<FrameSenderMsg>,
 }
 
 impl FrameSender {
-    pub fn new() -> Self {
-        FrameSender {
-            thread_handle: None,
-        }
-    }
-
-    pub fn start_frame_sender(&mut self, thread_com: &ThreadCom) -> Sender<FrameSenderMsg> {
+    pub fn new(thread_com: &ThreadCom) -> Self {
         let (tx, rx): (Sender<FrameSenderMsg>, Receiver<FrameSenderMsg>) =
             channel::bounded::<FrameSenderMsg>(4);
 
-        let thread_com: ThreadCom = thread_com.clone();
-        self.thread_handle = Some(new_named_thread("nes-render", move || loop {
+        let new_thread_com: ThreadCom = thread_com.clone();
+        let thread_handle = new_named_thread("nes-render", move || loop {
             let message: Result<FrameSenderMsg, RecvError> = rx.recv();
             match message {
                 Ok(FrameSenderMsg::Data(frametime, pixels)) => {
-                    trace!("New frame data to send");
+                    // trace!("New frame data to send");
                     let result: Result<(), ThreadComError> =
-                        thread_com.await_send(ThreadMsg::NewFrame(frametime, pixels), Some(32));
+                        new_thread_com.await_send("nes-handle", ThreadMsg::NewFrame(frametime, pixels), Some(32));
 
                     if let Err(err) = result {
                         error!("Failed to send ThreadMsg::NewFrame: {:?}", err);
@@ -59,17 +55,21 @@ impl FrameSender {
                 }
             };
         })
-        .unwrap());
+        .unwrap();
 
-        tx
+        FrameSender {
+            thread_com: thread_com.clone(),
+            thread_handle,
+            tx,
+        }
     }
 }
 
 impl Drop for FrameSender {
     fn drop(&mut self) {
         if thread::panicking() {
-            error!("FrameSender's parent thread is panicking! Destroying 'nes-render' thread...");
-            // DESTROY THREAD
+            error!("The '{}' thread is panicking! Destroying 'nes-render' thread...", thread::current().name().unwrap_or("<unnamed>"));
+            self.tx.send(FrameSenderMsg::Exit).expect("Failed to send Exit message to 'nes-render' thread!");
         }
     }
 }
@@ -79,7 +79,7 @@ pub struct NESManager {
     thread_com: ThreadCom,
     pub framerate: f32,
     pub frametime: f32,
-    frametimes: Vec<Duration>,
+    frametimes: Vec<f32>,
     frametimes_index: usize,
 }
 
@@ -104,10 +104,10 @@ impl NESManager {
         let thread_com: ThreadCom = self.thread_com.clone();
 
         self.nes_thread = Some(new_named_thread("nes", move || {
-            let mut frame_sender_obj: FrameSender = FrameSender::new();
-            let frame_sender: Sender<FrameSenderMsg> = frame_sender_obj.start_frame_sender(&thread_com);
+            let frame_sender_obj: FrameSender = FrameSender::new(&thread_com);
+            let frame_sender: Sender<FrameSenderMsg> = frame_sender_obj.tx.clone();
 
-            let rom_bytes: Vec<u8> = std::fs::read(concat!("CARGO_MANIFEST_DIR", "/smb.nes")).unwrap();
+            let rom_bytes: Vec<u8> = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/smb.nes")).unwrap();
             let rom: ROM = ROM::new(&rom_bytes).unwrap();
             let mut nes: NES = NES::new(rom);
             let mut last_frame: Instant = Instant::now();
@@ -129,11 +129,13 @@ impl NESManager {
             });
 
             'nes_loop: loop {
-                if !thread_com.is_rx_empty() {
-                    let messages: Vec<ThreadMsg> = thread_com.get_waiting_messages();
+                if !thread_com.is_rx_empty("nes") {
+                    let messages: Vec<ThreadMsg> = thread_com.get_waiting_messages("nes");
+                    debug!("New messages for NES to handle: {}", messages.len());
                     for message in messages.iter() {
                         match message {
                             ThreadMsg::Stop => {
+                                debug!("Stopping NES...");
                                 nes.cpu.running = false;
                                 break 'nes_loop;
                             },
@@ -160,38 +162,40 @@ impl NESManager {
             return;
         }
 
-        let thread_com: ThreadCom = self.thread_com.clone();
         debug!("Stopping NES...");
-
-        new_named_thread("nes-stop", move || {
-            match thread_com.await_send(ThreadMsg::Stop, None) {
-                Ok(_) => debug!("Sent STOP message to NES"),
-                Err(ThreadComError::Disconnected) => {
-                    panic!("ThreadCom channel was disconnected before the NES could be stopped!")
-                }
-                _ => panic!("This shouldn't happen!"),
-            };
-        })
-        .unwrap();
+        match self.thread_com.await_send("nes", ThreadMsg::Stop, None) {
+            Ok(_) => debug!("Sent STOP message to NES"),
+            Err(ThreadComError::Disconnected) => {
+                panic!("ThreadCom channel was disconnected before the NES could be stopped!")
+            }
+            _ => panic!("This shouldn't happen!"),
+        };
 
         if let Some(handle) = self.nes_thread.take() {
             handle.join().unwrap();
+            self.nes_thread = None;
         }
     }
 
     pub fn handle_nes_messages(&mut self) {
-        if self.nes_thread.is_none() || self.thread_com.is_rx_empty() {
+        if self.nes_thread.is_none() || self.thread_com.is_rx_empty("nes-handle") {
             return;
         }
 
-        let messages: Vec<ThreadMsg> = self.thread_com.get_waiting_messages();
+        let messages: Vec<ThreadMsg> = self.thread_com.get_waiting_messages("nes-handle");
         for message in messages.iter() {
             match message {
                 ThreadMsg::NewFrame(frametime, _) => {
-                    debug!("New frame data received");
-                    self.frametimes[self.frametimes_index] = *frametime;
+                    // debug!("New frame data received");
+
+                    let frametime: f32 = ((*frametime).as_micros() as f64 / 1000.0) as f32;
+                    if self.frametimes.len() != self.frametimes.capacity() {
+                        self.frametimes.push(frametime);
+                    } else {
+                        self.frametimes[self.frametimes_index] = frametime;
+                    }
                     self.frametimes_index = (self.frametimes_index + 1) % self.frametimes.capacity();
-                    self.frametime = (self.frametimes.iter().map(|t| t.as_micros() as f64 / 1000.0).sum::<f64>() / self.frametimes.len() as f64) as f32;
+                    self.frametime = self.frametimes.iter().sum::<f32>() / self.frametimes.len() as f32;
                     self.framerate = 1000.0 / self.frametime;
                 }
                 _ => error!("NESManager received a '{:?}' message, which it cannot proccess. Ignoring message", message),
