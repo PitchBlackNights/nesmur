@@ -170,7 +170,7 @@ macro_rules! define_opcodes {
         }
 
         pub static OPCODES: LazyLock<HashMap<u8, OpCode>> = LazyLock::new(|| {
-            trace!("Building OPCODES hashmap...");
+            // trace!("Building OPCODES hashmap...");
             let mut map = HashMap::new();
             $(
                 let instruction: Instruction = Instruction::$instr;
@@ -182,7 +182,7 @@ macro_rules! define_opcodes {
                     );
                 )+
             )+
-            trace!("Finished building OPCODES hashmap");
+            // trace!("Finished building OPCODES hashmap");
             map
         });
     };

@@ -1,22 +1,19 @@
-pub mod frame;
-
 use crate::{
     gl_error,
+    prelude::*,
     shared_ctx::{app::SharedAppCtx, window::*},
-    thread_com::{ThreadCom, ThreadComError, ThreadMsg},
-    NESEvent, NESState, NesmurEvent, prelude::*,
+    NESEvent, NESState, NesmurEvent,
 };
 use glow::HasContext;
 use glutin::{
     context::PossiblyCurrentContext,
     surface::{Surface, WindowSurface},
 };
-use imgui::{ColorStackToken, Condition, StyleColor, StyleStackToken, StyleVar, Ui};
+use imgui::{Condition, StyleStackToken, StyleVar, Ui};
 use imgui_glow_renderer::Renderer;
 use imgui_winit_support::WinitPlatform;
 use nes::{ppu::renderer::RGB, SCREEN_HEIGHT, SCREEN_WIDTH};
 use winit::{event_loop::EventLoopProxy, window::Window};
-use std::hash::BuildHasher;
 
 #[derive(Debug)]
 pub struct NesmurUI {
@@ -128,15 +125,21 @@ impl NesmurUI {
                 };
             });
     }
+
+    pub fn update_nes_frame(&mut self, pixels: &[RGB]) {
+        let opengl_ptr: *const glow::Context = self.opengl() as *const glow::Context;
+        let opengl_ref: &glow::Context = unsafe { &*opengl_ptr };
+        self.nes_game_window.update(pixels, opengl_ref);
+    }
 }
 
 #[derive(Debug)]
 pub struct NESGameWindow {
     pub generated_texture: Option<imgui::TextureId>,
     pub image_data: Vec<u8>,
+    opengl_texture: Option<glow::NativeTexture>,
     width: usize,
     height: usize,
-    prev_pixel_hash: u64,
 }
 
 impl NESGameWindow {
@@ -144,26 +147,41 @@ impl NESGameWindow {
         Self {
             generated_texture: None,
             image_data: Vec::with_capacity(SCREEN_WIDTH * SCREEN_HEIGHT * 3),
+            opengl_texture: None,
             width: SCREEN_WIDTH,
             height: SCREEN_HEIGHT,
-            prev_pixel_hash: 0,
         }
     }
 
-    pub fn update(&mut self, pixels: &Vec<RGB>) {
+    pub fn update(&mut self, pixels: &[RGB], opengl: &glow::Context) {
         if pixels.len() != self.width * self.height {
             error!("NESGameWindow was not initialized with the same dimensions as the NES Pixel Buffer!");
             return;
         }
 
-        let new_hash: u64 = rustc_hash::FxBuildHasher.hash_one(pixels);
-        if new_hash != self.prev_pixel_hash {
-            self.prev_pixel_hash = new_hash;
-            for (index, color) in pixels.iter().enumerate() {
-                let idx: usize = index * 3;
-                self.image_data[idx] = color.0;
-                self.image_data[idx + 1] = color.1;
-                self.image_data[idx + 2] = color.2;
+        for (index, color) in pixels.iter().enumerate() {
+            let idx: usize = index * 3;
+            self.image_data[idx] = color.0;
+            self.image_data[idx + 1] = color.1;
+            self.image_data[idx + 2] = color.2;
+        }
+
+        if let Some(texture) = self.opengl_texture {
+            unsafe {
+                opengl.bind_texture(glow::TEXTURE_2D, Some(texture));
+                gl_error!(opengl);
+                opengl.tex_sub_image_2d(
+                    glow::TEXTURE_2D,
+                    0,
+                    0,
+                    0,
+                    self.width as i32,
+                    self.height as i32,
+                    glow::RGB,
+                    glow::UNSIGNED_BYTE,
+                    glow::PixelUnpackData::Slice(&self.image_data),
+                );
+                gl_error!(opengl);
             }
         }
     }
@@ -205,7 +223,7 @@ impl NESGameWindow {
             opengl.tex_image_2d(
                 glow::TEXTURE_2D,
                 0,
-                glow::RGB as i32,
+                glow::SRGB8 as i32,
                 self.width as i32,
                 self.height as i32,
                 0,
@@ -217,6 +235,7 @@ impl NESGameWindow {
         }
 
         self.generated_texture = Some(textures.insert(opengl_texture));
+        self.opengl_texture = Some(opengl_texture);
     }
 
     fn show(&self, ui: &imgui::Ui) {

@@ -1,5 +1,7 @@
 use std::thread::{Builder, JoinHandle};
 
+use nes::ppu::renderer::RGB;
+
 pub mod cli_parser;
 pub mod setup;
 pub mod prelude {
@@ -30,13 +32,28 @@ pub enum NesmurEvent {
     NES(NESEvent),
 }
 
-#[derive(Debug)]
 pub enum NESEvent {
     Start,
     Stop,
     Pause,
     Resume,
     Step,
+    NewFrame(Vec<RGB>),
+}
+
+impl std::fmt::Debug for NESEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            NESEvent::NewFrame(pixels) => {
+                write!(f, "NewFrame([RGB(u8, u8, u8); {}])", pixels.len())
+            }
+            NESEvent::Start => write!(f, "Start"),
+            NESEvent::Stop => write!(f, "Stop"),
+            NESEvent::Pause => write!(f, "Pause"),
+            NESEvent::Resume => write!(f, "Resume"),
+            NESEvent::Step => write!(f, "Step"),
+        }
+    }
 }
 
 pub fn new_named_thread<F, T>(name: &str, func: F) -> std::io::Result<JoinHandle<T>>

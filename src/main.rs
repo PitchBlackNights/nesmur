@@ -22,7 +22,6 @@ use nesmur::{
     prelude::*,
     setup,
     shared_ctx::{app::*, window::*},
-    thread_com::{ThreadCom, ThreadComError, ThreadMsg},
     ui::NesmurUI,
     NESEvent, NESState, NesmurEvent, INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH,
 };
@@ -31,8 +30,8 @@ use std::{num::NonZeroU32, time::Instant};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{self, Event, KeyEvent, WindowEvent},
-    event_loop::{self, ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
+    event::{Event, KeyEvent, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
     keyboard::PhysicalKey,
     window::{Window, WindowAttributes, WindowId},
 };
@@ -100,8 +99,8 @@ impl Nesmur {
     fn new(event_loop_proxy: EventLoopProxy<NesmurEvent>) -> Self {
         Nesmur {
             uninitialized: true,
-            event_loop_proxy,
-            nes_manager: NESManager::new(),
+            event_loop_proxy: event_loop_proxy.clone(),
+            nes_manager: NESManager::new(&event_loop_proxy),
             nes_state: NESState::Stopped,
             ui: NesmurUI::new(),
             last_ui_time: Instant::now(),
@@ -241,6 +240,7 @@ impl Nesmur {
                     );
                 },
             );
+
             // Tells OpenGL to automatically convert the framebuffer in sRGB space after the fragment shader
             opengl.enable(glow::FRAMEBUFFER_SRGB);
             gl_error!(opengl);
@@ -298,22 +298,31 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
                 self.nes_manager.start_nes();
                 self.nes_state = NESState::Running;
             }
+
             NesmurEvent::NES(NESEvent::Stop) => {
                 debug!("NESEvent: Stop");
                 self.nes_manager.stop_nes();
                 self.nes_state = NESState::Stopped;
             }
+
             NesmurEvent::NES(NESEvent::Pause) => {
                 debug!("NESEvent: Pause");
                 self.nes_state = NESState::Paused;
             }
+
             NesmurEvent::NES(NESEvent::Resume) => {
                 debug!("NESEvent: Resume");
                 self.nes_state = NESState::Running;
             }
+
             NesmurEvent::NES(NESEvent::Step) => {
                 debug!("NESEvent: Step");
                 self.nes_state = NESState::Stepping;
+            }
+
+            NesmurEvent::NES(NESEvent::NewFrame(pixels)) => {
+                // debug!("Got new frame data!");
+                self.ui.update_nes_frame(&pixels);
             }
 
             #[allow(unreachable_patterns)]
@@ -413,7 +422,9 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
         if self.uninitialized {
             if cause == winit::event::StartCause::Init {
                 self.init(event_loop);
-                self.event_loop_proxy.send_event(NesmurEvent::NES(NESEvent::Start)).unwrap();
+                self.event_loop_proxy
+                    .send_event(NesmurEvent::NES(NESEvent::Start))
+                    .unwrap();
             } else {
                 return;
             }

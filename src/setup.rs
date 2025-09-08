@@ -77,7 +77,14 @@ fn init_logger(verbose_level: u8) {
                     record.args()
                 )
             } else {
-                format!("[{}] [{}/{}] [{}]: {}", timestamp, target, level, thread_name, record.args())
+                format!(
+                    "[{}] [{}/{}] [{}]: {}",
+                    timestamp,
+                    target,
+                    level,
+                    thread_name,
+                    record.args()
+                )
             };
 
             // Apply severity color to the whole log line

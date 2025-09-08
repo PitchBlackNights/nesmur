@@ -2,6 +2,7 @@ use crate::{
     new_named_thread,
     prelude::*,
     thread_com::{ThreadCom, ThreadComError, ThreadMsg},
+    NESEvent, NesmurEvent,
 };
 use crossbeam::channel::{self, Receiver, RecvError, Sender, TrySendError};
 use nes::{
@@ -14,6 +15,7 @@ use std::{
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
+use winit::event_loop::EventLoopProxy;
 
 enum FrameSenderMsg {
     Data(Duration, Vec<RGB>),
@@ -21,9 +23,8 @@ enum FrameSenderMsg {
 }
 
 struct FrameSender {
-    thread_com: ThreadCom,
-    thread_handle: JoinHandle<()>,
-    tx: Sender<FrameSenderMsg>,
+    thread_handle: Option<JoinHandle<()>>,
+    pub tx: Sender<FrameSenderMsg>,
 }
 
 impl FrameSender {
@@ -32,13 +33,16 @@ impl FrameSender {
             channel::bounded::<FrameSenderMsg>(4);
 
         let new_thread_com: ThreadCom = thread_com.clone();
-        let thread_handle = new_named_thread("nes-render", move || loop {
+        let thread_handle: JoinHandle<()> = new_named_thread("nes-render", move || loop {
             let message: Result<FrameSenderMsg, RecvError> = rx.recv();
             match message {
                 Ok(FrameSenderMsg::Data(frametime, pixels)) => {
                     // trace!("New frame data to send");
-                    let result: Result<(), ThreadComError> =
-                        new_thread_com.await_send("nes-handle", ThreadMsg::NewFrame(frametime, pixels), Some(32));
+                    let result: Result<(), ThreadComError> = new_thread_com.await_send(
+                        "nes-handle",
+                        ThreadMsg::NewFrame(frametime, pixels),
+                        Some(32),
+                    );
 
                     if let Err(err) = result {
                         error!("Failed to send ThreadMsg::NewFrame: {:?}", err);
@@ -58,8 +62,7 @@ impl FrameSender {
         .unwrap();
 
         FrameSender {
-            thread_com: thread_com.clone(),
-            thread_handle,
+            thread_handle: Some(thread_handle),
             tx,
         }
     }
@@ -68,8 +71,14 @@ impl FrameSender {
 impl Drop for FrameSender {
     fn drop(&mut self) {
         if thread::panicking() {
-            error!("The '{}' thread is panicking! Destroying 'nes-render' thread...", thread::current().name().unwrap_or("<unnamed>"));
-            self.tx.send(FrameSenderMsg::Exit).expect("Failed to send Exit message to 'nes-render' thread!");
+            error!(
+                "The '{}' thread is panicking! Destroying 'nes-render' thread...",
+                thread::current().name().unwrap_or("<unnamed>")
+            );
+            self.tx
+                .send(FrameSenderMsg::Exit)
+                .expect("Failed to send Exit message to 'nes-render' thread!");
+            self.thread_handle.take().unwrap().join().unwrap();
         }
     }
 }
@@ -77,6 +86,7 @@ impl Drop for FrameSender {
 pub struct NESManager {
     nes_thread: Option<JoinHandle<()>>,
     thread_com: ThreadCom,
+    event_loop_proxy: EventLoopProxy<NesmurEvent>,
     pub framerate: f32,
     pub frametime: f32,
     frametimes: Vec<f32>,
@@ -84,10 +94,11 @@ pub struct NESManager {
 }
 
 impl NESManager {
-    pub fn new() -> Self {
+    pub fn new(event_loop_proxy: &EventLoopProxy<NesmurEvent>) -> Self {
         NESManager {
             nes_thread: None,
             thread_com: ThreadCom::new(Some(10)),
+            event_loop_proxy: event_loop_proxy.clone(),
             framerate: 0.0,
             frametime: 0.0,
             frametimes: Vec::with_capacity(120),
@@ -185,8 +196,9 @@ impl NESManager {
         let messages: Vec<ThreadMsg> = self.thread_com.get_waiting_messages("nes-handle");
         for message in messages.iter() {
             match message {
-                ThreadMsg::NewFrame(frametime, _) => {
+                ThreadMsg::NewFrame(frametime, pixels) => {
                     // debug!("New frame data received");
+                    self.event_loop_proxy.send_event(NesmurEvent::NES(NESEvent::NewFrame(pixels.to_owned()))).unwrap();
 
                     let frametime: f32 = ((*frametime).as_micros() as f64 / 1000.0) as f32;
                     if self.frametimes.len() != self.frametimes.capacity() {

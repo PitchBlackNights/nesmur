@@ -25,17 +25,17 @@ pub enum ThreadMsg {
 pub struct ThreadMsgObj(&'static str, ThreadMsg);
 
 impl std::fmt::Debug for ThreadMsg {
-    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             ThreadMsg::NewFrame(frametime, pixels) => {
                 write!(
-                    out,
-                    "NewFrame({:.03}ms, [(u8, u8, u8); {}])",
+                    f,
+                    "NewFrame({:.03}ms, [RGB(u8, u8, u8); {}])",
                     frametime.as_micros() as f64 / 1000.0,
                     pixels.len()
                 )
             }
-            ThreadMsg::Stop => write!(out, "Stop"),
+            ThreadMsg::Stop => write!(f, "Stop"),
         }
     }
 }
