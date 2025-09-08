@@ -102,8 +102,8 @@ impl CPU {
     }
 
     pub fn pre_step(&mut self) {
-        self.running = true;
         if self.fresh {
+            self.running = true;
             self.bus_mut().tick(7);
             self.fresh = false;
         }

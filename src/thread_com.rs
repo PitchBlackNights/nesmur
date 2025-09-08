@@ -33,13 +33,13 @@ impl std::fmt::Debug for ThreadMsg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             ThreadMsg::NewFrame(frametime, pixels) => {
-                        write!(
-                            f,
-                            "NewFrame({:.03}ms, [RGB(u8, u8, u8); {}])",
-                            frametime.as_micros() as f64 / 1000.0,
-                            pixels.len()
-                        )
-                    }
+                write!(
+                    f,
+                    "NewFrame({:.03}ms, [RGB(u8, u8, u8); {}])",
+                    frametime.as_micros() as f64 / 1000.0,
+                    pixels.len()
+                )
+            }
             ThreadMsg::Stop => write!(f, "Stop"),
             ThreadMsg::Pause => write!(f, "Pause"),
             ThreadMsg::Resume => write!(f, "Resume"),

@@ -11,7 +11,9 @@ use nes::{
     RcRef, NES,
 };
 use std::{
-    cell::Ref, thread::{self, JoinHandle}, time::{Duration, Instant}
+    cell::Ref,
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
 };
 use winit::event_loop::EventLoopProxy;
 
@@ -71,7 +73,8 @@ impl Drop for FrameSender {
                 "The '{}' thread is panicking! Destroying 'nes-render' thread...",
                 thread::current().name().unwrap_or("<unnamed>")
             );
-            let result: Result<(), channel::SendError<FrameSenderMsg>> = self.tx.send(FrameSenderMsg::Exit);
+            let result: Result<(), channel::SendError<FrameSenderMsg>> =
+                self.tx.send(FrameSenderMsg::Exit);
             if let Err(err) = result {
                 panic!("Failed to send Exit message to 'nes-render' thread! FrameSender's thread channel was disconnected!");
             }
@@ -99,7 +102,8 @@ impl NESMessenger {
         let thread_com: ThreadCom = thread_com.clone();
         let thread_handle: JoinHandle<()> = new_named_thread("nes-messenger", move || {
             fn send_msg(thread_com: &ThreadCom, msg: ThreadMsg) {
-                let result: Result<(), ThreadComError> = thread_com.await_send("nes", msg.clone(), None);
+                let result: Result<(), ThreadComError> =
+                    thread_com.await_send("nes", msg.clone(), None);
                 if let Err(err) = result {
                     error!("Failed to send ThreadMsg::{:?}: {:?}", msg, err);
                 }
@@ -108,21 +112,20 @@ impl NESMessenger {
             loop {
                 let message: Result<NESMsg, RecvError> = rx.recv();
                 match message {
-                    Ok(message) => {
-                        match message {
-                            NESMsg::Pause => send_msg(&thread_com, ThreadMsg::Pause),
-                            NESMsg::Resume => send_msg(&thread_com, ThreadMsg::Resume),
-                            NESMsg::Step(steps) => send_msg(&thread_com, ThreadMsg::Step(steps)),
-                            NESMsg::Exit => {
-                                trace!("Terminating thread...");
-                                break;
-                            },
+                    Ok(message) => match message {
+                        NESMsg::Pause => send_msg(&thread_com, ThreadMsg::Pause),
+                        NESMsg::Resume => send_msg(&thread_com, ThreadMsg::Resume),
+                        NESMsg::Step(steps) => send_msg(&thread_com, ThreadMsg::Step(steps)),
+                        NESMsg::Exit => {
+                            trace!("Terminating thread...");
+                            break;
                         }
-                    }
+                    },
                     Err(_) => error!("NESMessenger Channel was dropped!"),
                 }
             }
-        }).unwrap();
+        })
+        .unwrap();
 
         NESMessenger {
             thread_handle: Some(thread_handle),
@@ -332,9 +335,13 @@ impl NESManager {
 
         let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(NESMsg::Pause);
         match result {
-            Ok(_) => {},
-            Err(TrySendError::Full(_)) => warn!("NESMessenger TX channel was full when trying to send Pause message!"),
-            Err(TrySendError::Disconnected(_)) => error!("NESMessenger channel was disconnected when trying to send Pause message!"),
+            Ok(_) => {}
+            Err(TrySendError::Full(_)) => {
+                warn!("NESMessenger TX channel was full when trying to send Pause message!")
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                error!("NESMessenger channel was disconnected when trying to send Pause message!")
+            }
         };
     }
 
@@ -344,12 +351,15 @@ impl NESManager {
         }
         let nes_messenger: &NESMessenger = self.nes_messenger.as_ref().unwrap();
 
-
         let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(NESMsg::Resume);
         match result {
-            Ok(_) => {},
-            Err(TrySendError::Full(_)) => warn!("NESMessenger TX channel was full when trying to send Resume message!"),
-            Err(TrySendError::Disconnected(_)) => error!("NESMessenger channel was disconnected when trying to send Resume message!"),
+            Ok(_) => {}
+            Err(TrySendError::Full(_)) => {
+                warn!("NESMessenger TX channel was full when trying to send Resume message!")
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                error!("NESMessenger channel was disconnected when trying to send Resume message!")
+            }
         };
     }
 
@@ -361,9 +371,15 @@ impl NESManager {
 
         let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(NESMsg::Step(1));
         match result {
-            Ok(_) => {},
-            Err(TrySendError::Full(_)) => warn!("NESMessenger TX channel was full when trying to send Step({}) message!", steps),
-            Err(TrySendError::Disconnected(_)) => error!("NESMessenger channel was disconnected when trying to send Step({}) message!", steps),
+            Ok(_) => {}
+            Err(TrySendError::Full(_)) => warn!(
+                "NESMessenger TX channel was full when trying to send Step({}) message!",
+                steps
+            ),
+            Err(TrySendError::Disconnected(_)) => error!(
+                "NESMessenger channel was disconnected when trying to send Step({}) message!",
+                steps
+            ),
         };
     }
 }
