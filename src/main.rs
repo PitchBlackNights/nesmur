@@ -294,35 +294,43 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
 
         match event {
             NesmurEvent::NES(NESEvent::Start) => {
-                debug!("NESEvent: Start");
+                // debug!("NESEvent: Start");
                 self.nes_manager.start_nes();
                 self.nes_state = NESState::Running;
             }
 
             NesmurEvent::NES(NESEvent::Stop) => {
-                debug!("NESEvent: Stop");
+                // debug!("NESEvent: Stop");
                 self.nes_manager.stop_nes();
                 self.nes_state = NESState::Stopped;
             }
 
             NesmurEvent::NES(NESEvent::Pause) => {
-                debug!("NESEvent: Pause");
+                // debug!("NESEvent: Pause");
                 self.nes_state = NESState::Paused;
+                self.nes_manager.pause();
             }
 
             NesmurEvent::NES(NESEvent::Resume) => {
-                debug!("NESEvent: Resume");
+                // debug!("NESEvent: Resume");
                 self.nes_state = NESState::Running;
+                self.nes_manager.resume();
             }
 
             NesmurEvent::NES(NESEvent::Step) => {
-                debug!("NESEvent: Step");
+                // debug!("NESEvent: Step");
                 self.nes_state = NESState::Stepping;
+                self.nes_manager.step(1);
             }
 
             NesmurEvent::NES(NESEvent::NewFrame(pixels)) => {
                 // debug!("Got new frame data!");
                 self.ui.update_nes_frame(&pixels);
+            }
+
+            NesmurEvent::NES(NESEvent::SteppingFinished) => {
+                // debug!("NESEvent: SteppingFinished");
+                self.nes_state = NESState::Paused;
             }
 
             #[allow(unreachable_patterns)]
@@ -402,6 +410,7 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
 
             WindowEvent::CloseRequested => {
                 trace!("Window close was requested");
+                self.nes_manager.stop_nes();
                 event_loop.exit();
             }
 
@@ -422,9 +431,9 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
         if self.uninitialized {
             if cause == winit::event::StartCause::Init {
                 self.init(event_loop);
-                self.event_loop_proxy
-                    .send_event(NesmurEvent::NES(NESEvent::Start))
-                    .unwrap();
+                // self.event_loop_proxy
+                //     .send_event(NesmurEvent::NES(NESEvent::Start))
+                //     .unwrap();
             } else {
                 return;
             }

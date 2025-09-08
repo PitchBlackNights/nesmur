@@ -39,6 +39,7 @@ pub enum NESEvent {
     Resume,
     Step,
     NewFrame(Vec<RGB>),
+    SteppingFinished,
 }
 
 impl std::fmt::Debug for NESEvent {
@@ -52,6 +53,7 @@ impl std::fmt::Debug for NESEvent {
             NESEvent::Pause => write!(f, "Pause"),
             NESEvent::Resume => write!(f, "Resume"),
             NESEvent::Step => write!(f, "Step"),
+            NESEvent::SteppingFinished => write!(f, "SteppingFinished"),
         }
     }
 }
