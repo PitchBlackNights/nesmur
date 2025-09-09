@@ -6,10 +6,10 @@ use crate::{
 };
 use crossbeam::channel::{self, Receiver, RecvError, Sender, TrySendError};
 use nes::{
-    cartridge::ROM, input_device::{NESDevice, NESDeviceButton, NESDeviceType}, ppu::renderer::{Renderer, RGB}, RcRef, NES, tools::NESAccess,
+    cartridge::ROM, input_device::{NESDeviceButton, NESDeviceType}, ppu::renderer::{Renderer, RGB}, RcRef, NES, tools::NESAccess,
 };
 use std::{
-    any::Any, cell::Ref, thread::{self, JoinHandle}, time::{Duration, Instant}
+    cell::Ref, thread::{self, JoinHandle}, time::{Duration, Instant}
 };
 use winit::event_loop::EventLoopProxy;
 
@@ -213,7 +213,7 @@ impl NESManager {
             let frame_sender_obj: FrameSender = FrameSender::new(&thread_com);
             let frame_sender: Sender<FrameSenderMsg> = frame_sender_obj.tx.clone();
 
-            let rom_bytes: Vec<u8> = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/smb.nes")).unwrap();
+            let rom_bytes: Vec<u8> = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/AccuracyCoin.nes")).unwrap();
             let rom: ROM = ROM::new(&rom_bytes).unwrap();
             let mut nes: NES = NES::new(rom);
             let mut last_frame: Instant = Instant::now();
@@ -318,14 +318,18 @@ impl NESManager {
             }
             _ => panic!("This shouldn't happen!"),
         };
-        self.nes_thread.take().unwrap().join().unwrap();
+        if let Err(err) = self.nes_thread.take().unwrap().join() {
+            error!("The 'nes' thread panicked: {:?}", err);
+        }
 
         let mut nes_messenger: NESMessenger = self.nes_messenger.take().unwrap();
         let result: Result<(), channel::SendError<NESMsg>> = nes_messenger.tx.send(NESMsg::Exit);
         if let Err(_) = result {
             panic!("Failed to send Exit message to 'nes-messenger' thread! NESMessenger's thread channel was disconnected!");
         }
-        nes_messenger.thread_handle.take().unwrap().join().unwrap();
+        if let Err(err) = nes_messenger.thread_handle.take().unwrap().join() {
+            error!("The 'nes-messenger' thread panicked: {:?}", err);
+        }
     }
 
     pub fn handle_nes_messages(&mut self) {

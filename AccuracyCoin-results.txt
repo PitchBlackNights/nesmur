@@ -1,0 +1,49 @@
+Results as of 9/9/25
+
+Passed: 76
+
+Crashed: 1
+ - The B Flag
+
+Failed: 48
+ - Dummy Read Cycles: 1
+ - Dummy Write Cycles: 1
+ - Open Bus: 1
+ - Unofficial Instructions: B
+ - $93 SHA Indirect,Y: F
+ - $9F SHA Absolute,Y: F
+ - $9B SHS Absolute,Y: F
+ - $9C SHY Absolute,X: 1
+ - $9E SHX Absolute,Y: 1
+ - Interrupt Flag Latency: 1
+ - NMI Overlap BRK: 1
+ - NMI Overlap IRQ: 1
+ - DMA + Open Bus: 1
+ - DMA + $2007 Read: 2
+ - DMA + $2007 Write: 1
+ - DMA + $4015 Read: 1
+ - DMA + $4016 Read: 1
+ - APU Register Activation: 1
+ - DMC DMA Bus Conflicts: 2
+ - DMC DMA + OAM DMA: 1
+ - Explicit DMA Abort: 1
+ - Implicit DMA Abort: 1
+ - ALL APU STUFF DUHHH (8)
+ - PPU Register Open Bus: 1
+ - PPU Read Buffer: 7
+ - Palette RAM Quirks: 1
+ - VBlank Beginning: 1
+ - NMI Control: 8
+ - NMI Timing: 1
+ - NMI Suppression: 1
+ - NMI at VBlank End: 1
+ - NMI Disabled at VBlank: 1
+ - Sprite Overflow Behavior: 3
+ - Arbitrary Sprite Zero: 2
+ - Misaligned OAM Behavior: 1
+ - Address $2004 Behavior: 1
+ - OAM Corruption: 2
+ - RWM $2007 Extra Write
+ - Instruction Timing: 1
+ - Implied Dummy Reads: 2
+ - JSR Edge Cases: 2

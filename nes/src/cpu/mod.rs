@@ -572,7 +572,7 @@ impl CPU {
             KIL => {
                 #[cfg(not(test))]
                 {
-                    panic!("The `KIL` instruction was executed!");
+                    error!("The `KIL` instruction was executed!");
                 }
                 #[cfg(test)]
                 {

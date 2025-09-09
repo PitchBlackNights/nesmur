@@ -251,7 +251,7 @@ impl PPU {
                 self.vram[self.mirror_vram_addr(addr) as usize] = value;
             }
             0x3000..=0x3EFF => {
-                unimplemented!("PPU Addr {:#06X} shouldn't be used in reality", addr)
+                error!("PPU Addr {:#06X} shouldn't be used in reality", addr)
             }
 
             // Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
@@ -286,7 +286,8 @@ impl PPU {
             0..=0x1FFF => self.memory().chr_mem[addr as usize],
             0x2000..=0x2FFF => self.vram[self.mirror_vram_addr(addr) as usize],
             0x3000..=0x3EFF => {
-                unimplemented!("PPU Addr {:#06X} shouldn't be used in reality", addr)
+                error!("PPU Addr {:#06X} shouldn't be used in reality", addr);
+                0
             }
 
             // Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
