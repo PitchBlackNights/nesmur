@@ -18,8 +18,16 @@ bitflags! {
 }
 
 impl NESDeviceButton for JoypadButton {
+    fn box_clone(&self) -> Box<dyn NESDeviceButton> {
+        Box::new(self.clone())
+    }
+
     fn get_device_type(&self) -> NESDeviceType {
         NESDeviceType::Joypad
+    }
+
+    fn get_button_type_string(&self) -> &str {
+        "JoypadButton"
     }
 
     fn as_any(&self) -> &dyn Any {

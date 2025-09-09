@@ -57,9 +57,9 @@ impl Mapper000 {
 }
 
 impl Mapper for Mapper000 {
-    fn connect_input_device(&mut self, slot: u8, device: RcRef<BoxNESDevice>) {
-        assert!((1..=2).contains(&slot));
-        match slot {
+    fn connect_input_device(&mut self, port: u8, device: RcRef<BoxNESDevice>) {
+        assert!((1..=2).contains(&port));
+        match port {
             1 => self.device1 = Some(device),
             2 => self.device2 = Some(device),
             _ => panic!("This shouldn't happen!"),

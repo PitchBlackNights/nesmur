@@ -195,19 +195,19 @@ impl NES {
         });
     }
 
-    pub fn connect_input_device(&mut self, slot: u8, device_type: NESDeviceType) {
-        assert!((1..=2).contains(&slot));
+    pub fn connect_input_device(&mut self, port: u8, device_type: NESDeviceType) {
+        assert!((1..=2).contains(&port));
 
         let device: RcRef<BoxNESDevice> =
             Rc::new(RefCell::new(input_device::new_device(device_type)));
-        match slot {
+        match port {
             1 => self.device1 = Some(device),
             2 => self.device2 = Some(device),
             _ => panic!("This shouldn't happen!"),
         }
 
         self.mapper_mut()
-            .connect_input_device(slot, self.device1.clone().unwrap());
+            .connect_input_device(port, self.device1.clone().unwrap());
     }
 }
 

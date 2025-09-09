@@ -44,7 +44,7 @@ pub enum NESEvent {
 
 impl std::fmt::Debug for NESEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
+        match self {
             NESEvent::NewFrame(pixels) => {
                 write!(f, "NewFrame([RGB(u8, u8, u8); {}])", pixels.len())
             }

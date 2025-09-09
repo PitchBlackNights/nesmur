@@ -6,14 +6,10 @@ use crate::{
 };
 use crossbeam::channel::{self, Receiver, RecvError, Sender, TrySendError};
 use nes::{
-    cartridge::ROM,
-    ppu::renderer::{Renderer, RGB},
-    RcRef, NES,
+    cartridge::ROM, input_device::{NESDevice, NESDeviceButton, NESDeviceType}, ppu::renderer::{Renderer, RGB}, RcRef, NES, tools::NESAccess,
 };
 use std::{
-    cell::Ref,
-    thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    any::Any, cell::Ref, thread::{self, JoinHandle}, time::{Duration, Instant}
 };
 use winit::event_loop::EventLoopProxy;
 
@@ -75,7 +71,7 @@ impl Drop for FrameSender {
             );
             let result: Result<(), channel::SendError<FrameSenderMsg>> =
                 self.tx.send(FrameSenderMsg::Exit);
-            if let Err(err) = result {
+            if let Err(_) = result {
                 panic!("Failed to send Exit message to 'nes-render' thread! FrameSender's thread channel was disconnected!");
             }
             self.thread_handle.take().unwrap().join().unwrap();
@@ -88,6 +84,34 @@ enum NESMsg {
     Resume,
     Step(usize),
     Exit,
+    ConnectDevice(u8, NESDeviceType),
+    UpdateDeviceButton(u8, Box<dyn NESDeviceButton>, bool),
+}
+
+impl std::fmt::Debug for NESMsg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NESMsg::Pause => write!(f, "Pause"),
+            NESMsg::Resume => write!(f, "Resume"),
+            NESMsg::Step(steps) => write!(f, "Step({})", steps),
+            NESMsg::Exit => write!(f, "Exit"),
+            NESMsg::ConnectDevice(port, device_type) => write!(f, "ConnectDevice({}, {:?})", port, device_type),
+            NESMsg::UpdateDeviceButton(port, device_button, pressed) => write!(f, "DeviceButtonPress({}, {:?}, {})", port, device_button.get_button_type_string(), pressed),
+        }
+    }
+}
+
+impl Clone for NESMsg {
+    fn clone(&self) -> Self {
+        match self {
+            NESMsg::Pause => NESMsg::Pause,
+            NESMsg::Resume => NESMsg::Resume,
+            NESMsg::Step(steps) => NESMsg::Step(*steps),
+            NESMsg::Exit => NESMsg::Exit,
+            NESMsg::ConnectDevice(port, device_type) => NESMsg::ConnectDevice(*port, *device_type),
+            NESMsg::UpdateDeviceButton(port, device_button, pressed) => NESMsg::UpdateDeviceButton(*port, device_button.box_clone(), *pressed),
+        }
+    }
 }
 
 struct NESMessenger {
@@ -120,6 +144,8 @@ impl NESMessenger {
                             trace!("Terminating thread...");
                             break;
                         }
+                        NESMsg::ConnectDevice(port, device_type) => send_msg(&thread_com, ThreadMsg::ConnectDevice(port, device_type)),
+                        NESMsg::UpdateDeviceButton(port, device_button, pressed) => send_msg(&thread_com, ThreadMsg::UpdateDeviceButton(port, device_button, pressed)),
                     },
                     Err(_) => error!("NESMessenger Channel was dropped!"),
                 }
@@ -142,7 +168,7 @@ impl Drop for NESMessenger {
                 thread::current().name().unwrap_or("<unnamed>")
             );
             let result: Result<(), channel::SendError<NESMsg>> = self.tx.send(NESMsg::Exit);
-            if let Err(err) = result {
+            if let Err(_) = result {
                 panic!("Failed to send Exit message to 'nes-messenger' thread! NESMessenger's thread channel was disconnected!");
             }
             self.thread_handle.take().unwrap().join().unwrap();
@@ -221,24 +247,31 @@ impl NESManager {
                                 trace!("Stopped");
                                 nes.cpu.running = false;
                                 break 'nes_loop;
-                            },
-
+                            }
                             ThreadMsg::Pause => {
                                 trace!("Paused");
                                 paused = true;
                             }
-
                             ThreadMsg::Resume => {
                                 trace!("Resumed");
                                 paused = false;
                             }
-
                             ThreadMsg::Step(steps) => {
-                                trace!("Stepping {} steps", steps);
                                 stepping = true;
-                                steps_left = *steps;
+                                steps_left += steps;
+                                trace!("Stepping {}(+{}) steps", steps_left, steps);
                             }
-
+                            ThreadMsg::ConnectDevice(port, device_type) => {
+                                nes.connect_input_device(*port, *device_type);
+                                trace!("Connected {:?} to port {}", device_type, port);
+                            }
+                            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => {
+                                if *port == 2 && nes.device2.is_some() {
+                                    nes.device2_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
+                                } else if nes.device1.is_some() {
+                                    nes.device1_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
+                                }
+                            }
                             _ => error!("NES received a '{:?}' message, which it cannot proccess. Ignoring message", message),
                         };
                     }
@@ -289,7 +322,7 @@ impl NESManager {
 
         let mut nes_messenger: NESMessenger = self.nes_messenger.take().unwrap();
         let result: Result<(), channel::SendError<NESMsg>> = nes_messenger.tx.send(NESMsg::Exit);
-        if let Err(err) = result {
+        if let Err(_) = result {
             panic!("Failed to send Exit message to 'nes-messenger' thread! NESMessenger's thread channel was disconnected!");
         }
         nes_messenger.thread_handle.take().unwrap().join().unwrap();
@@ -327,59 +360,47 @@ impl NESManager {
         }
     }
 
-    pub fn pause(&mut self) {
+    fn send_nes_message(&self, msg: NESMsg) {
         if self.nes_thread.is_none() || self.nes_messenger.is_none() {
             return;
         }
-        let nes_messenger: &NESMessenger = self.nes_messenger.as_ref().unwrap();
 
-        let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(NESMsg::Pause);
+        let nes_messenger: &NESMessenger = self.nes_messenger.as_ref().unwrap();
+        let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(msg.clone());
         match result {
             Ok(_) => {}
             Err(TrySendError::Full(_)) => {
-                warn!("NESMessenger TX channel was full when trying to send Pause message!")
+                warn!(
+                    "NESMessenger TX channel was full when trying to send {:?} message!",
+                    msg
+                )
             }
             Err(TrySendError::Disconnected(_)) => {
-                error!("NESMessenger channel was disconnected when trying to send Pause message!")
+                error!(
+                    "NESMessenger channel was disconnected when trying to send {:?} message!",
+                    msg
+                )
             }
         };
     }
 
-    pub fn resume(&mut self) {
-        if self.nes_thread.is_none() || self.nes_messenger.is_none() {
-            return;
-        }
-        let nes_messenger: &NESMessenger = self.nes_messenger.as_ref().unwrap();
-
-        let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(NESMsg::Resume);
-        match result {
-            Ok(_) => {}
-            Err(TrySendError::Full(_)) => {
-                warn!("NESMessenger TX channel was full when trying to send Resume message!")
-            }
-            Err(TrySendError::Disconnected(_)) => {
-                error!("NESMessenger channel was disconnected when trying to send Resume message!")
-            }
-        };
+    pub fn pause(&self) {
+        self.send_nes_message(NESMsg::Pause);
     }
 
-    pub fn step(&mut self, steps: usize) {
-        if self.nes_thread.is_none() || self.nes_messenger.is_none() {
-            return;
-        }
-        let nes_messenger: &NESMessenger = self.nes_messenger.as_ref().unwrap();
+    pub fn resume(&self) {
+        self.send_nes_message(NESMsg::Resume);
+    }
 
-        let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(NESMsg::Step(1));
-        match result {
-            Ok(_) => {}
-            Err(TrySendError::Full(_)) => warn!(
-                "NESMessenger TX channel was full when trying to send Step({}) message!",
-                steps
-            ),
-            Err(TrySendError::Disconnected(_)) => error!(
-                "NESMessenger channel was disconnected when trying to send Step({}) message!",
-                steps
-            ),
-        };
+    pub fn step(&self, steps: usize) {
+        self.send_nes_message(NESMsg::Step(steps));
+    }
+
+    pub fn connect_device(&self, port: u8, device_type: NESDeviceType) {
+        self.send_nes_message(NESMsg::ConnectDevice(port, device_type));
+    }
+
+    pub fn update_device_button(&self, port: u8, device_button: Box<dyn NESDeviceButton>, pressed: bool) {
+        self.send_nes_message(NESMsg::UpdateDeviceButton(port, device_button, pressed));
     }
 }

@@ -1,6 +1,7 @@
 use crossbeam::channel::{
     self, Receiver, RecvTimeoutError, SendTimeoutError, Sender, TryRecvError, TrySendError,
 };
+use nes::input_device::{NESDeviceButton, NESDeviceType};
 use nes::ppu::renderer::RGB;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -16,7 +17,6 @@ pub enum ThreadComError {
     Uninitialized,
 }
 
-#[derive(Clone)]
 pub enum ThreadMsg {
     Pause,
     Resume,
@@ -24,14 +24,13 @@ pub enum ThreadMsg {
     NewFrame(Duration, Vec<RGB>),
     Stop,
     SteppingFinished,
+    ConnectDevice(u8, NESDeviceType),
+    UpdateDeviceButton(u8, Box<dyn NESDeviceButton>, bool),
 }
-
-#[derive(Debug)]
-pub struct ThreadMsgObj(&'static str, ThreadMsg);
 
 impl std::fmt::Debug for ThreadMsg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
+        match self {
             ThreadMsg::NewFrame(frametime, pixels) => {
                 write!(
                     f,
@@ -45,9 +44,29 @@ impl std::fmt::Debug for ThreadMsg {
             ThreadMsg::Resume => write!(f, "Resume"),
             ThreadMsg::Step(steps) => write!(f, "Step({})", steps),
             ThreadMsg::SteppingFinished => write!(f, "SteppingFinished"),
+            ThreadMsg::ConnectDevice(port, device_type) => write!(f, "ConnectDevice({}, {:?})", port, device_type),
+            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => write!(f, "DeviceButtonPress({}, {:?}, {})", port, device_button.get_button_type_string(), pressed),
         }
     }
 }
+
+impl Clone for ThreadMsg {
+    fn clone(&self) -> Self {
+        match self {
+            ThreadMsg::Pause => ThreadMsg::Pause,
+            ThreadMsg::Resume => ThreadMsg::Resume,
+            ThreadMsg::Step(steps) => ThreadMsg::Step(*steps),
+            ThreadMsg::NewFrame(duration, pixels) => ThreadMsg::NewFrame(*duration, pixels.clone()),
+            ThreadMsg::Stop => ThreadMsg::Stop,
+            ThreadMsg::SteppingFinished => ThreadMsg::SteppingFinished,
+            ThreadMsg::ConnectDevice(port, device_type) => ThreadMsg::ConnectDevice(*port, *device_type),
+            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => ThreadMsg::UpdateDeviceButton(*port, device_button.box_clone(), *pressed),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ThreadMsgObj(&'static str, ThreadMsg);
 
 #[derive(Debug, Clone)]
 pub struct ThreadCom {

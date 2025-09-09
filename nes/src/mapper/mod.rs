@@ -8,7 +8,7 @@ use crate::prelude::*;
 use crate::{BoxMapper, BoxNESDevice, RcRef};
 
 pub trait Mapper {
-    fn connect_input_device(&mut self, slot: u8, device: RcRef<BoxNESDevice>);
+    fn connect_input_device(&mut self, port: u8, device: RcRef<BoxNESDevice>);
     fn poll_interrupt(&self) -> bool {
         false
     }

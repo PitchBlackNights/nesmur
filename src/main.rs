@@ -15,6 +15,7 @@ use glutin_winit::DisplayBuilder;
 use imgui::{DrawData, Ui};
 use imgui_glow_renderer::Renderer;
 use imgui_winit_support::WinitPlatform;
+use nes::input_device::{joypad::JoypadButton, NESDeviceType};
 use nesmur::{
     cli_parser::Args,
     gl_error,
@@ -26,13 +27,13 @@ use nesmur::{
     NESEvent, NESState, NesmurEvent, INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH,
 };
 use raw_window_handle::HasWindowHandle;
-use std::{num::NonZeroU32, time::Instant};
+use std::{collections::HashMap, num::NonZeroU32, time::Instant};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{Event, KeyEvent, WindowEvent},
+    event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
-    keyboard::PhysicalKey,
+    keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowAttributes, WindowId},
 };
 
@@ -50,32 +51,33 @@ fn main() {
     info!("Stopping Emulator...");
 }
 
-impl std::fmt::Debug for Nesmur {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Nesmur")
-            .field("last_frame", &self.last_ui_time)
-            .field("nes_state", &self.nes_state)
-            .field("uninitialized", &self.uninitialized)
-            .field("ui", &self.ui)
-            .field("shared_window_ctx", &self.shared_window_ctx)
-            .field("shared_app_ctx", &self.shared_app_ctx)
-            .field("window", &self.window.as_ref().unwrap())
-            .field("window_context", &self.window_context.as_ref().unwrap())
-            .field("window_surface", &self.window_surface.as_ref().unwrap())
-            .field("opengl", &self.opengl.as_ref().unwrap())
-            .field("winit_platform", &self.winit_platform.as_ref().unwrap())
-            .field("imgui_context", &self.imgui_context.as_ref().unwrap())
-            .field("imgui_textures", &self.imgui_textures.as_ref().unwrap())
-            .field("imgui_renderer", &"Renderer { .. }")
-            .finish()
-    }
-}
+// impl std::fmt::Debug for Nesmur {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("Nesmur")
+//             .field("last_frame", &self.last_ui_time)
+//             .field("nes_state", &self.nes_state)
+//             .field("uninitialized", &self.uninitialized)
+//             .field("ui", &self.ui)
+//             .field("shared_window_ctx", &self.shared_window_ctx)
+//             .field("shared_app_ctx", &self.shared_app_ctx)
+//             .field("window", &self.window.as_ref().unwrap())
+//             .field("window_context", &self.window_context.as_ref().unwrap())
+//             .field("window_surface", &self.window_surface.as_ref().unwrap())
+//             .field("opengl", &self.opengl.as_ref().unwrap())
+//             .field("winit_platform", &self.winit_platform.as_ref().unwrap())
+//             .field("imgui_context", &self.imgui_context.as_ref().unwrap())
+//             .field("imgui_textures", &self.imgui_textures.as_ref().unwrap())
+//             .field("imgui_renderer", &"Renderer { .. }")
+//             .finish()
+//     }
+// }
 
 struct Nesmur {
     uninitialized: bool,
     event_loop_proxy: EventLoopProxy<NesmurEvent>,
     nes_manager: NESManager,
     nes_state: NESState,
+    nes_keymap: HashMap<KeyCode, (u8, JoypadButton)>,
     ui: NesmurUI,
     last_ui_time: Instant,
 
@@ -97,11 +99,22 @@ struct Nesmur {
 
 impl Nesmur {
     fn new(event_loop_proxy: EventLoopProxy<NesmurEvent>) -> Self {
+        let mut nes_keymap: HashMap<KeyCode, (u8, JoypadButton)> = HashMap::new();
+        nes_keymap.insert(KeyCode::ArrowDown, (1, JoypadButton::DOWN));
+        nes_keymap.insert(KeyCode::ArrowUp, (1, JoypadButton::UP));
+        nes_keymap.insert(KeyCode::ArrowRight, (1, JoypadButton::RIGHT));
+        nes_keymap.insert(KeyCode::ArrowLeft, (1, JoypadButton::LEFT));
+        nes_keymap.insert(KeyCode::Space, (1, JoypadButton::SELECT));
+        nes_keymap.insert(KeyCode::Enter, (1, JoypadButton::START));
+        nes_keymap.insert(KeyCode::KeyA, (1, JoypadButton::BUTTON_A));
+        nes_keymap.insert(KeyCode::KeyS, (1, JoypadButton::BUTTON_B));
+
         Nesmur {
             uninitialized: true,
             event_loop_proxy: event_loop_proxy.clone(),
             nes_manager: NESManager::new(&event_loop_proxy),
             nes_state: NESState::Stopped,
+            nes_keymap,
             ui: NesmurUI::new(),
             last_ui_time: Instant::now(),
 
@@ -296,6 +309,7 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
             NesmurEvent::NES(NESEvent::Start) => {
                 // debug!("NESEvent: Start");
                 self.nes_manager.start_nes();
+                self.nes_manager.connect_device(1, NESDeviceType::Joypad);
                 self.nes_state = NESState::Running;
             }
 
@@ -320,7 +334,7 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
             NesmurEvent::NES(NESEvent::Step) => {
                 // debug!("NESEvent: Step");
                 self.nes_state = NESState::Stepping;
-                self.nes_manager.step(1);
+                self.nes_manager.step(999_999);
             }
 
             NesmurEvent::NES(NESEvent::NewFrame(pixels)) => {
@@ -383,11 +397,15 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
                     },
                 ..
             } => {
-                trace!(
-                    "KeyboardInput -> key_code: {:?}, state: {:?}",
-                    key_code,
-                    state
-                );
+                // trace!(
+                //     "KeyboardInput -> key_code: {:?}, state: {:?}",
+                //     key_code,
+                //     state
+                // );
+                if let Some((port, button)) = self.nes_keymap.get(&key_code) {
+                    let pressed: bool = state == ElementState::Pressed;
+                    self.nes_manager.update_device_button(*port, Box::new(*button), pressed);
+                }
             }
 
             WindowEvent::Resized(new_size) => {
