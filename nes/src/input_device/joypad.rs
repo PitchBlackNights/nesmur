@@ -4,7 +4,7 @@ use std::any::Any;
 
 bitflags! {
     // https://wiki.nesdev.com/w/index.php/Controller_reading_code
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, PartialEq)]
     pub struct JoypadButton: u8 {
         const RIGHT    = 0b1000_0000;
         const LEFT     = 0b0100_0000;

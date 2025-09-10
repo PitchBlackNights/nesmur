@@ -334,7 +334,7 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
             NesmurEvent::NES(NESEvent::Step) => {
                 // debug!("NESEvent: Step");
                 self.nes_state = NESState::Stepping;
-                self.nes_manager.step(999_999);
+                self.nes_manager.step(1);
             }
 
             NesmurEvent::NES(NESEvent::NewFrame(pixels)) => {
@@ -449,9 +449,9 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
         if self.uninitialized {
             if cause == winit::event::StartCause::Init {
                 self.init(event_loop);
-                // self.event_loop_proxy
-                //     .send_event(NesmurEvent::NES(NESEvent::Start))
-                //     .unwrap();
+                self.event_loop_proxy
+                    .send_event(NesmurEvent::NES(NESEvent::Start))
+                    .unwrap();
             } else {
                 return;
             }
@@ -495,49 +495,42 @@ impl SharedWindowCtxAccess for Nesmur {
     fn window_mut(&self) -> &mut Window {
         get_from_swc!(mut self.shared_window_ctx.window)
     }
-
     fn context(&self) -> &PossiblyCurrentContext {
         get_from_swc!(self.shared_window_ctx.window_context)
     }
     fn context_mut(&self) -> &mut PossiblyCurrentContext {
         get_from_swc!(mut self.shared_window_ctx.window_context)
     }
-
     fn surface(&self) -> &Surface<WindowSurface> {
         get_from_swc!(self.shared_window_ctx.window_surface)
     }
     fn surface_mut(&self) -> &mut Surface<WindowSurface> {
         get_from_swc!(mut self.shared_window_ctx.window_surface)
     }
-
     fn opengl(&self) -> &glow::Context {
         get_from_swc!(self.shared_window_ctx.opengl)
     }
     fn opengl_mut(&self) -> &mut glow::Context {
         get_from_swc!(mut self.shared_window_ctx.opengl)
     }
-
     fn winit_platform(&self) -> &WinitPlatform {
         get_from_swc!(self.shared_window_ctx.winit_platform)
     }
     fn winit_platform_mut(&self) -> &mut WinitPlatform {
         get_from_swc!(mut self.shared_window_ctx.winit_platform)
     }
-
     fn imgui_context(&self) -> &imgui::Context {
         get_from_swc!(self.shared_window_ctx.imgui_context)
     }
     fn imgui_context_mut(&self) -> &mut imgui::Context {
         get_from_swc!(mut self.shared_window_ctx.imgui_context)
     }
-
     fn textures(&self) -> &imgui::Textures<glow::Texture> {
         get_from_swc!(self.shared_window_ctx.imgui_textures)
     }
     fn textures_mut(&self) -> &mut imgui::Textures<glow::Texture> {
         get_from_swc!(mut self.shared_window_ctx.imgui_textures)
     }
-
     fn imgui_renderer(&self) -> &Renderer {
         get_from_swc!(self.shared_window_ctx.imgui_renderer)
     }

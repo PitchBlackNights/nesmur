@@ -81,19 +81,19 @@ impl NESAccess for NES {
 }
 
 pub struct NES {
-    pub memory: RcRef<Memory>,
-    pub mapper: RcRef<BoxMapper>,
-    pub renderer: RcRef<Renderer>,
+    pub memory: Rc<RefCell<Memory>>,
+    pub mapper: Rc<RefCell<BoxMapper>>,
+    pub renderer: Rc<RefCell<Renderer>>,
 
-    pub device1: Option<RcRef<BoxNESDevice>>,
-    pub device2: Option<RcRef<BoxNESDevice>>,
+    pub device1: Option<Rc<RefCell<BoxNESDevice>>>,
+    pub device2: Option<Rc<RefCell<BoxNESDevice>>>,
 
     pub cpu: CPU,
-    pub bus: RcRef<Bus>,
+    pub bus: Rc<RefCell<Bus>>,
     /// ***CURRENTLY UNIMPLEMENTED***
-    pub apu: RcRef<APU>,
-    pub ppu: RcRef<PPU>,
-    pub rom: RcRef<ROM>,
+    pub apu: Rc<RefCell<APU>>,
+    pub ppu: Rc<RefCell<PPU>>,
+    pub rom: Rc<RefCell<ROM>>,
 }
 
 impl NES {

@@ -71,7 +71,7 @@ impl OpCode {
             }
             AddressingMode::Relative => {
                 let jump: i8 = cpu.bus_mut().read(addr) as i8;
-                let jump_addr: u16 = addr.wrapping_add(1).wrapping_add(jump as u16);
+                let jump_addr: u16 = addr.wrapping_add(1).wrapping_add_signed(jump as i16);
                 (
                     jump_addr,
                     tools::page_cross(addr.wrapping_add(1), jump_addr),

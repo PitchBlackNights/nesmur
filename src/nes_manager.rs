@@ -6,7 +6,7 @@ use crate::{
 };
 use crossbeam::channel::{self, Receiver, RecvError, Sender, TrySendError};
 use nes::{
-    cartridge::ROM, input_device::{NESDeviceButton, NESDeviceType}, ppu::renderer::{Renderer, RGB}, RcRef, NES, tools::NESAccess,
+    cartridge::ROM, input_device::{joypad::JoypadButton, NESDeviceButton, NESDeviceType}, ppu::renderer::{Renderer, RGB}, tools::NESAccess, RcRef, NES
 };
 use std::{
     cell::Ref, thread::{self, JoinHandle}, time::{Duration, Instant}
@@ -234,6 +234,13 @@ impl NESManager {
                 };
             });
 
+            use std::fs::File;
+            use std::io::{BufWriter, Write};
+            let mut log: BufWriter<File> = BufWriter::new(File::create("stpd.log").unwrap());
+            let mut slient_step: bool = true;
+            let mut prev_sp: u8 = nes.cpu.stack_pointer;
+            let mut remove: bool = false;
+
             let mut paused: bool = false;
             let mut stepping: bool = false;
             let mut steps_left: usize = 0;
@@ -259,17 +266,29 @@ impl NESManager {
                             ThreadMsg::Step(steps) => {
                                 stepping = true;
                                 steps_left += steps;
-                                trace!("Stepping {}(+{}) steps", steps_left, steps);
+                                // trace!("Stepping {}(+{}) steps", steps_left, steps);
                             }
                             ThreadMsg::ConnectDevice(port, device_type) => {
                                 nes.connect_input_device(*port, *device_type);
                                 trace!("Connected {:?} to port {}", device_type, port);
                             }
-                            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => {
+                            ThreadMsg::UpdateDeviceButton(port, device_button, mut pressed) => {
+                                if let Some(button) = device_button.as_any().downcast_ref::<JoypadButton>() {
+                                    if *button == JoypadButton::BUTTON_A {
+                                        paused = true;
+                                        pressed = true;
+                                        stepping = true;
+                                        slient_step = false;
+                                        if steps_left == 0 {
+                                            steps_left = 1;
+                                        }
+                                    }
+                                }
+
                                 if *port == 2 && nes.device2.is_some() {
-                                    nes.device2_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
+                                    nes.device2_mut().set_button_pressed_status(device_button.box_clone(), pressed);
                                 } else if nes.device1.is_some() {
-                                    nes.device1_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
+                                    nes.device1_mut().set_button_pressed_status(device_button.box_clone(), pressed);
                                 }
                             }
                             _ => error!("NES received a '{:?}' message, which it cannot proccess. Ignoring message", message),
@@ -278,21 +297,83 @@ impl NESManager {
                 }
 
                 if !paused || stepping {
-                    let nes_running: bool = nes.step(|_| {});
+                    let nes_running: bool = nes.step(|cpu| {
+                        if paused && stepping && !slient_step {
+                            steps_left += 1;
+
+                            match cpu.program_counter {
+                                0x8111 | 0xF000..=0xFFFF => {
+                                    if !remove {
+                                        writeln!(&mut log, "\n\n\t\t\t======== REMOVED ========\n\n").unwrap();
+                                        remove = true;
+                                    }
+                                    return;
+                                }
+                                _ => {},
+                            };
+                            remove = false;
+
+                            let mut text: String = String::from("");
+                            if cpu.stack_pointer != prev_sp {
+                                // println!("stack updated");
+                                text += (nes::tools::format_mem(&cpu.bus().memory().cpu_vram, 0x01E0, 0x01FF) + "\n").as_str();
+                                prev_sp = cpu.stack_pointer;
+                            }
+                            text += nes::tools::trace(cpu).as_str();
+                            // println!("{}", text);
+                            writeln!(&mut log, "{}", text).unwrap();
+                            log.flush().unwrap();
+
+                        } else if !paused {
+                            steps_left += 1;
+                        }
+
+                        // if paused {
+                        //     if !slient_step || cpu.program_counter == 0x001A {
+                        //         if slient_step {
+                        //             println!("start");
+                        //             slient_step = false;
+                        //         } else if !slient_step && cpu.program_counter == 0x001A {
+                        //             println!("stop");
+                        //             steps_left = 0;
+                        //         }
+
+                        //         let mut text: String = String::from("");
+                        //         if cpu.stack_pointer != prev_sp {
+                        //             // println!("stack updated");
+                        //             text += nes::tools::format_mem(&cpu.bus().memory().cpu_vram, 0x01E0, 0x01FF).as_str();
+                        //             prev_sp = cpu.stack_pointer;
+                        //         }
+                        //         text += nes::tools::trace(cpu).as_str();
+                        //         println!("{}", text);
+                        //         writeln!(&mut log, "{}", text).unwrap();
+                        //         log.flush().unwrap();
+
+                        //         steps_left += 1;
+                        //     } else {
+                        //         steps_left += 1;
+                        //     }
+                        // }
+                        // if cpu.stack_pointer != prev_sp {
+                        //     // println!("stack updated");
+                        //     writeln!(&mut log, "{}", nes::tools::format_mem(&cpu.bus().memory().cpu_vram, 0x0100, 0x01FF)).unwrap();
+                        //     prev_sp = cpu.stack_pointer;
+                        // }
+                        // writeln!(&mut log, "{}", nes::tools::trace(cpu)).unwrap();
+                    });
                     if !nes_running {
                         error!("The NES stopped on its own!");
                         break 'nes_loop;
                     }
                     if stepping {
-                        if steps_left != 0 {
-                            steps_left -= 1;
-                        } else {
-                            trace!("Finished stepping");
+                        steps_left -= 1;
+                        if steps_left <= 0 {
                             stepping = false;
                             let result: Result<(), ThreadComError> = thread_com.await_send("nes-handle", ThreadMsg::SteppingFinished, None);
                             if let Err(err) = result {
                                 error!("Failed to send ThreadMsg::SteppingFinished message to 'nes-handle'! - {:?}", err);
                             }
+                            trace!("Finished stepping");
                         }
                     }
                 }

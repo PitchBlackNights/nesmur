@@ -56,6 +56,7 @@ pub struct CPU {
     pub status: Flags,
     pub fresh: bool,
     pub bus: RcRef<Bus>,
+    jsr_addrs: Vec<(u16, u16)>,
 }
 
 impl CPU {
@@ -74,6 +75,7 @@ impl CPU {
             status: Flags::from_bits_truncate(0b0010_0100),
             fresh: true,
             bus,
+            jsr_addrs: Vec::new(),
         }
     }
 
@@ -364,11 +366,19 @@ impl CPU {
             }
             JSR => {
                 let (addr, _): (u16, bool) = opcode.get_operand_address(self);
-                common::stack_push_u16(self, self.program_counter + 1);
+                common::stack_push_u16(self, self.program_counter.wrapping_add(1));
+                self.jsr_addrs.push((self.program_counter.wrapping_add(1), self.program_counter - 1));
                 self.program_counter = addr;
             }
             RTS => {
-                self.program_counter = common::stack_pop_u16(self) + 1;
+                let prev_pc: u16 = self.program_counter - 1;
+                self.program_counter = common::stack_pop_u16(self).wrapping_add(1);
+                if let Some((mut addr, org)) = self.jsr_addrs.pop() {
+                    addr = addr.wrapping_add(1);
+                    if self.program_counter != addr {
+                        error!("RTS (@${:04X}, O:${:04X}) did not return to the expected address: {:#06X}, found {:#06X}", prev_pc, org, addr, self.program_counter);
+                    }
+                }
             }
             BCC => {
                 common::branch(self, opcode, !self.status.contains(Flags::CARRY));
@@ -403,6 +413,7 @@ impl CPU {
             SEI => self.status.insert(Flags::INTERRUPT_DISABLE),
             BRK => {
                 if !self.status.contains(Flags::INTERRUPT_DISABLE) {
+                    self.program_counter = self.program_counter.wrapping_add(1);
                     self.interrupt(interrupt::BRK);
                 }
             }
@@ -572,7 +583,8 @@ impl CPU {
             KIL => {
                 #[cfg(not(test))]
                 {
-                    error!("The `KIL` instruction was executed!");
+                    // error!("A `KIL` instruction was executed!");
+                    panic!("A `KIL` instruction was executed!");
                 }
                 #[cfg(test)]
                 {

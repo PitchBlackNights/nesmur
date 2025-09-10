@@ -1,0 +1,153 @@
+A:A0 X:10 Y:04 SP:E8    001A  20 24 D9  JSR TEST_BFlag ($D924)
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC 04 1C  00 FD F9 0B F8 25 11 81
+
+
+TEST_BFlag:
+                ;;; Test 1 [The B Flag]: The "B flag" is set in the value pushed to the stack by by PHP ;;;
+A:A0 X:10 Y:04 SP:E6    D924  08        PHP
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC B5 1C  00 FD F9 0B F8 25 11 81
+A:A0 X:10 Y:04 SP:E5    D925  68        PLA
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC B5 1C  00 FD F9 0B F8 25 11 81
+A:B5 X:10 Y:04 SP:E6    D926  85 50     STA $50 = 00
+A:B5 X:10 Y:04 SP:E6    D928  29 10     AND #$10
+A:10 X:10 Y:04 SP:E6    D92A  F0 F0     BEQ FAIL_BFlag ($D91C)
+A:10 X:10 Y:04 SP:E6    D92C  E6 10     INC ErrorCode ($10) = 01
+
+                ;;; Test 2 [The B Flag]: The "B flag" is set in the value pushed to the stack by by BRK ;;;
+	            ; Set up the BRK routine
+A:10 X:10 Y:04 SP:E6    D92E  A9 4C     LDA #$4C
+A:4C X:10 Y:04 SP:E6    D930  8D 00 06  STA $0600 = 00
+A:4C X:10 Y:04 SP:E6    D933  8D 00 07  STA $0700 = 00
+A:4C X:10 Y:04 SP:E6    D936  A9 41     LDA #LOW(TEST_BFlag_BRK) (#$41)
+A:41 X:10 Y:04 SP:E6    D938  8D 01 06  STA $0601 = 00
+A:41 X:10 Y:04 SP:E6    D93B  A9 D9     LDA #HIGH(TEST_BFlag_BRK) (#$D9)
+A:D9 X:10 Y:04 SP:E6    D93D  8D 02 06  STA $0602 = 00
+A:D9 X:10 Y:04 SP:E6    D940  00        BRK
+
+TEST_BFlag_BRK:
+A:D9 X:10 Y:04 SP:E6    D941  68        PLA
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC B5 1C  00 FD F9 0B F8 25 11 81
+A:1C X:10 Y:04 SP:E7    D942  85 51     STA $51 = 00
+A:1C X:10 Y:04 SP:E7    D944  68        PLA
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC B5 1C  00 FD F9 0B F8 25 11 81
+A:00 X:10 Y:04 SP:E8    D945  68        PLA
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC B5 1C  00 FD F9 0B F8 25 11 81
+A:FD X:10 Y:04 SP:E9    D946  A5 51     LDA $51 = 1C
+A:1C X:10 Y:04 SP:E9    D948  29 10     AND #$10
+A:10 X:10 Y:04 SP:E9    D94A  F0 D0     BEQ FAIL_BFlag ($D91C)
+A:10 X:10 Y:04 SP:E9    D94C  E6 10     INC ErrorCode ($10) = 02
+
+                ;;; Test 3 [The B Flag]: This emulator should be capable of running an IRQ before I run an IRQ test. ;;;
+A:10 X:10 Y:04 SP:E9    D94E  A9 69     LDA #LOW(TEST_BFlag_BRK2) (#$69)
+A:69 X:10 Y:04 SP:E9    D950  8D 01 06  STA $0601 = 41
+A:69 X:10 Y:04 SP:E9    D953  A9 D9     LDA #HIGH(TEST_BFlag_BRK2) (#$D9)
+A:D9 X:10 Y:04 SP:E9    D955  8D 02 06  STA $0602 = D9
+A:D9 X:10 Y:04 SP:E9    D958  78        SEI
+A:D9 X:10 Y:04 SP:E9    D959  A9 00     LDA #$00
+A:00 X:10 Y:04 SP:E9    D95B  8D 17 40  STA $4017 = 00
+A:00 X:10 Y:04 SP:E9    D95E  20 18 FC  JSR Clockslide_30000 ($FC18)
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC 56 FC  60 D9 F9 0B F8 25 11 81
+A:00 X:10 Y:04 SP:E9    D961  58        CLI
+A:00 X:10 Y:04 SP:E9    D962  EA        NOP
+                ; The IRQ occurs here.
+                ===== EXCEPT IT DOESN'T =====
+A:00 X:10 Y:04 SP:E9    D963  EA        NOP
+A:00 X:10 Y:04 SP:E9    D964  EA        NOP
+A:00 X:10 Y:04 SP:E9    D965  78        SEI
+A:00 X:10 Y:04 SP:E9    D966  4C 38 A0  JMP TEST_Fail ($A038)
+
+
+TEST_Fail:
+A:00 X:10 Y:04 SP:E9    A038  A5 10     LDA $10 = 03
+A:03 X:10 Y:04 SP:E9    A03A  0A        ASL A
+A:06 X:10 Y:04 SP:E9    A03B  0A        ASL A
+A:0C X:10 Y:04 SP:E9    A03C  09 02     ORA #$02
+A:0E X:10 Y:04 SP:E9    A03E  60        RTS
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC 56 FC  60 D9 F9 0B F8 25 11 81
+    ===== THIS SHOULD'VE RETURNED TO $001C, NOT $0BFA            =====
+    ===== ALL CODE BEYOND THIS POINT IS ASSUMED BE UNINTENTIONAL =====
+
+
+A:0E X:10 Y:04 SP:EB    0BFA  00        BRK
+    ===== THIS `BRK` INSTRUCTION REPEATS MULTIPLE TIMES =====
+A:0E X:10 Y:04 SP:EB    0C74  00        BRK
+A:0E X:10 Y:04 SP:EB    0C75  03 00    *SLO ($00,X) @ 10 = 0103 = 00
+A:0E X:10 Y:04 SP:EB    0C77  00        BRK
+    ===== THIS `BRK` INSTRUCTION REPEATS MULTIPLE TIMES =====
+A:0E X:10 Y:04 SP:EB    0DFF  00        BRK
+A:0E X:10 Y:04 SP:EB    0E00  4C 69 D9  JMP TEST_BFlag_BRK2 ($D969)
+
+
+
+TEST_BFlag_BRK2:
+A:0E X:10 Y:04 SP:EB    D969  A9 40     LDA #$40
+A:40 X:10 Y:04 SP:EB    D96B  8D 17 40  STA $4017 = 00
+                ; this IRQ should set the interrupt flag, but better safe than sorry?
+A:40 X:10 Y:04 SP:EB    D96E  78        SEI
+A:40 X:10 Y:04 SP:EB    D96F  E6 10     INC ErrorCode ($10) = 03
+
+                ;;; Test 4 [The B Flag]: The "B Flag" should not be set when processor flags get pushed by an IRQ ;;;
+A:40 X:10 Y:04 SP:EB    D971  68        PLA
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC 56 FC  60 D9 F9 0B F8 25 11 81
+A:F8 X:10 Y:04 SP:EC    D972  85 52     STA $52 = 00
+A:F8 X:10 Y:04 SP:EC    D974  68        PLA
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC 56 FC  60 D9 F9 0B F8 25 11 81
+A:25 X:10 Y:04 SP:ED    D975  68        PLA
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC 56 FC  60 D9 F9 0B F8 25 11 81
+A:11 X:10 Y:04 SP:EE    D976  A5 52     LDA $52 = F8
+A:F8 X:10 Y:04 SP:EE    D978  29 10     AND #$10
+A:10 X:10 Y:04 SP:EE    D97A  D0 A0     BNE FAIL_BFlag ($D91C)
+
+
+FAIL_BFlag:
+A:10 X:10 Y:04 SP:EE    D91C  A9 40     LDA #$40
+A:40 X:10 Y:04 SP:EE    D91E  8D 17 40  STA $4017 = 00
+A:40 X:10 Y:04 SP:EE    D921  4C 38 A0  JMP TEST_Fail ($A038)
+
+
+TEST_Fail:
+A:40 X:10 Y:04 SP:EE    A038  A5 10     LDA ErrorCode ($10) = 04
+A:04 X:10 Y:04 SP:EE    A03A  0A        ASL A
+A:08 X:10 Y:04 SP:EE    A03B  0A        ASL A
+A:10 X:10 Y:04 SP:EE    A03C  09 02     ORA #$02
+A:12 X:10 Y:04 SP:EE    A03E  60        RTS
+	            00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F
+  Stack ($E0):  10 FC 10 FC 10 FC 56 FC  60 D9 F9 0B F8 25 11 81
+
+
+        ===== AND NOW THE CPU EXECUTES RANDOM MEMORY =====
+
+A:12 X:10 Y:04 SP:F0    0082  03 04    *SLO ($04,X) @ 14 = 0000 = D9
+A:B2 X:10 Y:04 SP:F0    0084  4D 04 74  EOR $7404 = 00
+A:B2 X:10 Y:04 SP:F0    0087  04 75    *NOP $75 = 00
+A:B2 X:10 Y:04 SP:F0    0089  04 06    *NOP $06 = 83
+A:B2 X:10 Y:04 SP:F0    008B  04 07    *NOP $07 = 00
+A:B2 X:10 Y:04 SP:F0    008D  04 08    *NOP $08 = 23
+A:B2 X:10 Y:04 SP:F0    008F  04 02    *NOP $02 = 41
+A:B2 X:10 Y:04 SP:F0    0091  04 7D    *NOP $7D = 25
+A:B2 X:10 Y:04 SP:F0    0093  04 00    *NOP $00 = B2
+A:B2 X:10 Y:04 SP:F0    0095  00        BRK
+A:B2 X:10 Y:04 SP:F0    0096  00        BRK
+A:B2 X:10 Y:04 SP:F0    0097  00        BRK
+A:B2 X:10 Y:04 SP:F0    0098  00        BRK
+A:B2 X:10 Y:04 SP:F0    0099  00        BRK
+A:B2 X:10 Y:04 SP:F0    009A  00        BRK
+A:B2 X:10 Y:04 SP:F0    009B  00        BRK
+A:B2 X:10 Y:04 SP:F0    009C  00        BRK
+A:B2 X:10 Y:04 SP:F0    009D  00        BRK
+A:B2 X:10 Y:04 SP:F0    009E  00        BRK
+A:B2 X:10 Y:04 SP:F0    009F  00        BRK
+A:B2 X:10 Y:04 SP:F0    00A0  41 A1     EOR ($A1,X) @ B1 = BAA4 = E3
+A:51 X:10 Y:04 SP:F0    00A2  03 A0    *SLO ($A0,X) @ B0 = A4EE = A9
+A:53 X:10 Y:04 SP:F0    00A4  32       *KIL
