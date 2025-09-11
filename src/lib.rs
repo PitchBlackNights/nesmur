@@ -16,8 +16,8 @@ pub mod ui;
 
 include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
-pub const INITIAL_WINDOW_WIDTH: u32 = 800;
-pub const INITIAL_WINDOW_HEIGHT: u32 = 700;
+pub const INITIAL_WINDOW_WIDTH: u32 = 662;
+pub const INITIAL_WINDOW_HEIGHT: u32 = 480;
 
 #[derive(Debug)]
 pub enum NESState {

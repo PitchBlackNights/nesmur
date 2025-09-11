@@ -1,11 +1,11 @@
-Results as of 9/9/25
+Results as of 9/10/25
 
 Passed: 76
 
-Crashed: 1
- - The B Flag
+Crashed: 0
 
 Failed: 48
+ - The B Flag: 3
  - Dummy Read Cycles: 1
  - Dummy Write Cycles: 1
  - Open Bus: 1
@@ -28,7 +28,14 @@ Failed: 48
  - DMC DMA + OAM DMA: 1
  - Explicit DMA Abort: 1
  - Implicit DMA Abort: 1
- - ALL APU STUFF DUHHH (8)
+ - Length Counter: 2
+ - Length Table: 0
+ - Frame Counter IRQ: 1
+ - Frame Counter 4-Step: 1
+ - Frame Counter 5-Step: 1
+ - Delta Modulation Channel: 1
+ - Controller Strobing: 3
+ - Controller Clocking: 4
  - PPU Register Open Bus: 1
  - PPU Read Buffer: 7
  - Palette RAM Quirks: 1

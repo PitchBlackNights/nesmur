@@ -56,7 +56,6 @@ pub struct CPU {
     pub status: Flags,
     pub fresh: bool,
     pub bus: RcRef<Bus>,
-    jsr_addrs: Vec<(u16, u16)>,
 }
 
 impl CPU {
@@ -75,7 +74,6 @@ impl CPU {
             status: Flags::from_bits_truncate(0b0010_0100),
             fresh: true,
             bus,
-            jsr_addrs: Vec::new(),
         }
     }
 
@@ -118,7 +116,7 @@ impl CPU {
 
     pub fn step(&mut self) {
         let opbyte: u8 = self.bus_mut().read(self.program_counter);
-        self.program_counter += 1;
+        self.program_counter = self.program_counter.wrapping_add(1);
         let program_counter_state: u16 = self.program_counter;
         let opcode: &'static OpCode = opcode::decode_opcode(opbyte);
 
@@ -126,7 +124,7 @@ impl CPU {
         self.bus_mut().tick(opcode.cycles);
 
         if program_counter_state == self.program_counter {
-            self.program_counter += opcode.len as u16 - 1
+            self.program_counter = self.program_counter.wrapping_add(opcode.len as u16 - 1)
         }
     }
 
@@ -367,18 +365,10 @@ impl CPU {
             JSR => {
                 let (addr, _): (u16, bool) = opcode.get_operand_address(self);
                 common::stack_push_u16(self, self.program_counter.wrapping_add(1));
-                self.jsr_addrs.push((self.program_counter.wrapping_add(1), self.program_counter - 1));
                 self.program_counter = addr;
             }
             RTS => {
-                let prev_pc: u16 = self.program_counter - 1;
                 self.program_counter = common::stack_pop_u16(self).wrapping_add(1);
-                if let Some((mut addr, org)) = self.jsr_addrs.pop() {
-                    addr = addr.wrapping_add(1);
-                    if self.program_counter != addr {
-                        error!("RTS (@${:04X}, O:${:04X}) did not return to the expected address: {:#06X}, found {:#06X}", prev_pc, org, addr, self.program_counter);
-                    }
-                }
             }
             BCC => {
                 common::branch(self, opcode, !self.status.contains(Flags::CARRY));
@@ -412,10 +402,8 @@ impl CPU {
             SED => self.status.insert(Flags::DECIMAL_MODE),
             SEI => self.status.insert(Flags::INTERRUPT_DISABLE),
             BRK => {
-                if !self.status.contains(Flags::INTERRUPT_DISABLE) {
-                    self.program_counter = self.program_counter.wrapping_add(1);
-                    self.interrupt(interrupt::BRK);
-                }
+                self.program_counter = self.program_counter.wrapping_add(1);
+                self.interrupt(interrupt::BRK);
             }
             NOP => {}
             RTI => {
@@ -558,18 +546,18 @@ impl CPU {
             }
             SHY => {
                 let (addr, _): (u16, bool) = opcode.get_operand_address(self);
-                let data: u8 = self.index_y & ((addr >> 8) as u8 + 1);
+                let data: u8 = self.index_y & ((addr >> 8) as u8).wrapping_add(1);
                 self.bus_mut().write(addr, data);
             }
             SHX => {
                 let (addr, _): (u16, bool) = opcode.get_operand_address(self);
-                let data: u8 = self.index_x & ((addr >> 8) as u8 + 1);
+                let data: u8 = self.index_x & ((addr >> 8) as u8).wrapping_add(1);
                 self.bus_mut().write(addr, data);
             }
             TAS => {
                 self.stack_pointer = self.accumulator & self.index_x;
                 let (addr, _): (u16, bool) = opcode.get_operand_address(self);
-                let data: u8 = ((addr >> 8) as u8 + 1) & self.stack_pointer;
+                let data: u8 = ((addr >> 8) as u8).wrapping_add(1) & self.stack_pointer;
                 self.bus_mut().write(addr, data);
             }
             LAS => {

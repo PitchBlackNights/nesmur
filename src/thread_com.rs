@@ -44,8 +44,16 @@ impl std::fmt::Debug for ThreadMsg {
             ThreadMsg::Resume => write!(f, "Resume"),
             ThreadMsg::Step(steps) => write!(f, "Step({})", steps),
             ThreadMsg::SteppingFinished => write!(f, "SteppingFinished"),
-            ThreadMsg::ConnectDevice(port, device_type) => write!(f, "ConnectDevice({}, {:?})", port, device_type),
-            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => write!(f, "DeviceButtonPress({}, {:?}, {})", port, device_button.get_button_type_string(), pressed),
+            ThreadMsg::ConnectDevice(port, device_type) => {
+                write!(f, "ConnectDevice({}, {:?})", port, device_type)
+            }
+            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => write!(
+                f,
+                "DeviceButtonPress({}, {:?}, {})",
+                port,
+                device_button.get_button_type_string(),
+                pressed
+            ),
         }
     }
 }
@@ -59,8 +67,12 @@ impl Clone for ThreadMsg {
             ThreadMsg::NewFrame(duration, pixels) => ThreadMsg::NewFrame(*duration, pixels.clone()),
             ThreadMsg::Stop => ThreadMsg::Stop,
             ThreadMsg::SteppingFinished => ThreadMsg::SteppingFinished,
-            ThreadMsg::ConnectDevice(port, device_type) => ThreadMsg::ConnectDevice(*port, *device_type),
-            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => ThreadMsg::UpdateDeviceButton(*port, device_button.box_clone(), *pressed),
+            ThreadMsg::ConnectDevice(port, device_type) => {
+                ThreadMsg::ConnectDevice(*port, *device_type)
+            }
+            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => {
+                ThreadMsg::UpdateDeviceButton(*port, device_button.box_clone(), *pressed)
+            }
         }
     }
 }

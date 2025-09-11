@@ -404,7 +404,8 @@ impl ApplicationHandler<NesmurEvent> for Nesmur {
                 // );
                 if let Some((port, button)) = self.nes_keymap.get(&key_code) {
                     let pressed: bool = state == ElementState::Pressed;
-                    self.nes_manager.update_device_button(*port, Box::new(*button), pressed);
+                    self.nes_manager
+                        .update_device_button(*port, Box::new(*button), pressed);
                 }
             }
 

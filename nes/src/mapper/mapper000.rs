@@ -185,7 +185,10 @@ impl Mapper for Mapper000 {
                     addr
                 );
             }
-            MMIO_PPUSTATUS => error!("Attempted to write {:#04X} to PPU status register", data),
+            MMIO_PPUSTATUS => error!(
+                "[PPU] Attempted to write {:#04X} to PPU status register ({:#06X})",
+                data, MMIO_PPUSTATUS
+            ),
             MMIO_OAMADDR => {
                 self.ppu_mut().write_to_oam_addr(data);
                 bus_trace!(
