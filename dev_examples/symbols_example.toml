@@ -1,0 +1,21 @@
+# Whether or not each bank's symbols should be in a separate file
+# E.g. `symbols.0.toml`, `symbols.1.toml`...
+multifile = false
+banks_covered = [0, 1]
+
+# Refer to CPU Debugger example format for usage of `const` and `label` names
+[bank.0.const]
+D936 = "LOW(TEST_BFlag_BRK)"
+D93B = "HIGH(TEST_BFlag_BRK)"
+D94E = "LOW(TEST_BFlag_BRK2)"
+D954 = "HIGH(TEST_BFlag_BRK2)"
+
+[bank.0.label]
+D925 = "TEST_BFlag"
+D941 = "TEST_BFlag_BRK"
+D91C = "FAIL_BFlag"
+FC18 = "Clockslide_30000"
+A038 = "TEST_Fail"
+
+[bank.0.comments]
+# Definition in progress...

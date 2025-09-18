@@ -7,7 +7,7 @@ use crate::{
     shared_ctx::{app::SharedAppCtx, window::*},
     NESEvent, NESState, NesmurEvent,
 };
-use glow::HasContext;
+use glow::{HasContext, PixelUnpackData};
 use glutin::{
     context::PossiblyCurrentContext,
     surface::{Surface, WindowSurface},
@@ -185,7 +185,7 @@ impl NESGameWindow {
                     self.height as i32,
                     glow::RGB,
                     glow::UNSIGNED_BYTE,
-                    glow::PixelUnpackData::Slice(&self.image_data),
+                    PixelUnpackData::Slice(Some(&self.image_data)),
                 );
                 gl_error!(opengl);
             }
@@ -235,7 +235,7 @@ impl NESGameWindow {
                 0,
                 glow::RGB,
                 glow::UNSIGNED_BYTE,
-                Some(&self.image_data),
+                PixelUnpackData::Slice(Some(&self.image_data)),
             );
             gl_error!(opengl);
         }
