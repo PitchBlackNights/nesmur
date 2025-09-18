@@ -1,3 +1,6 @@
+pub mod colored_text;
+
+use self::colored_text::ImGUIColoredText;
 use crate::{
     gl_error,
     prelude::*,
@@ -67,6 +70,9 @@ impl NesmurUI {
         self.nes_game_window.show(ui);
         self.show_control_panel(ui, framerate, nes_framerate, nes_frametime);
         // OTHER WINDOWS
+        // ui.window("Test").build(|| {
+        //     ui.text_with_colors(format!("Test {{FF0000}}COLORED{{}} end string!"));
+        // });
 
         ui
     }
