@@ -40,7 +40,7 @@ async fn main() {
     if docs {
         if docs_gen {
             println!("Generating docs...");
-            if fs::exists(CUSTOM_DOCS_PATH).is_ok() {
+            if fs::exists(CUSTOM_DOCS_PATH).unwrap() {
                 move_dir_recursive(Path::new(CUSTOM_DOCS_PATH), Path::new(CARGO_DOCS_PATH))
                     .unwrap();
             }
@@ -51,7 +51,7 @@ async fn main() {
                 .output()
                 .expect("Cargo failed to generate docs");
 
-            if fs::exists(CARGO_DOCS_PATH).is_ok() {
+            if fs::exists(CARGO_DOCS_PATH).unwrap() {
                 move_dir_recursive(Path::new(CARGO_DOCS_PATH), Path::new(CUSTOM_DOCS_PATH))
                     .unwrap();
             }
@@ -167,9 +167,10 @@ async fn run_docs_server() {
                 if path_str.is_empty() {
                     return Ok::<_, Rejection>(
                         Response::builder()
-                            .status(302)
-                            .header("Location", format!("http://localhost:{}/nesmur", port))
-                            .body("".to_string())
+                            .status(301)
+                            .header("location", "/nesmur/index.html")
+                            .header("content-type", "text/plain; charset=utf-8")
+                            .body("Redirecting to /nesmur/index.html".to_string())
                             .unwrap(),
                     );
                 } else if path_str.ends_with(".html") {
@@ -194,7 +195,7 @@ async fn run_docs_server() {
 
                         return Ok::<_, Rejection>(
                             Response::builder()
-                                .header("Content-Type", "text/html")
+                                .header("content-type", "text/html; charset=utf8")
                                 .body(injected)
                                 .unwrap(),
                         );
