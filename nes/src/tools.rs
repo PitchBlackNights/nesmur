@@ -1,15 +1,19 @@
-use crate::bus::Bus;
-use crate::cartridge::ROM;
-use crate::cpu::CPU;
-use crate::ppu::PPU;
-use crate::ppu::renderer::Renderer;
-use crate::prelude::*;
-use crate::{BoxMapper, BoxNESDevice};
-use crate::{apu::APU, memory::Memory};
-use once_cell::sync::Lazy;
-use std::cell::{Ref, RefMut};
+use crate::{
+    BoxMapper, BoxNESDevice,
+    apu::APU,
+    bus::Bus,
+    cartridge::ROM,
+    cpu::CPU,
+    memory::Memory,
+    ppu::{PPU, renderer::Renderer},
+    prelude::*,
+};
+use std::{
+    cell::{Ref, RefMut},
+    sync::LazyLock,
+};
 
-pub static NON_READABLE_ADDR: Lazy<Vec<u16>> = Lazy::new(|| {
+pub static NON_READABLE_ADDR: LazyLock<Vec<u16>> = LazyLock::new(|| {
     vec![
         0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x4016, 0x4017,
     ]
@@ -159,7 +163,7 @@ pub fn trace(cpu: &CPU) -> String {
                     format!("${:04X}", address)
                 }
                 _ => panic!(
-                    "unexpected addressing mode {:?} has ops-len 2. code {:02X}",
+                    "Unexpected addressing mode {:?} has operand-len of 2. code {:02X}",
                     opcode.mode, opcode.byte
                 ),
             }
@@ -207,7 +211,7 @@ pub fn trace(cpu: &CPU) -> String {
                     address, mem_addr, stored_value
                 ),
                 _ => panic!(
-                    "unexpected addressing mode {:?} has ops-len 3. code {:02X}",
+                    "Unexpected addressing mode {:?} has operand-len of 3. code {:02X}",
                     opcode.mode, opcode.byte
                 ),
             }

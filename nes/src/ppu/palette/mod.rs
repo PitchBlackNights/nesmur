@@ -1,7 +1,7 @@
-use crate::ppu::renderer::RGB;
+use super::renderer::RGB;
 use std::sync::LazyLock;
 
-pub static NTSC: LazyLock<[RGB; 64]> = LazyLock::new(|| {
+pub static NTSC: LazyLock<[RGB; 64]> = LazyLock::new(|| -> [RGB; 64] {
     let bytes: &'static [u8; 1536] = include_bytes!("./NTSC.pal");
     let colors: Vec<RGB> = bytes
         .chunks(3)
@@ -11,7 +11,7 @@ pub static NTSC: LazyLock<[RGB; 64]> = LazyLock::new(|| {
     colors.try_into().unwrap()
 });
 
-pub static PAL: LazyLock<[RGB; 64]> = LazyLock::new(|| {
+pub static PAL: LazyLock<[RGB; 64]> = LazyLock::new(|| -> [RGB; 64] {
     let bytes: &'static [u8; 1536] = include_bytes!("./PAL.pal");
     let colors: Vec<RGB> = bytes
         .chunks(3)

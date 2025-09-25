@@ -1,5 +1,6 @@
-pub mod addr;
-pub mod control;
-pub mod mask;
-pub mod scroll;
-pub mod status;
+mod addr;
+mod control;
+mod mask;
+mod status;
+
+pub use self::{addr::*, control::*, mask::*, status::*};

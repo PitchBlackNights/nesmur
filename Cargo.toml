@@ -1,8 +1,11 @@
 [package]
 name = "nesmur"
-version = "2.0.0-DEV.1"
-authors = ["PitchBlackNights <pitchblacknights@proton.me>"]
 edition = "2021"
+version = "2.0.0-dev.2"
+authors = ["PitchBlackNights <pitchblacknights@proton.me>"]
+repository = "https://github.com/pitchblacknights/nesmur"
+license = "MIT"
+publish = false
 
 [dependencies]
 nes = { path = "./nes" }
@@ -10,9 +13,7 @@ env_logger = "0.11.8"
 log = "0.4.28"
 colored = "3.0.0"
 chrono = "0.4.42"
-clap = { version = "4.5.47", features = ["cargo"] }
-phf = { version = "0.13.1" }
-rustc-hash = "2.1.1"
+clap = { version = "4.5.48", features = ["cargo"] }
 crossbeam = "0.8.4"
 imgui = "0.12.0"
 imgui-winit-support = "0.13.0"
@@ -29,11 +30,9 @@ imgui-glow-renderer = { path = "./patches/imgui-glow-renderer" }
 
 [build-dependencies]
 vergen-git2 = { version = "1.0.7", features = ["build", "cargo", "rustc", "si", "emit_and_set"]}
-phf = { version = "0.13.1", default-features = false }
-phf_codegen = "0.13.1"
 
 [workspace]
-members = ["nes"]
+members = ["nes", "nestool"]
 
 [lints.clippy]
 uninlined-format-args = "allow"

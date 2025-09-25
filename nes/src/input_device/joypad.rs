@@ -76,8 +76,8 @@ impl NESDevice for Joypad {
     }
 
     fn set_button_pressed_status(&mut self, button: Box<dyn NESDeviceButton>, pressed: bool) {
-        if let Some(jp_button) = button.as_any().downcast_ref::<JoypadButton>() {
-            self.button_status.set(*jp_button, pressed);
+        if let Some(button) = button.as_any().downcast_ref::<JoypadButton>() {
+            self.button_status.set(*button, pressed);
         }
     }
 }

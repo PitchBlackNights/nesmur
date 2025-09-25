@@ -3,16 +3,11 @@ pub mod registers;
 pub mod renderer;
 pub mod sprite;
 
-use crate::cartridge::Mirroring;
-use crate::memory::Memory;
-use crate::ppu::renderer::Renderer;
-use crate::prelude::*;
-use crate::{RcRef, Region};
-use registers::addr::AddrRegister;
-use registers::control::ControlRegister;
-use registers::mask::MaskRegister;
-use registers::status::StatusRegister;
-// use registers::scroll::ScrollRegister;
+use self::{
+    registers::{AddrRegister, ControlRegister, MaskRegister, StatusRegister},
+    renderer::Renderer,
+};
+use crate::{RcRef, Region, cartridge::Mirroring, memory::Memory, prelude::*};
 
 #[rustfmt::skip]
 impl NESAccess for PPU {

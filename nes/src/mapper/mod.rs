@@ -1,11 +1,7 @@
 mod mapper000;
 mod mapper001;
 
-use crate::cartridge::ROM;
-use crate::memory::Memory;
-use crate::ppu::PPU;
-use crate::prelude::*;
-use crate::{BoxMapper, BoxNESDevice, RcRef};
+use crate::{BoxMapper, BoxNESDevice, RcRef, cartridge::ROM, memory::Memory, ppu::PPU, prelude::*};
 
 pub trait Mapper {
     fn connect_input_device(&mut self, port: u8, device: RcRef<BoxNESDevice>);

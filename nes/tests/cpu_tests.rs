@@ -1,11 +1,10 @@
 mod common;
 
-use nes::NES;
-use nes::cpu::CPU;
-use nes::tools;
-use std::fs::File;
-use std::io::{BufWriter, Write};
-// use nes::prelude::*;
+use nes::{NES, cpu::CPU, tools};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
 
 #[test]
 fn nestest() {

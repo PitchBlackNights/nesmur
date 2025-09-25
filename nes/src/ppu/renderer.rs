@@ -1,9 +1,9 @@
+use super::{PPU, palette, sprite::Sprite};
+use crate::{
+    SCREEN_HEIGHT, SCREEN_WIDTH,
+    tools::{BitPlane, nth_bit},
+};
 use std::hash::{Hash, Hasher};
-
-use crate::ppu::sprite::Sprite;
-use crate::ppu::{PPU, palette};
-use crate::tools::{BitPlane, nth_bit};
-use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 #[derive(Debug, Clone, Copy)]
 pub struct RGB(pub u8, pub u8, pub u8);

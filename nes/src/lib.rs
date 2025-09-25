@@ -1,12 +1,12 @@
 #[allow(unused_imports)]
 pub mod prelude {
-    pub use crate::mapper::Mapper;
-    pub use crate::tools;
-    pub use crate::tools::NESAccess;
+    pub use crate::{mapper::Mapper, tools, tools::NESAccess};
     pub use bitflags::bitflags;
     pub use log::{debug, error, info, trace, warn};
-    pub use std::cell::{Ref, RefCell, RefMut};
-    pub use std::rc::Rc;
+    pub use std::{
+        cell::{Ref, RefCell, RefMut},
+        rc::Rc,
+    };
 }
 pub mod apu;
 pub mod bus;
@@ -20,15 +20,16 @@ pub mod tools;
 #[cfg(test)]
 mod unit_tests;
 
-use crate::apu::APU;
-use crate::bus::Bus;
-use crate::cartridge::ROM;
-use crate::cpu::CPU;
-use crate::input_device::{NESDevice, NESDeviceType};
-use crate::memory::Memory;
-use crate::ppu::PPU;
-use crate::ppu::renderer::Renderer;
-use crate::prelude::*;
+use crate::{
+    apu::APU,
+    bus::Bus,
+    cartridge::ROM,
+    cpu::CPU,
+    input_device::{NESDevice, NESDeviceType},
+    memory::Memory,
+    ppu::{PPU, renderer::Renderer},
+    prelude::*,
+};
 
 pub type RcRef<T> = Rc<RefCell<T>>;
 pub type BoxNESDevice = Box<dyn NESDevice>;
@@ -53,27 +54,19 @@ impl NESAccess for NES {
     fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
     fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
     fn device1(&self) -> Ref<BoxNESDevice> {
-        if self.device1.is_none() {
-            panic!("NES tried to access `Device 1` before a reference was passed to it!");
-        }
+        assert!(self.device1.is_some(), "NES tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow()
     }
     fn device1_mut(&self) -> RefMut<BoxNESDevice> {
-        if self.device1.is_none() {
-            panic!("NES tried to access `Device 1` before a reference was passed to it!");
-        }
+        assert!(self.device1.is_some(), "NES tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow_mut()
     }
     fn device2(&self) -> Ref<BoxNESDevice> {
-        if self.device2.is_none() {
-            panic!("NES tried to access `Device 2` before a reference was passed to it!");
-        }
+        assert!(self.device2.is_some(), "NES tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow()
     }
     fn device2_mut(&self) -> RefMut<BoxNESDevice> {
-        if self.device2.is_none() {
-            panic!("NES tried to access `Device 2` before a reference was passed to it!");
-        }
+        assert!(self.device2.is_some(), "NES tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow_mut()
     }
     fn renderer(&self) -> Ref<Renderer> { self.renderer.borrow() }

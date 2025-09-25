@@ -1,0 +1,15 @@
+[package]
+name = "nestool"
+edition = "2024"
+version = "1.0.0"
+authors = ["PitchBlackNights <pitchblacknights@proton.me>"]
+repository = "https://github.com/pitchblacknights/nesmur/tree/main/nesmur-tool"
+license = "MIT"
+publish = false
+
+[dependencies]
+warp = { version = "0.4.2", features = ["websocket", "server"] }
+tokio = { version = "1.47.1", features = ["macros", "sync"] }
+notify = "8.2.0"
+futures-util = "0.3.31"
+webbrowser = "1.0.5"

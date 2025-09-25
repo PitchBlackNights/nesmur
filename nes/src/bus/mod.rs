@@ -1,10 +1,11 @@
-use crate::apu::APU;
-use crate::cpu::interrupt::{self, Interrupt};
-use crate::memory::Memory;
-use crate::ppu::PPU;
-use crate::ppu::renderer::Renderer;
-use crate::prelude::*;
-use crate::{BoxMapper, RcRef};
+use crate::{
+    BoxMapper, RcRef,
+    apu::APU,
+    cpu::interrupt::{self, Interrupt},
+    memory::Memory,
+    ppu::{PPU, renderer::Renderer},
+    prelude::*,
+};
 
 pub static mut QUIET_LOG: bool = false;
 pub static mut PREV_QUIET_LOG: bool = false;
@@ -91,21 +92,6 @@ impl Bus {
         }
         None
     }
-
-    // pub fn memory(&self) -> Vec<u8> {
-    //     let mut memory: Vec<u8> = vec![0u8; 0x10000];
-    //     let cpu_vram: &Vec<u8> = &self.cpu_vram.to_vec();
-    //     let prg_rom: &Vec<u8> = &self.prg_rom;
-
-    //     memory[0x0000..0x07FF + 1].copy_from_slice(cpu_vram);
-    //     memory[0x0800..0x0FFF + 1].copy_from_slice(cpu_vram);
-    //     memory[0x1000..0x17FF + 1].copy_from_slice(cpu_vram);
-    //     memory[0x1800..0x1FFF + 1].copy_from_slice(cpu_vram);
-    //     // OTHER MEMORY
-    //     memory[0x8000..0xBFFF + 1].copy_from_slice(prg_rom);
-    //     memory[0xC000..0xFFFF + 1].copy_from_slice(prg_rom);
-    //     memory
-    // }
 
     pub fn read_u16(&mut self, pos: u16) -> u16 {
         let lo: u16 = self.read(pos) as u16;

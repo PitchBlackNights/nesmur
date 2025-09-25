@@ -1,4 +1,4 @@
 **/target
-/pacman.nes
-/smb.nes
-/AccuracyCoin.nes
+/third_party/roms/*.nes
+/docs/rustdocs
+/nes/tests/logs/nestest.log

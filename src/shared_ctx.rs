@@ -1,8 +1,11 @@
 #![allow(clippy::mut_from_ref)]
 
+//! Shared context and state management for nesmur
+
 pub mod window {
     pub use crate::get_from_swc;
 
+    /// Defines global Window Context struct and its shared resources
     #[derive(Debug, Clone)]
     pub struct SharedWindowCtx {
         pub window: *mut winit::window::Window,
@@ -30,6 +33,7 @@ pub mod window {
         }
     }
 
+    /// Provides access to global Window Context
     pub trait SharedWindowCtxAccess {
         fn window(&self) -> &winit::window::Window;
         fn window_mut(&self) -> &mut winit::window::Window;

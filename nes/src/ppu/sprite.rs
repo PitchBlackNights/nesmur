@@ -1,6 +1,5 @@
-use crate::ppu::registers::control::ControlRegister;
+use super::registers::ControlRegister;
 use crate::tools::nth_bit;
-// use crate::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SpriteTileIndex(pub u8);

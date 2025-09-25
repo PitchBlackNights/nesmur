@@ -1,6 +1,5 @@
-use crate::cartridge::Mirroring;
-use crate::ppu::PPU;
-use crate::unit_tests::*;
+use super::*;
+use crate::{cartridge::Mirroring, ppu::PPU};
 
 #[test]
 fn test_step() {

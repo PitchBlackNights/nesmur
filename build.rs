@@ -7,18 +7,16 @@ use std::{
 use vergen_git2::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /*
-    === ENV VARIABLES: ===
-    VERGEN_BUILD_TIMESTAMP
-    VERGEN_CARGO_TARGET_TRIPLE
-    VERGEN_GIT_BRANCH
-    VERGEN_GIT_COMMIT_TIMESTAMP
-    VERGEN_GIT_SHA
-    VERGEN_RUSTC_CHANNEL
-    VERGEN_RUSTC_COMMIT_DATE
-    VERGEN_RUSTC_COMMIT_HASH
-    VERGEN_RUSTC_SEMVER
-    */
+    // ======== ENV VARIABLES ========
+    //  VERGEN_BUILD_TIMESTAMP
+    //  VERGEN_CARGO_TARGET_TRIPLE
+    //  VERGEN_GIT_BRANCH
+    //  VERGEN_GIT_COMMIT_TIMESTAMP
+    //  VERGEN_GIT_SHA
+    //  VERGEN_RUSTC_CHANNEL
+    //  VERGEN_RUSTC_COMMIT_DATE
+    //  VERGEN_RUSTC_COMMIT_HASH
+    //  VERGEN_RUSTC_SEMVER
 
     let build = BuildBuilder::default().build_timestamp(true).build()?;
     let cargo = CargoBuilder::default().target_triple(true).build()?;
@@ -42,7 +40,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .emit_and_set()?;
 
     let env_list: Vec<&str> = vec![
-        "CARGO_PKG_VERSION",
         "VERGEN_BUILD_TIMESTAMP",
         "VERGEN_CARGO_TARGET_TRIPLE",
         "VERGEN_GIT_SHA",
@@ -56,18 +53,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let path: PathBuf = Path::new(&env::var("OUT_DIR").unwrap()).join("codegen.rs");
     let mut file: BufWriter<File> = BufWriter::new(File::create(&path).unwrap());
-    let mut codegen: phf_codegen::Map<&str> = phf_codegen::Map::new();
 
+    let mut hashmap_values: Vec<(&str, String)> = Vec::with_capacity(env_list.capacity());
     for environ in env_list {
         if let Ok(value) = env::var(environ) {
-            codegen.entry(environ, format!("\"{value}\""));
+            hashmap_values.push((environ, value));
         }
     }
 
     writeln!(
         &mut file,
-        "pub static ENV_VARS: phf::Map<&'static str, &'static str> = {};",
-        codegen.build()
+        "use std::collections::HashMap;
+        use std::sync::LazyLock;
+        pub static ENV_VARS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| HashMap::from({:?}));",
+        hashmap_values
     )
     .unwrap();
     file.flush().unwrap();

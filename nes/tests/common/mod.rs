@@ -1,6 +1,5 @@
 #[allow(unused_imports)]
-use nes::NES;
-use nes::cartridge::ROM;
+use nes::{NES, cartridge::ROM};
 
 pub fn setup_nes(rom_path: &str) -> NES {
     let path: String = format!(

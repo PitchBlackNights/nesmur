@@ -19,17 +19,262 @@ use std::{
 };
 use winit::event_loop::EventLoopProxy;
 
-enum FrameSenderMsg {
-    Data(Duration, Vec<RGB>),
-    Exit,
+/// Manages NES-related operations and state
+pub struct NESManager {
+    nes_thread: Option<JoinHandle<()>>,
+    thread_com: ThreadCom,
+    event_loop_proxy: EventLoopProxy<NesmurEvent>,
+    nes_messenger: Option<NESMessenger>,
+    pub framerate: f32,
+    pub frametime: f32,
+    frametimes: Vec<f32>,
+    frametimes_index: usize,
 }
 
+impl NESManager {
+    /// Creates a new NESManager
+    pub fn new(event_loop_proxy: &EventLoopProxy<NesmurEvent>) -> Self {
+        NESManager {
+            nes_thread: None,
+            thread_com: ThreadCom::new(Some(10)),
+            event_loop_proxy: event_loop_proxy.clone(),
+            nes_messenger: None,
+            framerate: 0.0,
+            frametime: 0.0,
+            frametimes: Vec::with_capacity(120),
+            frametimes_index: 0,
+        }
+    }
+
+    /// Starts the NES instance
+    pub fn start_nes(&mut self) {
+        assert!(
+            self.nes_thread.is_none(),
+            "Ran `NESManager.start_nes()` when an NES instance is currently running!"
+        );
+        self.nes_messenger = Some(NESMessenger::new(&self.thread_com));
+        let thread_com: ThreadCom = self.thread_com.clone();
+
+        self.nes_thread = Some(new_named_thread("nes", move || {
+            let frame_sender_obj: FrameSender = FrameSender::new(&thread_com);
+            let frame_sender: Sender<FrameSenderMsg> = frame_sender_obj.tx.clone();
+
+            let rom_bytes: Vec<u8> = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/third_party/roms/AccuracyCoin.nes")).unwrap();
+            let rom: ROM = ROM::new(&rom_bytes).unwrap();
+            let mut nes: NES = NES::new(rom);
+            let mut last_frame: Instant = Instant::now();
+
+            let cb_frame_sender: Sender<FrameSenderMsg> = frame_sender.clone();
+            nes.render_callback(move |renderer: RcRef<Renderer>, _, _| {
+                let renderer: Ref<Renderer> = renderer.borrow();
+
+                let now: Instant = Instant::now();
+                let frametime: Duration = now - last_frame;
+                last_frame = now;
+
+                let result: Result<(), TrySendError<FrameSenderMsg>> = cb_frame_sender.try_send(FrameSenderMsg::Data(frametime, renderer.pixels.clone()));
+                match result {
+                    Ok(_) => {},
+                    Err(TrySendError::Full(_)) => warn!("FrameSender TX channel was full when trying to send new frame data!"),
+                    Err(TrySendError::Disconnected(_)) => error!("FrameSender channel was disconnected when trying to send new frame data!"),
+                };
+            });
+
+            let mut paused: bool = false;
+            let mut stepping: bool = false;
+            // Type as i32 just to prevent potential "Subtracting With Overflow" panics
+            let mut steps_left: i32 = 0;
+
+            'nes_loop: loop {
+                if !thread_com.is_rx_empty("nes") {
+                    let messages: Vec<ThreadMsg> = thread_com.get_waiting_messages("nes");
+                    // debug!("New messages for NES to handle: {}", messages.len());
+                    for message in messages.iter() {
+                        match message {
+                            ThreadMsg::Stop => {
+                                trace!("Stopped");
+                                nes.cpu.running = false;
+                                break 'nes_loop;
+                            }
+                            ThreadMsg::Pause => {
+                                trace!("Paused");
+                                paused = true;
+                            }
+                            ThreadMsg::Resume => {
+                                trace!("Resumed");
+                                paused = false;
+                            }
+                            ThreadMsg::Step(steps) => {
+                                stepping = true;
+                                steps_left += *steps as i32;
+                                trace!("Stepping {}(+{}) steps", steps_left, steps);
+                            }
+                            ThreadMsg::ConnectDevice(port, device_type) => {
+                                nes.connect_input_device(*port, *device_type);
+                                trace!("Connected {:?} to port {}", device_type, port);
+                            }
+                            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => {
+                                if *port == 2 && nes.device2.is_some() {
+                                    nes.device2_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
+                                } else if nes.device1.is_some() {
+                                    nes.device1_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
+                                }
+                            }
+                            _ => error!("NES received a '{:?}' message, which it cannot proccess. Ignoring message", message),
+                        };
+                    }
+                }
+
+                if !paused || stepping {
+                    let nes_running: bool = nes.step(|_| {});
+                    if !nes_running {
+                        error!("The NES stopped on its own!");
+                        break 'nes_loop;
+                    }
+                    if stepping {
+                        steps_left -= 1;
+                        if steps_left <= 0 {
+                            stepping = false;
+                            let result: Result<(), ThreadComError> = thread_com.await_send("nes-handle", ThreadMsg::SteppingFinished, None);
+                            if let Err(err) = result {
+                                error!("Failed to send ThreadMsg::SteppingFinished message to 'nes-handle'! - {:?}", err);
+                            }
+                            trace!("Finished stepping");
+                        }
+                    }
+                }
+            }
+
+            frame_sender.send(FrameSenderMsg::Exit).expect("FrameSender channel was disconnected before it was closed properly!");
+            trace!("Terminating thread...");
+        }).unwrap());
+    }
+
+    /// Stops the NES instance
+    pub fn stop_nes(&mut self) {
+        if self.nes_thread.is_none() {
+            return;
+        }
+
+        debug!("Stopping NES...");
+        match self.thread_com.await_send("nes", ThreadMsg::Stop, None) {
+            Ok(_) => {
+                trace!("Sent stop message to NES");
+            }
+            Err(ThreadComError::Disconnected) => {
+                panic!("ThreadCom channel was disconnected before the NES could be stopped!");
+            }
+            _ => panic!("This shouldn't happen!"),
+        };
+        if let Err(err) = self.nes_thread.take().unwrap().join() {
+            error!("The 'nes' thread panicked: {:?}", err);
+        }
+
+        let mut nes_messenger: NESMessenger = self.nes_messenger.take().unwrap();
+        if nes_messenger.tx.send(NESMsg::Exit).is_err() {
+            panic!("Failed to send Exit message to 'nes-messenger' thread! NESMessenger's thread channel was disconnected!");
+        }
+        if let Err(err) = nes_messenger.thread_handle.take().unwrap().join() {
+            error!("The 'nes-messenger' thread panicked: {:?}", err);
+        }
+    }
+
+    /// Handles incoming NES messages
+    pub fn handle_nes_messages(&mut self) {
+        if self.nes_thread.is_none() || self.thread_com.is_rx_empty("nes-handle") {
+            return;
+        }
+
+        let messages: Vec<ThreadMsg> = self.thread_com.get_waiting_messages("nes-handle");
+        for message in messages.iter() {
+            match message {
+                ThreadMsg::NewFrame(frametime, pixels) => {
+                    // debug!("New frame data received");
+                    self.event_loop_proxy.send_event(NesmurEvent::NES(NESEvent::NewFrame(pixels.to_owned()))).unwrap();
+
+                    let frametime: f32 = ((*frametime).as_micros() as f64 / 1000.0) as f32;
+                    if self.frametimes.len() != self.frametimes.capacity() {
+                        self.frametimes.push(frametime);
+                    } else {
+                        self.frametimes[self.frametimes_index] = frametime;
+                    }
+                    self.frametimes_index = (self.frametimes_index + 1) % self.frametimes.capacity();
+                    self.frametime = self.frametimes.iter().sum::<f32>() / self.frametimes.len() as f32;
+                    self.framerate = 1000.0 / self.frametime;
+                }
+
+                ThreadMsg::SteppingFinished => {
+                    self.event_loop_proxy.send_event(NesmurEvent::NES(NESEvent::SteppingFinished)).unwrap();
+                }
+
+                _ => error!("NESManager received a '{:?}' message, which it cannot proccess. Ignoring message", message),
+            }
+        }
+    }
+
+    /// Sends a message to the NES instance
+    fn send_nes_message(&self, msg: NESMsg) {
+        if self.nes_thread.is_none() || self.nes_messenger.is_none() {
+            return;
+        }
+
+        let nes_messenger: &NESMessenger = self.nes_messenger.as_ref().unwrap();
+        match nes_messenger.tx.try_send(msg.clone()) {
+            Ok(_) => {}
+            Err(TrySendError::Full(_)) => {
+                warn!(
+                    "NESMessenger TX channel was full when trying to send {:?} message!",
+                    msg
+                )
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                error!(
+                    "NESMessenger channel was disconnected when trying to send {:?} message!",
+                    msg
+                )
+            }
+        };
+    }
+
+    /// Pauses the NES instance
+    pub fn pause(&self) {
+        self.send_nes_message(NESMsg::Pause);
+    }
+
+    /// Resumes the NES instance
+    pub fn resume(&self) {
+        self.send_nes_message(NESMsg::Resume);
+    }
+
+    /// Steps the NES instance by a given number of steps
+    pub fn step(&self, steps: usize) {
+        self.send_nes_message(NESMsg::Step(steps));
+    }
+
+    /// Connects a device to the NES instance
+    pub fn connect_device(&self, port: u8, device_type: NESDeviceType) {
+        self.send_nes_message(NESMsg::ConnectDevice(port, device_type));
+    }
+
+    /// Updates the button press status of a device connected to the NES instance
+    pub fn update_device_button(
+        &self,
+        port: u8,
+        device_button: Box<dyn NESDeviceButton>,
+        pressed: bool,
+    ) {
+        self.send_nes_message(NESMsg::UpdateDeviceButton(port, device_button, pressed));
+    }
+}
+
+/// Sends frame data from the NES to the renderer
 struct FrameSender {
     thread_handle: Option<JoinHandle<()>>,
     pub tx: Sender<FrameSenderMsg>,
 }
 
 impl FrameSender {
+    /// Creates a new FrameSender
     pub fn new(thread_com: &ThreadCom) -> Self {
         let (tx, rx): (Sender<FrameSenderMsg>, Receiver<FrameSenderMsg>) =
             channel::bounded::<FrameSenderMsg>(4);
@@ -39,7 +284,6 @@ impl FrameSender {
             let message: Result<FrameSenderMsg, RecvError> = rx.recv();
             match message {
                 Ok(FrameSenderMsg::Data(frametime, pixels)) => {
-                    // trace!("New frame data to send");
                     let result: Result<(), ThreadComError> = thread_com.await_send(
                         "nes-handle",
                         ThreadMsg::NewFrame(frametime, pixels),
@@ -85,6 +329,7 @@ impl Drop for FrameSender {
     }
 }
 
+/// NES-related messages sent between threads
 enum NESMsg {
     Pause,
     Resume,
@@ -130,12 +375,14 @@ impl Clone for NESMsg {
     }
 }
 
+/// Manages NES message sending
 struct NESMessenger {
     thread_handle: Option<JoinHandle<()>>,
     pub tx: Sender<NESMsg>,
 }
 
 impl NESMessenger {
+    /// Creates a new NESMessenger
     fn new(thread_com: &ThreadCom) -> Self {
         let (tx, rx): (Sender<NESMsg>, Receiver<NESMsg>) = channel::unbounded::<NESMsg>();
 
@@ -197,240 +444,8 @@ impl Drop for NESMessenger {
     }
 }
 
-pub struct NESManager {
-    nes_thread: Option<JoinHandle<()>>,
-    thread_com: ThreadCom,
-    event_loop_proxy: EventLoopProxy<NesmurEvent>,
-    nes_messenger: Option<NESMessenger>,
-    pub framerate: f32,
-    pub frametime: f32,
-    frametimes: Vec<f32>,
-    frametimes_index: usize,
-}
-
-impl NESManager {
-    pub fn new(event_loop_proxy: &EventLoopProxy<NesmurEvent>) -> Self {
-        NESManager {
-            nes_thread: None,
-            thread_com: ThreadCom::new(Some(10)),
-            event_loop_proxy: event_loop_proxy.clone(),
-            nes_messenger: None,
-            framerate: 0.0,
-            frametime: 0.0,
-            frametimes: Vec::with_capacity(120),
-            frametimes_index: 0,
-        }
-    }
-
-    pub fn start_nes(&mut self) {
-        assert!(
-            self.nes_thread.is_none(),
-            "Ran `NESManager.start_nes()` when an NES instance is currently running!"
-        );
-        self.nes_messenger = Some(NESMessenger::new(&self.thread_com));
-        let thread_com: ThreadCom = self.thread_com.clone();
-
-        self.nes_thread = Some(new_named_thread("nes", move || {
-            let frame_sender_obj: FrameSender = FrameSender::new(&thread_com);
-            let frame_sender: Sender<FrameSenderMsg> = frame_sender_obj.tx.clone();
-
-            let rom_bytes: Vec<u8> = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/AccuracyCoin.nes")).unwrap();
-            let rom: ROM = ROM::new(&rom_bytes).unwrap();
-            let mut nes: NES = NES::new(rom);
-            let mut last_frame: Instant = Instant::now();
-
-            let cb_frame_sender: Sender<FrameSenderMsg> = frame_sender.clone();
-            nes.render_callback(move |renderer: RcRef<Renderer>, _, _| {
-                let renderer: Ref<Renderer> = renderer.borrow();
-
-                let now: Instant = Instant::now();
-                let frametime: Duration = now - last_frame;
-                last_frame = now;
-
-                let result: Result<(), TrySendError<FrameSenderMsg>> = cb_frame_sender.try_send(FrameSenderMsg::Data(frametime, renderer.pixels.clone()));
-                match result {
-                    Ok(_) => {},
-                    Err(TrySendError::Full(_)) => warn!("FrameSender TX channel was full when trying to send new frame data!"),
-                    Err(TrySendError::Disconnected(_)) => error!("FrameSender channel was disconnected when trying to send new frame data!"),
-                };
-            });
-
-            let mut paused: bool = false;
-            let mut stepping: bool = false;
-            // i32 just to prevent potential crashes from Subtracting With Overflow panics
-            let mut steps_left: i32 = 0;
-            'nes_loop: loop {
-                if !thread_com.is_rx_empty("nes") {
-                    let messages: Vec<ThreadMsg> = thread_com.get_waiting_messages("nes");
-                    // debug!("New messages for NES to handle: {}", messages.len());
-                    for message in messages.iter() {
-                        match message {
-                            ThreadMsg::Stop => {
-                                trace!("Stopped");
-                                nes.cpu.running = false;
-                                break 'nes_loop;
-                            }
-                            ThreadMsg::Pause => {
-                                trace!("Paused");
-                                paused = true;
-                            }
-                            ThreadMsg::Resume => {
-                                trace!("Resumed");
-                                paused = false;
-                            }
-                            ThreadMsg::Step(steps) => {
-                                stepping = true;
-                                steps_left += *steps as i32;
-                                // trace!("Stepping {}(+{}) steps", steps_left, steps);
-                            }
-                            ThreadMsg::ConnectDevice(port, device_type) => {
-                                nes.connect_input_device(*port, *device_type);
-                                trace!("Connected {:?} to port {}", device_type, port);
-                            }
-                            ThreadMsg::UpdateDeviceButton(port, device_button, pressed) => {
-                                if *port == 2 && nes.device2.is_some() {
-                                    nes.device2_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
-                                } else if nes.device1.is_some() {
-                                    nes.device1_mut().set_button_pressed_status(device_button.box_clone(), *pressed);
-                                }
-                            }
-                            _ => error!("NES received a '{:?}' message, which it cannot proccess. Ignoring message", message),
-                        };
-                    }
-                }
-
-                if !paused || stepping {
-                    let nes_running: bool = nes.step(|_| {});
-                    if !nes_running {
-                        error!("The NES stopped on its own!");
-                        break 'nes_loop;
-                    }
-                    if stepping {
-                        steps_left -= 1;
-                        if steps_left <= 0 {
-                            stepping = false;
-                            let result: Result<(), ThreadComError> = thread_com.await_send("nes-handle", ThreadMsg::SteppingFinished, None);
-                            if let Err(err) = result {
-                                error!("Failed to send ThreadMsg::SteppingFinished message to 'nes-handle'! - {:?}", err);
-                            }
-                            trace!("Finished stepping");
-                        }
-                    }
-                }
-            }
-
-            frame_sender.send(FrameSenderMsg::Exit).expect("FrameSender channel was disconnected before it was closed properly!");
-            trace!("Terminating thread...");
-        }).unwrap());
-    }
-
-    pub fn stop_nes(&mut self) {
-        if self.nes_thread.is_none() {
-            return;
-        }
-
-        debug!("Stopping NES...");
-        match self.thread_com.await_send("nes", ThreadMsg::Stop, None) {
-            Ok(_) => {
-                // debug!("Sent STOP message to NES");
-            }
-            Err(ThreadComError::Disconnected) => {
-                panic!("ThreadCom channel was disconnected before the NES could be stopped!");
-            }
-            _ => panic!("This shouldn't happen!"),
-        };
-        if let Err(err) = self.nes_thread.take().unwrap().join() {
-            error!("The 'nes' thread panicked: {:?}", err);
-        }
-
-        let mut nes_messenger: NESMessenger = self.nes_messenger.take().unwrap();
-        let result: Result<(), channel::SendError<NESMsg>> = nes_messenger.tx.send(NESMsg::Exit);
-        if result.is_err() {
-            panic!("Failed to send Exit message to 'nes-messenger' thread! NESMessenger's thread channel was disconnected!");
-        }
-        if let Err(err) = nes_messenger.thread_handle.take().unwrap().join() {
-            error!("The 'nes-messenger' thread panicked: {:?}", err);
-        }
-    }
-
-    pub fn handle_nes_messages(&mut self) {
-        if self.nes_thread.is_none() || self.thread_com.is_rx_empty("nes-handle") {
-            return;
-        }
-
-        let messages: Vec<ThreadMsg> = self.thread_com.get_waiting_messages("nes-handle");
-        for message in messages.iter() {
-            match message {
-                ThreadMsg::NewFrame(frametime, pixels) => {
-                    // debug!("New frame data received");
-                    self.event_loop_proxy.send_event(NesmurEvent::NES(NESEvent::NewFrame(pixels.to_owned()))).unwrap();
-
-                    let frametime: f32 = ((*frametime).as_micros() as f64 / 1000.0) as f32;
-                    if self.frametimes.len() != self.frametimes.capacity() {
-                        self.frametimes.push(frametime);
-                    } else {
-                        self.frametimes[self.frametimes_index] = frametime;
-                    }
-                    self.frametimes_index = (self.frametimes_index + 1) % self.frametimes.capacity();
-                    self.frametime = self.frametimes.iter().sum::<f32>() / self.frametimes.len() as f32;
-                    self.framerate = 1000.0 / self.frametime;
-                }
-
-                ThreadMsg::SteppingFinished => {
-                    self.event_loop_proxy.send_event(NesmurEvent::NES(NESEvent::SteppingFinished)).unwrap();
-                }
-
-                _ => error!("NESManager received a '{:?}' message, which it cannot proccess. Ignoring message", message),
-            }
-        }
-    }
-
-    fn send_nes_message(&self, msg: NESMsg) {
-        if self.nes_thread.is_none() || self.nes_messenger.is_none() {
-            return;
-        }
-
-        let nes_messenger: &NESMessenger = self.nes_messenger.as_ref().unwrap();
-        let result: Result<(), TrySendError<NESMsg>> = nes_messenger.tx.try_send(msg.clone());
-        match result {
-            Ok(_) => {}
-            Err(TrySendError::Full(_)) => {
-                warn!(
-                    "NESMessenger TX channel was full when trying to send {:?} message!",
-                    msg
-                )
-            }
-            Err(TrySendError::Disconnected(_)) => {
-                error!(
-                    "NESMessenger channel was disconnected when trying to send {:?} message!",
-                    msg
-                )
-            }
-        };
-    }
-
-    pub fn pause(&self) {
-        self.send_nes_message(NESMsg::Pause);
-    }
-
-    pub fn resume(&self) {
-        self.send_nes_message(NESMsg::Resume);
-    }
-
-    pub fn step(&self, steps: usize) {
-        self.send_nes_message(NESMsg::Step(steps));
-    }
-
-    pub fn connect_device(&self, port: u8, device_type: NESDeviceType) {
-        self.send_nes_message(NESMsg::ConnectDevice(port, device_type));
-    }
-
-    pub fn update_device_button(
-        &self,
-        port: u8,
-        device_button: Box<dyn NESDeviceButton>,
-        pressed: bool,
-    ) {
-        self.send_nes_message(NESMsg::UpdateDeviceButton(port, device_button, pressed));
-    }
+/// Messages sent from the NES to the renderer
+enum FrameSenderMsg {
+    Data(Duration, Vec<RGB>),
+    Exit,
 }

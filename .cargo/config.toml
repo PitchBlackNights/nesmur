@@ -1,7 +1,13 @@
 [alias]
+# `nestool` doesn't need testing
 test-all = ["test", "-p", "nesmur", "-p", "nes"]
 test-nes = ["test", "-p", "nes"]
 test-main = ["test", "-p", "nesmur"]
-fmt-all =["fmt", "-p", "nesmur", "-p", "nes"]
+
+fmt-all = ["fmt", "-p", "nesmur", "-p", "nes", "-p", "nestool"]
 fmt-nes = ["fmt", "-p", "nes"]
-fmt-main =["fmt", "-p", "nesmur"]
+fmt-main = ["fmt", "-p", "nesmur"]
+fmt-nestool = ["fmt", "-p", "nestool"]
+
+sys-gen-docs = ["doc", "--no-deps", "--workspace", "--document-private-items"]
+docs = ["run", "-p", "nestool", "--", "docs"]

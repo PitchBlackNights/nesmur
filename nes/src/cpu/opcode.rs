@@ -1,9 +1,6 @@
-use crate::bus::Bus;
-use crate::cpu::CPU;
-use crate::prelude::*;
-use std::cell::RefMut;
-use std::collections::HashMap;
-use std::sync::LazyLock;
+use super::CPU;
+use crate::{bus::Bus, prelude::*};
+use std::{cell::RefMut, collections::HashMap, sync::LazyLock};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct OpCode {
@@ -171,7 +168,7 @@ macro_rules! define_opcodes {
 
         pub static OPCODES: LazyLock<HashMap<u8, OpCode>> = LazyLock::new(|| {
             // trace!("Building OPCODES hashmap...");
-            let mut map = HashMap::new();
+            let mut map: HashMap<u8, OpCode> = HashMap::new();
             $(
                 let instruction: Instruction = Instruction::$instr;
                 let mnemonic: &'static str = define_opcodes!(@mnemonic $instr $( $mnemonic )?);

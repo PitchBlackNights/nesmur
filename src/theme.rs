@@ -1,5 +1,8 @@
+//! Theme and font configuration for ImGUI
+
 use imgui::{Context, FontSource, Style, StyleColor};
 
+/// Applies theme colors and font to an ImGUI context
 pub fn apply_context(imgui_context: &mut Context) {
     apply_style(imgui_context.style_mut());
 
@@ -15,6 +18,7 @@ pub fn apply_context(imgui_context: &mut Context) {
     imgui_context.fonts().add_font(FONT_SOURCE.as_slice());
 }
 
+/// Defines and applies theme colors
 pub fn apply_style(imgui_style: &mut Style) {
     let colors: &mut [[f32; 4]; StyleColor::COUNT] = &mut imgui_style.colors;
 

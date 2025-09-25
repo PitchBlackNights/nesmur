@@ -1,6 +1,7 @@
-use crate::ppu::registers::control::ControlRegister;
-use crate::ppu::sprite::{Sprite, SpriteTileIndex};
-// use crate::unit_tests::*;
+use crate::ppu::{
+    registers::ControlRegister,
+    sprite::{Sprite, SpriteTileIndex},
+};
 
 #[test]
 fn test_tile_base() {

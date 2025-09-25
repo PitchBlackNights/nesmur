@@ -1,5 +1,4 @@
-use crate::cpu::opcode::OpCode;
-use crate::cpu::{CPU, Flags, STACK};
+use super::{CPU, Flags, STACK, opcode::OpCode};
 use crate::prelude::*;
 
 // ============================

@@ -1,33 +1,40 @@
+//! Handles command line parsing for the application.
+//!
+//! It defines the structure and functions necessary to interpret user input.
+
+// Import custom Environment Variables generated at compile time
 use crate::ENV_VARS;
-use clap::{arg, crate_authors, value_parser, ArgMatches, Command};
-use std::error::Error;
-use std::sync::LazyLock;
-use std::{cmp, env, process};
+use clap::{
+    arg, crate_authors, crate_description, crate_name, crate_version, value_parser, ArgMatches,
+    Command,
+};
+use std::{cmp, env, error::Error, process, sync::LazyLock};
 
 static LONG_VERSION: LazyLock<String> = LazyLock::new(|| {
     format!(
         " v{}\nAuthor(s): {}\nDescription: {}\nRepository: {}",
-        env!("CARGO_PKG_VERSION"),
+        crate_version!(),
         crate_authors!(", "),
-        env!("CARGO_PKG_DESCRIPTION"),
+        crate_description!(),
         env!("CARGO_PKG_REPOSITORY")
     )
 });
 
-static SHORT_VERSION: LazyLock<String> =
-    LazyLock::new(|| format!(" v{}", env!("CARGO_PKG_VERSION"),));
+static SHORT_VERSION: LazyLock<String> = LazyLock::new(|| format!(" v{}", crate_version!(),));
 
-/// Struct to describe passed command-line arguments
 #[derive(Debug)]
 #[allow(dead_code)]
+/// Struct to describe passed command-line arguments
 pub struct Args {
     pub verbose: u8,
 }
 
 impl Args {
+    /// Parses CLI arguments and options for the application
     pub fn parse() -> Result<Args, Box<dyn Error>> {
         // Possible arguments
-        // verbose: `get_count("verbose")`
+        // -v   --verbose       Turns on verbose logging (Max level of 2)
+        //     --debug-info     Prints out debug info about the binary
         let matches: ArgMatches = Self::command()
             .ignore_errors(true)
             .arg(
@@ -37,7 +44,7 @@ impl Args {
                 .value_parser(value_parser!(u8).range(0..=2)),
             )
             .arg(arg!(
-                --"debug-info" "Prints out debug info about binary"
+                --"debug-info" "Prints out debug info about the binary"
             ))
             .get_matches();
 
@@ -52,19 +59,21 @@ impl Args {
             matches.get_count("verbose")
         };
 
+        // Returns parsed arguments
         Ok(Args { verbose })
     }
 
+    /// Defines the base Command struct and its relevant information
     pub fn command() -> Command {
         // crate_name!() = env!("CARGO_PKG_NAME");
         // crate_version!() = env!("CARGO_PKG_VERSION");
-        // crate_authors!() = env!("CARGO_PKG_AUTHORS") + custom_separator;
+        // crate_authors!(sep) = env!("CARGO_PKG_AUTHORS") + custom_separator;
         // crate_description!() = env!("CARGO_PKG_DESCRIPTION");
 
-        let cmd: Command = Command::new(env!("CARGO_PKG_NAME"))
+        let cmd: Command = Command::new(crate_name!())
             .author(crate_authors!(", "))
-            .about(env!("CARGO_PKG_DESCRIPTION"))
-            .long_about(env!("CARGO_PKG_DESCRIPTION"))
+            .about(crate_description!())
+            // .long_about(crate_description!())
             .version(SHORT_VERSION.as_str())
             .long_version(LONG_VERSION.as_str());
         cmd
@@ -83,7 +92,7 @@ impl Args {
     /// Prints debug info about host and binary
     fn debug_info() -> String {
         let env_list: Vec<&str> = vec![
-            "CUSTOM_BIN_NAME",
+            "BIN_NAME",
             "CARGO_PKG_VERSION",
             "VERGEN_BUILD_TIMESTAMP",
             "VERGEN_GIT_SHA",
@@ -104,7 +113,7 @@ impl Args {
             let concat_string: String = match ENV_VARS.get(environ) {
                 Some(value) => format!("{trunc_environ} = {value}\n"),
                 None => {
-                    if environ == "CUSTOM_BIN_NAME" {
+                    if environ == "BIN_NAME" {
                         format!(
                             "BIN_NAME = {}\n",
                             match env::current_exe() {

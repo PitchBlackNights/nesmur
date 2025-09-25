@@ -1,10 +1,12 @@
 const COLOR_MARKER_START: char = '{';
 const COLOR_MARKER_END: char = '}';
 
+/// ImGUI Extention that provides multicolored text rendering capabilities
 pub trait ImGUIColoredText {
     fn text_with_colors(&self, text: String);
 }
 
+// Implements the extension directly into imgui::Ui, allowing the use of `imgui::Ui.text_with_colors()` provided that this Trait is imported before use
 impl ImGUIColoredText for imgui::Ui {
     fn text_with_colors(&self, text: String) {
         let mut temp_new_color: String = String::new();

@@ -1,6 +1,11 @@
+//! UI module for nesmur
+//!
+//! This module handles the user interface for nesmur, including the control panel and the NES game window.
+//! It uses ImGUI (imgui-rs) for the UI components and OpenGL (glow) for rendering.
+
 pub mod colored_text;
 
-use self::colored_text::ImGUIColoredText;
+// use self::colored_text::ImGUIColoredText;
 use crate::{
     gl_error,
     prelude::*,
@@ -192,7 +197,7 @@ impl NESGameWindow {
         }
     }
 
-    /// Generate dummy texture
+    /// Generate initial "blank" texture
     fn generate(&mut self, opengl: &glow::Context, textures: &mut imgui::Textures<glow::Texture>) {
         // Allocate enough space for RGB (3 bytes per pixel)
         for _ in 0..(self.width * self.height) {

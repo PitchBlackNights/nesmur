@@ -1,10 +1,10 @@
 use super::Mapper;
-use crate::bus_trace;
-use crate::memory::Memory;
-use crate::memory::mem_map::*;
-use crate::ppu::PPU;
-use crate::prelude::*;
-use crate::{BoxNESDevice, RcRef};
+use crate::{
+    BoxNESDevice, RcRef, bus_trace,
+    memory::{Memory, mem_map::*},
+    ppu::PPU,
+    prelude::*,
+};
 
 #[rustfmt::skip]
 impl NESAccess for Mapper000 {
@@ -13,27 +13,19 @@ impl NESAccess for Mapper000 {
     fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
     fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
     fn device1(&self) -> Ref<BoxNESDevice> {
-        if self.device1.is_none() {
-            panic!("Mapper tried to access `Device 1` before a reference was passed to it!");
-        }
+        assert!(self.device1.is_some(), "Mapper tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow()
     }
     fn device1_mut(&self) -> RefMut<BoxNESDevice> {
-        if self.device1.is_none() {
-            panic!("Mapper tried to access `Device 1` before a reference was passed to it!");
-        }
+        assert!(self.device1.is_some(), "Mapper tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow_mut()
     }
     fn device2(&self) -> Ref<BoxNESDevice> {
-        if self.device2.is_none() {
-            panic!("Mapper tried to access `Device 2` before a reference was passed to it!");
-        }
+        assert!(self.device2.is_some(), "Mapper tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow()
     }
     fn device2_mut(&self) -> RefMut<BoxNESDevice> {
-        if self.device2.is_none() {
-            panic!("Mapper tried to access `Device 2` before a reference was passed to it!");
-        }
+        assert!(self.device2.is_some(), "Mapper tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow_mut()
     }
 }

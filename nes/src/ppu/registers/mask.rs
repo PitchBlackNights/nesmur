@@ -1,19 +1,20 @@
 use crate::prelude::*;
 
 bitflags! {
-
-    // 7  bit  0
-    // ---- ----
-    // BGRs bMmG
-    // |||| ||||
-    // |||| |||+- Greyscale (0: normal color, 1: produce a greyscale display)
-    // |||| ||+-- 1: Show background in leftmost 8 pixels of screen, 0: Hide
-    // |||| |+--- 1: Show sprites in leftmost 8 pixels of screen, 0: Hide
-    // |||| +---- 1: Show background
-    // |||+------ 1: Show sprites
-    // ||+------- Emphasize red
-    // |+-------- Emphasize green
-    // +--------- Emphasize blue
+    /// ```plaintext
+    /// 7  bit  0
+    /// ---- ----
+    /// BGRs bMmG
+    /// ││││ ││││
+    /// ││││ │││╘═ Greyscale
+    /// ││││ ││╘══ Show background in leftmost 8 pixels of screen
+    /// ││││ │╘═══ Show sprites in leftmost 8 pixels of screen
+    /// ││││ ╘════ Show background
+    /// │││╘══════ Show sprites
+    /// ││╘═══════ Emphasize red
+    /// │╘════════ Emphasize green
+    /// ╘═════════ Emphasize blue
+    /// ```
     pub struct MaskRegister: u8 {
         const GREYSCALE                = 0b0000_0001;
         const LEFTMOST_8PXL_BACKGROUND = 0b0000_0010;
@@ -26,11 +27,12 @@ bitflags! {
     }
 }
 
-pub enum Color {
-    Red,
-    Green,
-    Blue,
-}
+// ==== UNUSED ====
+// pub enum Color {
+//     Red,
+//     Green,
+//     Blue,
+// }
 
 impl MaskRegister {
     pub fn new() -> Self {
@@ -70,20 +72,20 @@ impl MaskRegister {
         self.contains(MaskRegister::SHOW_SPRITES)
     }
 
-    pub fn emphasise(&self) -> Vec<Color> {
-        let mut result = Vec::<Color>::new();
-        if self.contains(MaskRegister::EMPHASISE_RED) {
-            result.push(Color::Red);
-        }
-        if self.contains(MaskRegister::EMPHASISE_BLUE) {
-            result.push(Color::Blue);
-        }
-        if self.contains(MaskRegister::EMPHASISE_GREEN) {
-            result.push(Color::Green);
-        }
-
-        result
-    }
+    // ==== UNUSED ====
+    // pub fn emphasise(&self) -> Vec<Color> {
+    //     let mut result: Vec<Color> = Vec::<Color>::new();
+    //     if self.contains(MaskRegister::EMPHASISE_RED) {
+    //         result.push(Color::Red);
+    //     }
+    //     if self.contains(MaskRegister::EMPHASISE_BLUE) {
+    //         result.push(Color::Blue);
+    //     }
+    //     if self.contains(MaskRegister::EMPHASISE_GREEN) {
+    //         result.push(Color::Green);
+    //     }
+    //     result
+    // }
 
     pub fn rendering(&self) -> bool {
         self.show_sprites() || self.show_background()

@@ -1,9 +1,8 @@
-use crate::cartridge::Mirroring;
-use crate::ppu::PPU;
-use crate::ppu::registers::mask::MaskRegister;
-use crate::ppu::renderer::Renderer;
-use crate::ppu::sprite::Sprite;
-use crate::unit_tests::*;
+use super::*;
+use crate::{
+    cartridge::Mirroring,
+    ppu::{PPU, registers::MaskRegister, renderer::Renderer, sprite::Sprite},
+};
 
 fn build_ppu(mirroring: Mirroring) -> PPU {
     let memory: Memory = Memory {

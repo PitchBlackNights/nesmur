@@ -2,27 +2,26 @@ mod common;
 pub mod interrupt;
 pub mod opcode;
 
-use crate::RcRef;
-use crate::bus::Bus;
-use crate::cpu::interrupt::Interrupt;
-use crate::cpu::opcode::AddressingMode::*;
-use crate::cpu::opcode::Instruction::*;
-use crate::cpu::opcode::OpCode;
-use crate::prelude::*;
-// use crate::tools;
+use self::{
+    interrupt::Interrupt,
+    opcode::{AddressingMode::*, Instruction::*, OpCode},
+};
+use crate::{RcRef, bus::Bus, prelude::*};
 
 bitflags! {
     /// Status Register (P) - http://wiki.nesdev.com/w/index.php/Status_flags
     /// ```plaintext
-    ///  7 6 5 4 3 2 1 0
-    ///  N V _ B D I Z C
-    ///  | |   | | | | +---- Carry
-    ///  | |   | | | +------ Zero
-    ///  | |   | | +-------- Interrupt Disable
-    ///  | |   | +---------- Decimal Mode (not used on NES)
-    ///  | |   +------------ Break
-    ///  | +---------------- Overflow
-    ///  +------------------ Negative
+    ///  7  bit  0
+    ///  ---- ----
+    ///  NV_B DIZC
+    ///  ││ │ ││││
+    ///  ││ │ │││╘═ Carry
+    ///  ││ │ ││╘══ Zero
+    ///  ││ │ │╘═══ Interrupt Disable
+    ///  ││ │ ╘════ Decimal Mode (not used on NES)
+    ///  ││ ╘══════ Break
+    ///  │╘════════ Overflow
+    ///  ╘═════════ Negative
     /// ```
     #[derive(Clone, Debug)]
     pub struct Flags: u8 {

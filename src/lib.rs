@@ -1,6 +1,10 @@
-use std::thread::{Builder, JoinHandle};
+//! Main library file for nesmur
+//!
+//! Contains core types, traits, and shared logic.
+//! Re-exports modules and functions.
 
 use nes::ppu::renderer::RGB;
+use std::thread::{Builder, JoinHandle};
 
 pub mod cli_parser;
 pub mod setup;
@@ -8,6 +12,7 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub use log::{debug, error, info, trace, warn};
 }
+pub mod app;
 pub mod nes_manager;
 pub mod shared_ctx;
 pub mod theme;
