@@ -1,0 +1,150 @@
+010 - ROM is not writable       :   _
+011 - RAM Mirroring             :   _
+012 - PC Wraparound             :   _
+013 - The Decimal Flag          :   _
+014 - The B Flag                :   _
+015 - Dummy read cycles         :   _
+016 - Dummy write cycles        :   _
+017 - Open Bus                  :   _
+018 - All NOP instructions      :   _
+
+020 - Absolute Indexed          :   _
+021 - Zero Page Indexed         :   _
+022 - Indirect                  :   _
+023 - Indirect, X               :   _
+024 - Indirect, Y               :   _
+025 - Relative                  :   _
+
+030 - SLO indirect,X            :   _
+031 - SLO zeropage              :   _
+032 - SLO absolute              :   _
+033 - SLO indirecy,Y            :   _
+034 - SLO zeropage,X            :   _
+035 - SLO absolute,Y            :   _
+036 - SLO absolute,X            :   _
+
+040 - RLA indirect,X            :   _
+041 - RLA zeropage              :   _
+042 - RLA absolute              :   _
+043 - RLA indiract,Y            :   _
+044 - RLA zeropage,X            :   _
+045 - RLA absolute,Y            :   _
+046 - RLA absolute,X            :   _
+
+050 - SRE indirecy,X            :   _
+051 - SRE zeropage              :   _
+052 - SRE absolute              :   _
+053 - SRE indirect,Y            :   _
+054 - SRE zeropage,X            :   _
+055 - SRE absolute,Y            :   _
+056 - SRE absolute,X            :   _
+
+060 - RRA indirect,X            :   _
+061 - RRA zeropage              :   _
+062 - RRA absolute              :   _
+063 - RRA indirect,Y            :   _
+064 - RRA zeropage,X            :   _
+065 - RRA absolute,Y            :   _
+066 - RRA absolute,X            :   _
+
+070 - SAX indirect,X            :   _
+071 - SAX zeropage              :   _
+072 - SAX absolute              :   _
+073 - SAX zeropage,Y            :   _
+074 - LAX indirect,X            :   _
+075 - LAX zeropage              :   _
+076 - LAX absolute              :   _
+077 - LAX indirect,Y            :   _
+078 - LAX zeropage,Y            :   _
+079 - LAX absolute,X            :   _
+
+080 - DCP indirect,X            :   _
+081 - DCP zeropage              :   _
+082 - DCP absolute              :   _
+083 - DCP indirect,Y            :   _
+084 - DCP zeropage,X            :   _
+085 - DCP absolute,Y            :   _
+086 - DCP absolute,X            :   _
+
+090 - ISC indirect,X            :   _
+091 - ISC zeropage              :   _
+092 - ISC absolute              :   _
+093 - ISC indirect,Y            :   _
+094 - ISC zeropage,X            :   _
+095 - ISC absolute,Y            :   _
+096 - ISC absolute,X            :   _
+
+100 - SHA indirect,Y            :   _
+101 - SHA absolute,Y            :   _
+102 - SHS absolute,Y            :   _
+103 - SHY absolute,X            :   _
+104 - SHX absolute,Y            :   _
+105 - LAE absolute,Y            :   _
+
+110 - ANC Immediate             :   _
+111 - ANC Immediate             :   _
+112 - ASR Immediate             :   _
+113 - ARR Immediate             :   _
+114 - ANE Immediate             :   _
+115 - LXA Immediate             :   _
+116 - AXS Immediate             :   _
+117 - SBC Immediate             :   _
+
+120 - Interrupt flag latency    :   _
+121 - NMI Overlap BRK           :   _
+122 - NMI Overlap IRQ           :   _
+
+130 - DMA + Open Bus            :   _
+131 - DMA + $2002 Read          :   _
+132 - DMA + $2007 Read          :   _
+133 - DMA + $2007 Write         :   _
+134 - DMA + $4015 Read          :   _
+135 - DMA + $4016 Read          :   _
+136 - DMC DMA Bus Conflicts     :   _
+137 - DMC DMA + OAM DMA         :   _
+138 - Explicit DMA Abort        :   _
+139 - Implicit DMA Abort        :   _
+
+140 - Length Counter            :   _
+141 - Length Table              :   _
+142 - Frame Counter IRQ         :   _
+143 - Frame Counter 4-step      :   _
+144 - Frame Counter 5-step      :   _
+145 - Delta Modulation Channel  :   _
+146 - APU Register Activation   :   _
+147 - Controller Strobing       :   _
+148 - Controller Clocking       :   _
+
+160 - CHR ROM is not writable   :   _
+161 - PPU Register Mirroring    :   _
+162 - PPU Register Open Bus     :   _
+163 - PPU Read Buffer           :   _
+164 - Palette RAM Quirks        :   _
+165 - Rendering Flag Behavior   :   _
+
+170 - VBlank beginning          :   _
+171 - VBlank end                :   _
+172 - NMI Control               :   _
+173 - NMI Timing                :   _
+174 - NMI Suppression           :   _
+175 - NMI at VBlank end         :   _
+176 - NMI disabled at VBlank    :   _
+
+180 - Sprite overflow behavior  :   _
+181 - Sprite 0 Hit behavior     :   _
+182 - Suddenly Resize Sprite    :   _
+183 - Arbitrary Sprite Zero     :   _
+184 - Misaligned OAM behavior   :   _
+185 - Address $2004 behavior    :   _
+186 - OAM Corruption            :   _
+187 - INC $4014                 :   _
+
+190 - Attributes As Tiles       :   _
+191 - t Register Quirks         :   _
+192 - Stale BG Shift Registers  :   _
+193 - BG Serial In              :   _
+194 - Sprites On Scanline 0     :   _
+
+200 - Instruction Timing        :   _
+201 - Implied Dummy Reads       :   _
+202 - JSR Edge Cases            :   _
