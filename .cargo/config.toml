@@ -7,7 +7,7 @@ test-main = ["test", "-p", "nesmur"]
 fmt-all = ["fmt", "-p", "nesmur", "-p", "nes", "-p", "xtask"]
 fmt-nes = ["fmt", "-p", "nes"]
 fmt-main = ["fmt", "-p", "nesmur"]
-fmt-nestool = ["fmt", "-p", "xtask"]
+fmt-xtask = ["fmt", "-p", "xtask"]
 
 sys-gen-docs = ["doc", "--no-deps", "--workspace", "--document-private-items"]
 docs = ["xtask", "docs"]
