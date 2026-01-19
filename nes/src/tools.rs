@@ -21,24 +21,24 @@ pub static NON_READABLE_ADDR: LazyLock<Vec<u16>> = LazyLock::new(|| {
 
 #[rustfmt::skip]
 pub trait NESAccess {
-    fn bus(&self) -> Ref<Bus> { panic!("Access to `Bus` is prohibited") }
-    fn bus_mut(&self) -> RefMut<Bus> { panic!("Mutable access to `Bus` is prohibited") }
-    fn apu(&self) -> Ref<APU> { panic!("Access to `APU` is prohibited") }
-    fn apu_mut(&self) -> RefMut<APU> { panic!("Mutable access to `APU` is prohibited") }
-    fn ppu(&self) -> Ref<PPU> { panic!("Access to `PPU` is prohibited") }
-    fn ppu_mut(&self) -> RefMut<PPU> { panic!("Mutable access to `PPU` is prohibited") }
-    fn rom(&self) -> Ref<ROM> { panic!("Access to `Rom` is prohibited") }
-    fn rom_mut(&self) -> RefMut<ROM> { panic!("Mutable access to `Rom` is prohibited") }
-    fn mapper(&self) -> Ref<BoxMapper> { panic!("Access to `Mapper` is prohibited") }
-    fn mapper_mut(&self) -> RefMut<BoxMapper> { panic!("Mutable access to `Mapper` is prohibited") }
-    fn memory(&self) -> Ref<Memory> { panic!("Access to `Memory` is prohibited") }
-    fn memory_mut(&self) -> RefMut<Memory> { panic!("Mutable access to `Memory` is prohibited") }
-    fn device1(&self) -> Ref<BoxNESDevice> { panic!("Access to `Device 1` is prohibited") }
-    fn device1_mut(&self) -> RefMut<BoxNESDevice> { panic!("Mutable access to `Device 1` is prohibited") }
-    fn device2(&self) -> Ref<BoxNESDevice> { panic!("Access to `Device 2` is prohibited") }
-    fn device2_mut(&self) -> RefMut<BoxNESDevice> { panic!("Mutable access to `Device 2` is prohibited") }
-    fn renderer(&self) -> Ref<Renderer> { panic!("Access to `Renderer` is prohibited") }
-    fn renderer_mut(&self) -> RefMut<Renderer> { panic!("Mutable access to `Renderer` is prohibited") }
+    fn bus(&self) -> Ref<'_, Bus> { panic!("Access to `Bus` is prohibited") }
+    fn bus_mut(&self) -> RefMut<'_, Bus> { panic!("Mutable access to `Bus` is prohibited") }
+    fn apu(&self) -> Ref<'_, APU> { panic!("Access to `APU` is prohibited") }
+    fn apu_mut(&self) -> RefMut<'_, APU> { panic!("Mutable access to `APU` is prohibited") }
+    fn ppu(&self) -> Ref<'_, PPU> { panic!("Access to `PPU` is prohibited") }
+    fn ppu_mut(&self) -> RefMut<'_, PPU> { panic!("Mutable access to `PPU` is prohibited") }
+    fn rom(&self) -> Ref<'_, ROM> { panic!("Access to `Rom` is prohibited") }
+    fn rom_mut(&self) -> RefMut<'_, ROM> { panic!("Mutable access to `Rom` is prohibited") }
+    fn mapper(&self) -> Ref<'_, BoxMapper> { panic!("Access to `Mapper` is prohibited") }
+    fn mapper_mut(&self) -> RefMut<'_, BoxMapper> { panic!("Mutable access to `Mapper` is prohibited") }
+    fn memory(&self) -> Ref<'_, Memory> { panic!("Access to `Memory` is prohibited") }
+    fn memory_mut(&self) -> RefMut<'_, Memory> { panic!("Mutable access to `Memory` is prohibited") }
+    fn device1(&self) -> Ref<'_, BoxNESDevice> { panic!("Access to `Device 1` is prohibited") }
+    fn device1_mut(&self) -> RefMut<'_, BoxNESDevice> { panic!("Mutable access to `Device 1` is prohibited") }
+    fn device2(&self) -> Ref<'_, BoxNESDevice> { panic!("Access to `Device 2` is prohibited") }
+    fn device2_mut(&self) -> RefMut<'_, BoxNESDevice> { panic!("Mutable access to `Device 2` is prohibited") }
+    fn renderer(&self) -> Ref<'_, Renderer> { panic!("Access to `Renderer` is prohibited") }
+    fn renderer_mut(&self) -> RefMut<'_, Renderer> { panic!("Mutable access to `Renderer` is prohibited") }
 }
 
 pub fn nth_bit<T: Into<u16>, U: Into<u16>>(x: T, n: U) -> u8 {
@@ -95,9 +95,7 @@ pub fn format_byte_size(bytes: usize) -> String {
 }
 
 pub fn trace(cpu: &CPU) -> String {
-    use crate::cpu::opcode::AddressingMode::*;
-    use crate::cpu::opcode::Instruction::*;
-    use crate::cpu::opcode::{OpCode, decode_opcode};
+    use crate::cpu::opcode::{AddressingMode::*, Instruction::*, OpCode, decode_opcode};
 
     let prev_bus_quiet_log: bool = crate::bus::get_quiet_log();
     crate::bus::set_quiet_log(true);

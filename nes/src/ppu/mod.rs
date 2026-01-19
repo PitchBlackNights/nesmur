@@ -11,8 +11,8 @@ use crate::{RcRef, Region, cartridge::Mirroring, memory::Memory, prelude::*};
 
 #[rustfmt::skip]
 impl NESAccess for PPU {
-    fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
-    fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
+    fn memory(&self) -> Ref<'_, Memory> { self.memory.borrow() }
+    fn memory_mut(&self) -> RefMut<'_, Memory> { self.memory.borrow_mut() }
 }
 
 pub struct PPU {

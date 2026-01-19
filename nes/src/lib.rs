@@ -41,36 +41,36 @@ pub const SCREEN_HEIGHT: usize = 240;
 
 #[rustfmt::skip]
 impl NESAccess for NES {
-    fn bus(&self) -> Ref<Bus> { self.bus.borrow() }
-    fn bus_mut(&self) -> RefMut<Bus> { self.bus.borrow_mut() }
-    fn apu(&self) -> Ref<APU> { self.apu.borrow() }
-    fn apu_mut(&self) -> RefMut<APU> { self.apu.borrow_mut() }
-    fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
-    fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
-    fn rom(&self) -> Ref<ROM> { self.rom.borrow() }
-    fn rom_mut(&self) -> RefMut<ROM> { self.rom.borrow_mut() }
-    fn mapper(&self) -> Ref<BoxMapper> { self.mapper.borrow() }
-    fn mapper_mut(&self) -> RefMut<BoxMapper> { self.mapper.borrow_mut() }
-    fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
-    fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
-    fn device1(&self) -> Ref<BoxNESDevice> {
+    fn bus(&self) -> Ref<'_, Bus> { self.bus.borrow() }
+    fn bus_mut(&self) -> RefMut<'_, Bus> { self.bus.borrow_mut() }
+    fn apu(&self) -> Ref<'_, APU> { self.apu.borrow() }
+    fn apu_mut(&self) -> RefMut<'_, APU> { self.apu.borrow_mut() }
+    fn ppu(&self) -> Ref<'_, PPU> { self.ppu.borrow() }
+    fn ppu_mut(&self) -> RefMut<'_, PPU> { self.ppu.borrow_mut() }
+    fn rom(&self) -> Ref<'_, ROM> { self.rom.borrow() }
+    fn rom_mut(&self) -> RefMut<'_, ROM> { self.rom.borrow_mut() }
+    fn mapper(&self) -> Ref<'_, BoxMapper> { self.mapper.borrow() }
+    fn mapper_mut(&self) -> RefMut<'_, BoxMapper> { self.mapper.borrow_mut() }
+    fn memory(&self) -> Ref<'_, Memory> { self.memory.borrow() }
+    fn memory_mut(&self) -> RefMut<'_, Memory> { self.memory.borrow_mut() }
+    fn device1(&self) -> Ref<'_, BoxNESDevice> {
         assert!(self.device1.is_some(), "NES tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow()
     }
-    fn device1_mut(&self) -> RefMut<BoxNESDevice> {
+    fn device1_mut(&self) -> RefMut<'_, BoxNESDevice> {
         assert!(self.device1.is_some(), "NES tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow_mut()
     }
-    fn device2(&self) -> Ref<BoxNESDevice> {
+    fn device2(&self) -> Ref<'_, BoxNESDevice> {
         assert!(self.device2.is_some(), "NES tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow()
     }
-    fn device2_mut(&self) -> RefMut<BoxNESDevice> {
+    fn device2_mut(&self) -> RefMut<'_, BoxNESDevice> {
         assert!(self.device2.is_some(), "NES tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow_mut()
     }
-    fn renderer(&self) -> Ref<Renderer> { self.renderer.borrow() }
-    fn renderer_mut(&self) -> RefMut<Renderer> { self.renderer.borrow_mut() }
+    fn renderer(&self) -> Ref<'_, Renderer> { self.renderer.borrow() }
+    fn renderer_mut(&self) -> RefMut<'_, Renderer> { self.renderer.borrow_mut() }
 }
 
 pub struct NES {

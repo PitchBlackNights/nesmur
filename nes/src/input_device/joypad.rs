@@ -1,5 +1,7 @@
-use crate::input_device::{NESDevice, NESDeviceButton, NESDeviceType};
-use crate::prelude::*;
+use crate::{
+    input_device::{NESDevice, NESDeviceButton, NESDeviceType},
+    prelude::*,
+};
 use std::any::Any;
 
 bitflags! {

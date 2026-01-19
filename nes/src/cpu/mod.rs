@@ -41,8 +41,8 @@ const STACK_RESET: u8 = 0xFD;
 
 #[rustfmt::skip]
 impl NESAccess for CPU {
-    fn bus(&self) -> Ref<Bus> { self.bus.borrow() }
-    fn bus_mut(&self) -> RefMut<Bus> { self.bus.borrow_mut() }
+    fn bus(&self) -> Ref<'_, Bus> { self.bus.borrow() }
+    fn bus_mut(&self) -> RefMut<'_, Bus> { self.bus.borrow_mut() }
 }
 
 pub struct CPU {

@@ -8,23 +8,23 @@ use crate::{
 
 #[rustfmt::skip]
 impl NESAccess for Mapper000 {
-    fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
-    fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
-    fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
-    fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
-    fn device1(&self) -> Ref<BoxNESDevice> {
+    fn ppu(&self) -> Ref<'_, PPU> { self.ppu.borrow() }
+    fn ppu_mut(&self) -> RefMut<'_, PPU> { self.ppu.borrow_mut() }
+    fn memory(&self) -> Ref<'_, Memory> { self.memory.borrow() }
+    fn memory_mut(&self) -> RefMut<'_, Memory> { self.memory.borrow_mut() }
+    fn device1(&self) -> Ref<'_, BoxNESDevice> {
         assert!(self.device1.is_some(), "Mapper tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow()
     }
-    fn device1_mut(&self) -> RefMut<BoxNESDevice> {
+    fn device1_mut(&self) -> RefMut<'_, BoxNESDevice> {
         assert!(self.device1.is_some(), "Mapper tried to access `Device 1` before a reference was passed to it!");
         self.device1.as_ref().unwrap().borrow_mut()
     }
-    fn device2(&self) -> Ref<BoxNESDevice> {
+    fn device2(&self) -> Ref<'_, BoxNESDevice> {
         assert!(self.device2.is_some(), "Mapper tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow()
     }
-    fn device2_mut(&self) -> RefMut<BoxNESDevice> {
+    fn device2_mut(&self) -> RefMut<'_, BoxNESDevice> {
         assert!(self.device2.is_some(), "Mapper tried to access `Device 2` before a reference was passed to it!");
         self.device2.as_ref().unwrap().borrow_mut()
     }

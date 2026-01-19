@@ -27,14 +27,14 @@ macro_rules! bus_trace {
 
 #[rustfmt::skip]
 impl NESAccess for Bus {
-    fn ppu(&self) -> Ref<PPU> { self.ppu.borrow() }
-    fn ppu_mut(&self) -> RefMut<PPU> { self.ppu.borrow_mut() }
-    fn mapper(&self) -> Ref<BoxMapper> { self.mapper.borrow() }
-    fn mapper_mut(&self) -> RefMut<BoxMapper> { self.mapper.borrow_mut() }
-    fn memory(&self) -> Ref<Memory> { self.memory.borrow() }
-    fn memory_mut(&self) -> RefMut<Memory> { self.memory.borrow_mut() }
-    fn renderer(&self) -> Ref<Renderer> { self.renderer.borrow() }
-    fn renderer_mut(&self) -> RefMut<Renderer> { self.renderer.borrow_mut() }
+    fn ppu(&self) -> Ref<'_, PPU> { self.ppu.borrow() }
+    fn ppu_mut(&self) -> RefMut<'_, PPU> { self.ppu.borrow_mut() }
+    fn mapper(&self) -> Ref<'_, BoxMapper> { self.mapper.borrow() }
+    fn mapper_mut(&self) -> RefMut<'_, BoxMapper> { self.mapper.borrow_mut() }
+    fn memory(&self) -> Ref<'_, Memory> { self.memory.borrow() }
+    fn memory_mut(&self) -> RefMut<'_, Memory> { self.memory.borrow_mut() }
+    fn renderer(&self) -> Ref<'_, Renderer> { self.renderer.borrow() }
+    fn renderer_mut(&self) -> RefMut<'_, Renderer> { self.renderer.borrow_mut() }
 }
 
 pub struct Bus {
