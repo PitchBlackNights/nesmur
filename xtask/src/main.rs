@@ -111,8 +111,8 @@ async fn run_docs_server() {
                             event.kind,
                             EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
                         ) {
-                            if event.paths.iter().any(|path: &PathBuf| {
-                                match path.extension().and_then(|e| e.to_str()) {
+                            if event.paths.iter().any(|path: &PathBuf| -> bool {
+                                match path.extension().and_then(|e: &std::ffi::OsStr| e.to_str()) {
                                     Some(ext) => {
                                         matches!(ext, "html" | "css" | "js" | "jsx" | "ts" | "tsx")
                                     }
@@ -120,7 +120,7 @@ async fn run_docs_server() {
                                 }
                             }) {
                                 drop(tx.send("reload".to_string()));
-                                println!("Reloading...")
+                                println!("Reloading...");
                             }
                         }
                     }

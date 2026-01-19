@@ -29,10 +29,10 @@ image = "0.25.8"
 imgui-glow-renderer = { path = "./patches/imgui-glow-renderer" }
 
 [build-dependencies]
-vergen-git2 = { version = "1.0.7", features = ["build", "cargo", "rustc", "si", "emit_and_set"]}
+vergen-git2 = { version = "9.1.0", features = ["build", "cargo", "rustc", "si", "emit_and_set"]}
 
 [workspace]
-members = ["nes", "nestool"]
+members = ["nes", "xtask"]
 
 [lints.clippy]
 uninlined-format-args = "allow"

@@ -1,5 +1,5 @@
 [package]
-name = "nestool"
+name = "xtask"
 edition = "2024"
 version = "1.0.0"
 authors = ["PitchBlackNights <pitchblacknights@proton.me>"]
