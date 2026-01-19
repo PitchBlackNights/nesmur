@@ -1,38 +1,35 @@
-//! Handles setup and initialization routines for nesmur
+//! Handles setup and initialization routines for mds-installer
 //!
 //! This module is responsible for configuring the environment, parsing command-line arguments,
 //! and initializing the logging system used throughout the application.
 
-use crate::{cli_parser::Args, prelude::*};
-use chrono::format::{DelayedFormat, StrftimeItems};
+use crate::{cli::Cli, prelude::*};
+use clap::Parser;
 use colored::*;
-use log::{LevelFilter, Record};
+use log::{Level, LevelFilter, Record};
 use std::{
     io::Write,
     thread::{self, Thread},
 };
 
+// TODO: Setup better filtering system
+static VERBOSE_FILTER: std::sync::LazyLock<Vec<Vec<&'static str>>> =
+    std::sync::LazyLock::new(|| {
+        vec![
+            // verbose = 0
+            vec![],
+        ]
+    });
+
 /// Sets up the program by:
 /// 1. Parsing command arguments
 /// 2. Initialize the logger
-pub fn setup_logger_and_args() -> Args {
-    let _args: Args = match Args::parse() {
-        Ok(arguments) => arguments,
-        Err(error) => {
-            println!("Error: {error}");
-            Args::print_help();
-
-            #[cfg(windows)]
-            std::process::exit(160);
-            #[cfg(unix)]
-            std::process::exit(22);
-        }
-    };
-
-    init_logger(_args.verbose);
+pub fn setup_logger_and_cli() -> Cli {
+    let cli: Cli = Cli::parse();
+    init_logger(cli.verbose);
     trace!("Logger was enabled successfully.");
-    debug!("Passed Arguments: {_args:?}");
-    _args
+    debug!("Passed Arguments: {:?}", cli);
+    cli
 }
 
 /// Initializes the logger
@@ -50,49 +47,40 @@ fn init_logger(verbose_level: u8) {
 
     builder
         .format(
-            move |buf: &mut env_logger::fmt::Formatter, record: &Record<'_>| {
-                let timestamp: DelayedFormat<StrftimeItems<'_>> =
-                    chrono::Local::now().format("%H:%M:%S.%3f");
-
-                let mut target: String = record.target().to_string();
-                let upto: usize = target
-                    .char_indices()
-                    .map(|(i, _)| i)
-                    .nth(
-                        target
-                            .chars()
-                            .position(|c: char| c == ':')
-                            .unwrap_or(target.len()),
-                    )
-                    .unwrap_or(target.len());
-                target.truncate(upto);
-
+            move |buf: &mut env_logger::fmt::Formatter,
+                  record: &Record<'_>|
+                  -> Result<(), std::io::Error> {
                 let module_path: String = record.module_path().unwrap_or("UNKNOWN").to_string();
+                let mut target: String = record.target().to_string();
                 let level: String = record.level().to_string();
 
+                let filter_str: String = if target != module_path {
+                    format!("{}/{}/{}", target, module_path, level)
+                } else {
+                    format!("{}/{}", module_path, level)
+                };
+                if record.level() >= Level::Info
+                    && VERBOSE_FILTER[(verbose_level as usize).min(VERBOSE_FILTER.len() - 1)]
+                        .iter()
+                        .any(|s: &&str| filter_str.starts_with(s))
+                {
+                    return Ok(());
+                }
+
+                if verbose_level >= 2 && target != module_path {
+                    target = format!("{}/{}", target, module_path)
+                }
                 let current_thread: Thread = thread::current();
                 let thread_name: &str = current_thread.name().unwrap_or("<unnamed>");
 
                 // Log output format
-                let log_output: String = if verbose_level >= 2 {
-                    format!(
-                        "[{}] [{}/{}] [{}]: {}",
-                        timestamp,
-                        module_path,
-                        level,
-                        thread_name,
-                        record.args()
-                    )
-                } else {
-                    format!(
-                        "[{}] [{}/{}] [{}]: {}",
-                        timestamp,
-                        target,
-                        level,
-                        thread_name,
-                        record.args()
-                    )
-                };
+                let log_output: String = format!(
+                    "[{}] [{}/{}]: {}",
+                    thread_name,
+                    target,
+                    level,
+                    record.args()
+                );
 
                 // Apply severity color to the whole log line
                 let colored_log: ColoredString = match record.level() {
@@ -103,7 +91,7 @@ fn init_logger(verbose_level: u8) {
                     log::Level::Trace => log_output.bright_black(),
                 };
 
-                writeln!(buf, "{colored_log}")
+                writeln!(buf, "{}", colored_log)
             },
         )
         .filter(None, log_level_filter)

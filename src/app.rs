@@ -3,536 +3,205 @@
 //! Handles initialization, event loop, OpenGL, ImGUI, and NES state
 
 use crate::{
-    cli_parser::Args,
-    gl_error,
-    nes_manager::NESManager,
+    input::{ControllerConfig, InputManager, InputMapping},
     prelude::*,
-    setup,
-    shared_ctx::{app::*, window::*},
-    ui::NesmurUI,
-    NESEvent, NESState, NesmurEvent, INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH,
 };
-use glow::HasContext;
-use glutin::{
-    config::{Config, ConfigTemplateBuilder},
-    context::{
-        ContextAttributes, ContextAttributesBuilder, NotCurrentContext, NotCurrentGlContext,
-        PossiblyCurrentContext,
-    },
-    display::{GetGlDisplay, GlDisplay},
-    surface::{
-        GlSurface, Surface, SurfaceAttributes, SurfaceAttributesBuilder, SwapInterval,
-        WindowSurface,
-    },
+use eframe::{
+    egui::{self, Color32, ColorImage, TextureOptions},
+    CreationContext, Storage,
 };
-use glutin_winit::DisplayBuilder;
-use imgui::{DrawData, Ui};
-use imgui_glow_renderer::Renderer;
-use imgui_winit_support::WinitPlatform;
-use nes::input_device::{joypad::JoypadButton, NESDeviceType};
-use raw_window_handle::HasWindowHandle;
-use std::{collections::HashMap, num::NonZeroU32, time::Instant};
-use winit::{
-    application::ApplicationHandler,
-    dpi::LogicalSize,
-    event::{ElementState, Event, KeyEvent, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
-    keyboard::{KeyCode, PhysicalKey},
-    window::{Window, WindowAttributes, WindowId},
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
 };
+use uuid::Uuid;
 
-/// Entry point for the nesmur application
-pub fn main() {
-    // Setup logging and parse CLI args
-    let _args: Args = setup::setup_logger_and_args();
-    info!("Starting Emulator...");
+const APP_CONFIG_KEY: &str = "app_config";
 
-    // Initialize winit event loop
-    let event_loop: EventLoop<NesmurEvent> =
-        EventLoop::<NesmurEvent>::with_user_event().build().unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll);
+#[derive(Serialize, Deserialize)]
+pub struct AppConfig {
+    pub volume: f64,
+    pub keyboard_input_mapping: (InputMapping, InputMapping),
+    pub controller_input_mapping: HashMap<Uuid, ControllerConfig>,
+    pub selected_controllers: (Option<Uuid>, Option<Uuid>),
+}
 
-    let proxy: EventLoopProxy<NesmurEvent> = event_loop.create_proxy();
-    event_loop.run_app(&mut Nesmur::new(proxy)).unwrap(); // Run main app loop
-
-    info!("Stopping Emulator...");
+impl Default for AppConfig {
+    fn default() -> Self {
+        AppConfig {
+            volume: 1.0,
+            keyboard_input_mapping: (InputMapping::default(), InputMapping::default()),
+            controller_input_mapping: HashMap::new(),
+            selected_controllers: (None, None),
+        }
+    }
 }
 
 /// Main application struct holding all state/context
-struct Nesmur {
-    /// Tracks if window/context is initialized
-    uninitialized: bool,
-    /// For sending custom events
-    event_loop_proxy: EventLoopProxy<NesmurEvent>,
-    /// NES emulation manager
-    nes_manager: NESManager,
-    /// Current NES state
-    nes_state: NESState,
-    /// Keyboard to NES button mapping
-    nes_keymap: HashMap<KeyCode, (u8, JoypadButton)>,
-    /// UI manager
-    ui: NesmurUI,
-    /// Last UI update timestamp
-    last_ui_time: Instant,
+pub struct App {
+    // UI states
+    pub show_controller_config: bool,
+    pub is_paused: bool,
 
-    /// Shared window/context pointers
-    shared_window_ctx: SharedWindowCtx,
-    /// Shared app pointers \
-    /// DON'T USE IN THE MAIN APP
-    shared_app_ctx: SharedAppCtx,
+    // App data
+    /// Managment struct for controller and keyboard inputs
+    pub input_manager: InputManager,
+    pub screen_texture: egui::TextureHandle,
 
-    // Meant only to keep the data from being dropped.
-    // DO NOT ACCESS WITHOUT USING HELPER FUNCTIONS
-    window: Option<Window>,
-    window_context: Option<PossiblyCurrentContext>,
-    window_surface: Option<Surface<WindowSurface>>,
-    opengl: Option<glow::Context>,
-    winit_platform: Option<WinitPlatform>,
-    imgui_context: Option<imgui::Context>,
-    imgui_textures: Option<imgui::Textures<glow::Texture>>,
-    imgui_renderer: Option<Renderer>,
+    // Misc values
+    /// Last UI update frametime
+    last_frametime: Instant,
+    pub avg_framerate: f64,
+    pub avg_frametime: f64,
+    frametimes: Vec<f64>,
+    frametimes_index: usize,
+    pub volume: f64,
 }
 
-impl Nesmur {
-    /// Create new app instance and setup keymap
-    fn new(event_loop_proxy: EventLoopProxy<NesmurEvent>) -> Self {
-        let mut nes_keymap: HashMap<KeyCode, (u8, JoypadButton)> = HashMap::new();
-        // Map keyboard keys to NES joypad buttons
-        nes_keymap.insert(KeyCode::ArrowDown, (1, JoypadButton::DOWN));
-        nes_keymap.insert(KeyCode::ArrowUp, (1, JoypadButton::UP));
-        nes_keymap.insert(KeyCode::ArrowRight, (1, JoypadButton::RIGHT));
-        nes_keymap.insert(KeyCode::ArrowLeft, (1, JoypadButton::LEFT));
-        nes_keymap.insert(KeyCode::Space, (1, JoypadButton::SELECT));
-        nes_keymap.insert(KeyCode::Enter, (1, JoypadButton::START));
-        nes_keymap.insert(KeyCode::KeyA, (1, JoypadButton::BUTTON_A));
-        nes_keymap.insert(KeyCode::KeyS, (1, JoypadButton::BUTTON_B));
+impl App {
+    pub fn new(cc: &CreationContext) -> Self {
+        debug!("Initializing app...");
 
-        Nesmur {
-            uninitialized: true,
-            event_loop_proxy: event_loop_proxy.clone(),
-            nes_manager: NESManager::new(&event_loop_proxy),
-            nes_state: NESState::Stopped,
-            nes_keymap,
-            ui: NesmurUI::new(),
-            last_ui_time: Instant::now(),
+        egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            shared_window_ctx: SharedWindowCtx::default(),
-            shared_app_ctx: SharedAppCtx::default(),
-
-            window: None,
-            window_context: None,
-            window_surface: None,
-            opengl: None,
-            winit_platform: None,
-            imgui_context: None,
-            imgui_textures: None,
-            imgui_renderer: None,
-        }
-    }
-
-    /// Initialize window, OpenGL, ImGUI, and bind shared contexts
-    fn init(&mut self, event_loop: &ActiveEventLoop) {
-        trace!("Initializing window...");
-
-        // =======================================
-        //  Create the Window, Context, & Surface
-        // =======================================
-        let window_attributes: WindowAttributes = WindowAttributes::default()
-            .with_title("NESMUR")
-            .with_inner_size(LogicalSize::new(
-                INITIAL_WINDOW_WIDTH,
-                INITIAL_WINDOW_HEIGHT,
-            ));
-        let (window, window_config): (Option<Window>, Config) = DisplayBuilder::new()
-            .with_window_attributes(Some(window_attributes))
-            .build(event_loop, ConfigTemplateBuilder::new(), |mut configs| {
-                configs.next().unwrap()
-            })
-            .expect("Failed to crate OpenGL window");
-        let window: Window = window.unwrap();
-
-        let window_context_attributes: ContextAttributes = ContextAttributesBuilder::new()
-            .with_debug(true)
-            .build(Some(window.window_handle().unwrap().as_raw()));
-        let temp_window_context: NotCurrentContext = unsafe {
-            window_config
-                .display()
-                .create_context(&window_config, &window_context_attributes)
-                .expect("Failed to create OpenGL context")
-        };
-
-        let window_surface_attributes: SurfaceAttributes<WindowSurface> =
-            SurfaceAttributesBuilder::<WindowSurface>::new()
-                .with_srgb(Some(true))
-                .build(
-                    window.window_handle().unwrap().as_raw(),
-                    NonZeroU32::new(INITIAL_WINDOW_WIDTH).unwrap(),
-                    NonZeroU32::new(INITIAL_WINDOW_HEIGHT).unwrap(),
-                );
-        let window_surface: Surface<WindowSurface> = unsafe {
-            window_config
-                .display()
-                .create_window_surface(&window_config, &window_surface_attributes)
-                .expect("Failed to create OpenGL surface")
-        };
-
-        let window_context: PossiblyCurrentContext = temp_window_context
-            .make_current(&window_surface)
-            .expect("Failed to make OpenGL context the currect context");
-
-        window_surface
-            .set_swap_interval(
-                &window_context,
-                SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
-            )
-            .expect("Failed to set surface swap interval");
-
-        // ==================
-        //  Initialize ImGUI
-        // ==================
-        let mut imgui_context: imgui::Context = imgui::Context::create();
-        imgui_context.set_ini_filename(None);
-
-        let mut winit_platform: WinitPlatform = WinitPlatform::new(&mut imgui_context);
-        winit_platform.attach_window(
-            imgui_context.io_mut(),
-            &window,
-            imgui_winit_support::HiDpiMode::Rounded,
+        let screen_texture: egui::TextureHandle = cc.egui_ctx.load_texture(
+            "nes",
+            ColorImage::new([256, 240], vec![Color32::BLACK; 256 * 240]),
+            TextureOptions::NEAREST,
         );
+        let state: AppConfig = Self::read_config(cc.storage);
 
-        crate::theme::apply_context(&mut imgui_context);
-        imgui_context.io_mut().font_global_scale = (1.0 / winit_platform.hidpi_factor()) as f32;
+        debug!("Finished initializing app");
+        App {
+            // UI states
+            show_controller_config: false,
+            is_paused: false,
 
-        // ===============================
-        //  Setup OpenGL for actual usage
-        // ===============================
-        let mut opengl: glow::Context = unsafe {
-            glow::Context::from_loader_function_cstr(|cstr| {
-                window_context.display().get_proc_address(cstr).cast()
-            })
-        };
+            // App data
+            input_manager: InputManager::new(state),
+            screen_texture,
 
-        unsafe {
-            // Setup OpenGL debug callback
-            opengl.debug_message_callback(
-                |source: u32, msgtype: u32, id: u32, severity: u32, message: &str| {
-                    let msg_source: &str = match source {
-                        glow::DEBUG_SOURCE_API => "API",
-                        glow::DEBUG_SOURCE_APPLICATION => "APPLICATION",
-                        glow::DEBUG_SOURCE_OTHER => "OTHER",
-                        glow::DEBUG_SOURCE_SHADER_COMPILER => "SHADER COMPILER",
-                        glow::DEBUG_SOURCE_THIRD_PARTY => "THIRD PARTY",
-                        glow::DEBUG_SOURCE_WINDOW_SYSTEM => "WINDOW SYSTEM",
-                        _ => "UNKNONW",
-                    };
-                    let msg_type: &str = match msgtype {
-                        glow::DEBUG_TYPE_DEPRECATED_BEHAVIOR => "DEPRECATED BEHAVIOR",
-                        glow::DEBUG_TYPE_ERROR => "ERROR",
-                        glow::DEBUG_TYPE_MARKER => "MARKER",
-                        glow::DEBUG_TYPE_OTHER => "OTHER",
-                        glow::DEBUG_TYPE_PERFORMANCE => "PERFORMACE",
-                        glow::DEBUG_TYPE_POP_GROUP => "POP GROUP",
-                        glow::DEBUG_TYPE_PORTABILITY => "PORTABILITY",
-                        glow::DEBUG_TYPE_PUSH_GROUP => "PUSH GROUP",
-                        glow::DEBUG_TYPE_UNDEFINED_BEHAVIOR => "UNDEFINED BEHAVIOR",
-                        _ => "UNKNONW",
-                    };
-                    let msg_severity: &str = match severity {
-                        glow::DEBUG_SEVERITY_HIGH => "HIGH",
-                        glow::DEBUG_SEVERITY_LOW => "LOW",
-                        glow::DEBUG_SEVERITY_MEDIUM => "MEDIUM",
-                        glow::DEBUG_SEVERITY_NOTIFICATION => "NOTIFICATION",
-                        _ => "UNKNONW",
-                    };
-                    if msg_severity == "NOTIFICATION" {
-                        return;
-                    }
-                    debug!(
-                        "[====OpenGL====]: [{}] [{}] [{}] [{}] {}",
-                        msg_source, msg_type, id, msg_severity, message
-                    );
-                },
-            );
-
-            // Tell OpenGL to automatically convert the framebuffer to sRGB
-            opengl.enable(glow::FRAMEBUFFER_SRGB);
-            gl_error!(opengl);
+            // Misc values
+            last_frametime: Instant::now(),
+            avg_framerate: 0.0,
+            avg_frametime: 0.0,
+            frametimes: Vec::with_capacity(120),
+            frametimes_index: 0,
+            volume: 0.0,
         }
-
-        let mut imgui_textures: imgui::Textures<glow::NativeTexture> =
-            imgui::Textures::<glow::Texture>::default();
-        let imgui_renderer: Renderer =
-            Renderer::new(&opengl, &mut imgui_context, &mut imgui_textures, false)
-                .expect("Failed to create ImGUI Renderer");
-
-        // Move data to parent struct to prevent the actual data from being dropped
-        self.window = Some(window);
-        self.window_context = Some(window_context);
-        self.window_surface = Some(window_surface);
-        self.opengl = Some(opengl);
-        self.winit_platform = Some(winit_platform);
-        self.imgui_context = Some(imgui_context);
-        self.imgui_textures = Some(imgui_textures);
-        self.imgui_renderer = Some(imgui_renderer);
-
-        // Bind raw pointers to allow for easy mutability anywhere
-        self.shared_window_ctx.window = self.window.as_mut().unwrap();
-        self.shared_window_ctx.window_context = self.window_context.as_mut().unwrap();
-        self.shared_window_ctx.window_surface = self.window_surface.as_mut().unwrap();
-        self.shared_window_ctx.opengl = self.opengl.as_mut().unwrap();
-        self.shared_window_ctx.winit_platform = self.winit_platform.as_mut().unwrap();
-        self.shared_window_ctx.imgui_context = self.imgui_context.as_mut().unwrap();
-        self.shared_window_ctx.imgui_textures = self.imgui_textures.as_mut().unwrap();
-        self.shared_window_ctx.imgui_renderer = self.imgui_renderer.as_mut().unwrap();
-        self.shared_app_ctx.nes_state = SharedNESState(&mut self.nes_state);
-
-        // Do what little UI initialization there is to do
-        self.ui.init(
-            &self.shared_window_ctx,
-            &self.shared_app_ctx,
-            &self.event_loop_proxy,
-        );
-        self.uninitialized = false;
-        self.last_ui_time = Instant::now();
-
-        trace!("Finished initializing window");
-    }
-}
-
-/// Main event loop and window event handling
-impl ApplicationHandler<NesmurEvent> for Nesmur {
-    /// Handle custom NESMUR events
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: NesmurEvent) {
-        if self.uninitialized {
-            return;
-        }
-
-        match event {
-            NesmurEvent::NES(NESEvent::Start) => {
-                self.nes_manager.start_nes();
-                self.nes_manager.connect_device(1, NESDeviceType::Joypad);
-                self.nes_state = NESState::Running;
-            }
-
-            NesmurEvent::NES(NESEvent::Stop) => {
-                self.nes_manager.stop_nes();
-                self.nes_state = NESState::Stopped;
-            }
-
-            NesmurEvent::NES(NESEvent::Pause) => {
-                self.nes_state = NESState::Paused;
-                self.nes_manager.pause();
-            }
-
-            NesmurEvent::NES(NESEvent::Resume) => {
-                self.nes_state = NESState::Running;
-                self.nes_manager.resume();
-            }
-
-            NesmurEvent::NES(NESEvent::Step) => {
-                self.nes_state = NESState::Stepping;
-                self.nes_manager.step(1);
-            }
-
-            NesmurEvent::NES(NESEvent::NewFrame(pixels)) => {
-                self.ui.update_nes_frame(&pixels);
-            }
-
-            NesmurEvent::NES(NESEvent::SteppingFinished) => {
-                self.nes_state = NESState::Paused;
-            }
-
-            #[allow(unreachable_patterns)]
-            _ => warn!("Unhandled User Event: NesmurEvent::{:?}", event),
-        };
     }
 
-    /// Handle window events (redraw, keyboard, resize, close, etc)
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        window_id: WindowId,
-        event: WindowEvent,
-    ) {
-        if self.uninitialized {
-            return;
+    fn read_config(storage: Option<&'_ dyn Storage>) -> AppConfig {
+        match storage {
+            Some(storage) => match storage.get_string(APP_CONFIG_KEY) {
+                Some(string) => {
+                    info!("Using previously saved app config");
+                    serde_json::from_str(&string).unwrap_or_else(|_| {
+                        error!("Failed to decode app config, using default values");
+                        AppConfig::default()
+                    })
+                }
+                None => {
+                    info!("App config has never been saved before, using default values");
+                    AppConfig::default()
+                }
+            },
+            None => {
+                error!("Failed to get eframe storage when trying to read app config, using default values");
+                AppConfig::default()
+            }
         }
+    }
 
-        match event {
-            WindowEvent::RedrawRequested => {
-                unsafe {
-                    self.opengl().clear(glow::COLOR_BUFFER_BIT);
-                    self.opengl().clear_color(0.5, 0.5, 0.5, 1.0);
+    pub fn save_config(&self, storage: Option<&mut dyn Storage>) {
+        match storage {
+            Some(storage) => {
+                let state: AppConfig = AppConfig {
+                    keyboard_input_mapping: self.input_manager.keyboard_input_mapping,
+                    controller_input_mapping: self.input_manager.controller_input_mapping.clone(),
+                    selected_controllers: self.input_manager.selected_controllers,
+                    ..Default::default()
                 };
-
-                let ui: &mut Ui = self
-                    .ui
-                    .redraw(self.nes_manager.framerate, self.nes_manager.frametime);
-
-                self.winit_platform_mut().prepare_render(ui, self.window());
-                let imgui_draw_data: &DrawData = self.imgui_context_mut().render();
-                gl_error!(self.opengl());
-
-                self.imgui_renderer_mut()
-                    .render(self.opengl(), self.textures(), imgui_draw_data)
-                    .expect("Error rendering ImGUI");
-                gl_error!(self.opengl());
-
-                self.surface()
-                    .swap_buffers(self.context())
-                    .expect("Failed to swap framebuffers");
-                gl_error!(self.opengl());
+                match serde_json::to_string(&state) {
+                    Ok(config) => {
+                        info!("Saving app config...");
+                        storage.set_string(APP_CONFIG_KEY, config);
+                        info!("Saved app config");
+                    }
+                    Err(e) => error!("Failed to serialize app config: {}", e),
+                };
             }
-
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        physical_key: PhysicalKey::Code(key_code),
-                        state,
-                        ..
-                    },
-                ..
-            } => {
-                // Handle NES joypad button presses from keyboard
-                if let Some((port, button)) = self.nes_keymap.get(&key_code) {
-                    let pressed: bool = state == ElementState::Pressed;
-                    self.nes_manager
-                        .update_device_button(*port, Box::new(*button), pressed);
-                }
-            }
-
-            WindowEvent::Resized(new_size) => {
-                // Resize OpenGL surface and notify ImGUI
-                if new_size.width > 0 && new_size.height > 0 {
-                    self.surface().resize(
-                        self.context(),
-                        NonZeroU32::new(new_size.width).unwrap(),
-                        NonZeroU32::new(new_size.height).unwrap(),
-                    );
-                }
-
-                let super_event: Event<()> = Event::WindowEvent { window_id, event };
-                self.winit_platform_mut().handle_event(
-                    self.imgui_context_mut().io_mut(),
-                    self.window(),
-                    &super_event,
-                );
-            }
-
-            WindowEvent::CloseRequested => {
-                trace!("Window close was requested");
-                self.nes_manager.stop_nes();
-                event_loop.exit();
-            }
-
-            event => {
-                // Forward other events to ImGUI
-                let super_event: Event<()> = Event::WindowEvent { window_id, event };
-                self.winit_platform_mut().handle_event(
-                    self.imgui_context_mut().io_mut(),
-                    self.window(),
-                    &super_event,
-                );
-            }
+            None => error!("Failed to get eframe storage when trying to save app config"),
         }
-    }
-
-    fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
-
-    /// Called when new events are available
-    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
-        if self.uninitialized {
-            if cause == winit::event::StartCause::Init {
-                self.init(event_loop);
-                self.event_loop_proxy
-                    .send_event(NesmurEvent::NES(NESEvent::Start))
-                    .unwrap();
-            } else {
-                return;
-            }
-        }
-
-        self.nes_manager.handle_nes_messages();
-
-        let now: Instant = Instant::now();
-        self.imgui_context_mut()
-            .io_mut()
-            .update_delta_time(now.duration_since(self.last_ui_time));
-        self.last_ui_time = now;
-    }
-
-    /// Called before waiting for new events
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if self.uninitialized {
-            return;
-        }
-
-        self.winit_platform()
-            .prepare_frame(self.imgui_context_mut().io_mut(), self.window())
-            .unwrap();
-        self.window().request_redraw();
-    }
-
-    /// Called when exiting the event loop
-    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        trace!("Exiting window loop...");
-        if self.uninitialized {
-            panic!("Program exited before it was even initialized!");
-        }
-
-        self.imgui_renderer_mut().destroy(self.opengl());
     }
 }
 
-/// Shared Window Context getters
-/// Provides access to window/context fields via helper macros
-impl SharedWindowCtxAccess for Nesmur {
-    fn window(&self) -> &Window {
-        get_from_swc!(self.shared_window_ctx.window)
+impl eframe::App for App {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        let frametime: Duration = self.last_frametime.elapsed();
+        self.last_frametime = Instant::now();
+
+        // Even if a frame took a full year, it will still have
+        // an accuracy of at least 0.001 miliseconds (1 microsecond)
+        let frametime: f64 = (frametime.as_micros() as f64) / 1000.0;
+        if self.frametimes.len() != self.frametimes.capacity() {
+            self.frametimes.push(frametime);
+        } else {
+            self.frametimes[self.frametimes_index] = frametime;
+            self.frametimes_index = (self.frametimes_index + 1) % self.frametimes.len();
+        }
+        // Summing all of the frametimes will never overflow, unless the
+        // cumulative frametime is longer than something like 999 trillion years
+        self.avg_frametime = self.frametimes.iter().sum::<f64>() / self.frametimes.len() as f64;
+        self.avg_framerate = 1000.0 / self.avg_frametime;
+
+        if ctx.input(|ui| ui.focused) {
+            self.input_manager.get_pressed_input(ctx);
+        }
+
+        self.ui_draw_top_panel(ctx);
+        self.ui_draw_bottom_panel(ctx);
+        self.ui_draw_center_panel(ctx);
+
+        if self.show_controller_config {
+            self.ui_draw_controller_config(ctx);
+        }
+
+        ctx.request_repaint();
     }
-    fn window_mut(&self) -> &mut Window {
-        get_from_swc!(mut self.shared_window_ctx.window)
-    }
-    fn context(&self) -> &PossiblyCurrentContext {
-        get_from_swc!(self.shared_window_ctx.window_context)
-    }
-    fn context_mut(&self) -> &mut PossiblyCurrentContext {
-        get_from_swc!(mut self.shared_window_ctx.window_context)
-    }
-    fn surface(&self) -> &Surface<WindowSurface> {
-        get_from_swc!(self.shared_window_ctx.window_surface)
-    }
-    fn surface_mut(&self) -> &mut Surface<WindowSurface> {
-        get_from_swc!(mut self.shared_window_ctx.window_surface)
-    }
-    fn opengl(&self) -> &glow::Context {
-        get_from_swc!(self.shared_window_ctx.opengl)
-    }
-    fn opengl_mut(&self) -> &mut glow::Context {
-        get_from_swc!(mut self.shared_window_ctx.opengl)
-    }
-    fn winit_platform(&self) -> &WinitPlatform {
-        get_from_swc!(self.shared_window_ctx.winit_platform)
-    }
-    fn winit_platform_mut(&self) -> &mut WinitPlatform {
-        get_from_swc!(mut self.shared_window_ctx.winit_platform)
-    }
-    fn imgui_context(&self) -> &imgui::Context {
-        get_from_swc!(self.shared_window_ctx.imgui_context)
-    }
-    fn imgui_context_mut(&self) -> &mut imgui::Context {
-        get_from_swc!(mut self.shared_window_ctx.imgui_context)
-    }
-    fn textures(&self) -> &imgui::Textures<glow::Texture> {
-        get_from_swc!(self.shared_window_ctx.imgui_textures)
-    }
-    fn textures_mut(&self) -> &mut imgui::Textures<glow::Texture> {
-        get_from_swc!(mut self.shared_window_ctx.imgui_textures)
-    }
-    fn imgui_renderer(&self) -> &Renderer {
-        get_from_swc!(self.shared_window_ctx.imgui_renderer)
-    }
-    fn imgui_renderer_mut(&self) -> &mut Renderer {
-        get_from_swc!(mut self.shared_window_ctx.imgui_renderer)
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.save_config(Some(storage));
     }
 }
+
+// /// Main event loop and window event handling
+// impl ApplicationHandler<NesmurEvent> for Nesmur {
+//     /// Handle window events (redraw, keyboard, resize, close, etc)
+//     fn window_event(
+//         &mut self,
+//         event_loop: &ActiveEventLoop,
+//         window_id: WindowId,
+//         event: WindowEvent,
+//     ) {
+//         match event {
+//             WindowEvent::KeyboardInput {
+//                 event:
+//                     KeyEvent {
+//                         physical_key: PhysicalKey::Code(key_code),
+//                         state,
+//                         ..
+//                     },
+//                 ..
+//             } => {
+//                 // Handle NES joypad button presses from keyboard
+//                 if let Some((port, button)) = self.nes_keymap.get(&key_code) {
+//                     let pressed: bool = state == ElementState::Pressed;
+//                     // self.nes_manager
+//                     //     .update_device_button(*port, Box::new(*button), pressed);
+//                 }
+//             }
+//         }
+//     }
+// }
