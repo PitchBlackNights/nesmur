@@ -60,14 +60,6 @@ pub struct InputMapping {
     pub fast_forward: Input,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ControllerConfig {
-    pub name: String,
-    pub input_mapping: InputMapping,
-}
-
-pub struct NesButtonState {
-
 impl InputMapping {
     pub fn default_keyboard() -> Self {
         InputMapping {
@@ -83,6 +75,14 @@ impl InputMapping {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ControllerConfig {
+    pub name: String,
+    pub input_mapping: InputMapping,
+}
+
+pub struct NesButtonState {
     pub up: bool,
     pub down: bool,
     pub left: bool,
@@ -105,12 +105,12 @@ pub struct InputManager {
 }
 
 impl InputManager {
-    pub fn new(state: AppConfig) -> Self {
+    pub fn new(config: &AppConfig) -> Self {
         InputManager {
             gilrs: Gilrs::new().unwrap(),
-            selected_controllers: state.selected_controllers,
-            controller_input_mapping: state.controller_input_mapping,
-            keyboard_input_mapping: state.keyboard_input_mapping,
+            selected_controllers: config.selected_controllers,
+            controller_input_mapping: config.controller_input_mapping.clone(),
+            keyboard_input_mapping: config.keyboard_input_mapping,
             held_input: HashSet::with_capacity(32),
             pressed_input: HashSet::with_capacity(32),
         }

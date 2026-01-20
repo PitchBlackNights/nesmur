@@ -1,9 +1,166 @@
-use crate::{
-    app::App,
-    input::Input,
-    prelude::*,
+use crate::{app::App, input::Input, prelude::*};
+use eframe::egui::{
+    self, Image, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture,
 };
-use eframe::egui::{self, include_image, load::SizedTexture, Image, ViewportBuilder, ViewportId};
+
+impl App {
+    pub fn draw_ui(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            menu::MenuBar::new().ui(ui, |ui| {
+                self.menu_bar_file_menu(ui);
+                ui.separator();
+                self.menu_bar_perf_stats(ui);
+            });
+        });
+
+        self.bottom_panel(ctx);
+        self.center_panel(ctx);
+
+        if self.show_controller_config {
+            self.controller_config(ctx);
+        }
+
+        if self.show_reset_app_data {
+            self.reset_app_data(ctx);
+        }
+    }
+
+    fn reset_app_data(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Are you sure?")
+            .open(&mut self.show_reset_app_data)
+            .collapsible(false)
+            .resizable(false)
+            .fixed_size([210.0, 72.0])
+            .show(ctx, |ui| {
+                ui.label("This will reset ALL app data/settings.");
+                ui.separator();
+
+                ui.allocate_ui_with_layout(
+                    egui::vec2(60.0, 18.0),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        if ui.button("No").clicked() {
+                            ui.close_kind(egui::UiKind::Window);
+                        }
+
+                        if ui.button("Yes").clicked() {
+                            self.do_reset_app_data = Some(true);
+                        }
+                    },
+                );
+
+                match self.do_reset_app_data {
+                    Some(true) => {
+                        ui.separator();
+                        ui.label("Resetting app data...");
+                        ui.label(format!("{:?}", self.do_reset_app_data));
+                    }
+                    Some(false) => {
+                        self.do_reset_app_data = None;
+                        ui.close_kind(egui::UiKind::Window);
+                    }
+                    None => {}
+                }
+            });
+    }
+
+    fn menu_bar_file_menu(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("File", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
+            if ui.button("Load ROM").clicked() {
+                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    debug!("Loading ROM from path: {:?}", path);
+                }
+            }
+            ui.separator();
+
+            ui.menu_button("Preferences", |ui| {
+                if ui.button("Controllers").clicked() {
+                    self.show_controller_config = !self.show_controller_config
+                }
+
+                ui.button("Stuff").clicked();
+            });
+
+            if ui.button("Reset app data").clicked() {
+                self.show_reset_app_data = true;
+            }
+            ui.separator();
+
+            #[cfg(debug_assertions)]
+            self.menu_bar_file_menu_debugging(ui);
+
+            if ui.button("Exit").clicked() {
+                self.should_exit = true;
+            }
+        });
+    }
+
+    #[cfg(debug_assertions)]
+    fn menu_bar_file_menu_debugging(&mut self, ui: &mut egui::Ui) {
+        ui.checkbox(&mut self.do_debug_visuals, "Debug Visuals");
+        ui.ctx().style_mut(|style: &mut egui::Style| {
+            style.debug.show_resize = self.do_debug_visuals;
+            style.debug.show_expand_height = self.do_debug_visuals;
+            style.debug.show_expand_width = self.do_debug_visuals;
+            style.debug.debug_on_hover_with_all_modifiers = self.do_debug_visuals;
+        });
+        ui.separator();
+    }
+
+    fn menu_bar_perf_stats(&mut self, ui: &mut egui::Ui) {
+        ui.add_sized(
+            [72.0, ui.available_height()],
+            egui::Label::new(format!("UI FPS: {:.0}", self.avg_framerate)),
+        );
+        ui.add_sized(
+            [95.0, ui.available_height()],
+            egui::Label::new(format!("UI FT: {:.2} ms", self.avg_frametime)),
+        );
+
+        ui.separator();
+
+        ui.add_sized(
+            [83.0, ui.available_height()],
+            egui::Label::new(format!("NES FPS: {:.0}", self.avg_framerate)),
+        );
+        ui.add_sized(
+            [106.0, ui.available_height()],
+            egui::Label::new(format!("NES FT: {:.2} ms", self.avg_frametime)),
+        );
+    }
+
+    fn center_panel(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add(
+                Image::from_texture(SizedTexture::from_handle(&self.screen_texture))
+                    .shrink_to_fit(),
+            );
+        });
+    }
+
+    fn bottom_panel(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.horizontal_centered(|ui| {
+                if ui
+                    .add(
+                        egui::Button::image(Image::new(match self.is_paused {
+                            true => include_image!("assets/play.svg"),
+                            false => include_image!("assets/pause.svg"),
+                        }))
+                        .image_tint_follows_text_color(true),
+                    )
+                    .clicked()
+                {
+                    self.is_paused = !self.is_paused;
+                }
+
+                ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
+            });
+        });
+    }
+}
 
 macro_rules! define_key_mapping {
     (@internal $self:ident, $ui:ident, $input:ident, $id_prefix:literal, $($key:tt)+) => {
@@ -44,69 +201,16 @@ macro_rules! define_key_mapping {
 }
 
 impl App {
-    pub fn ui_draw_top_panel(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                if ui.button("Load ROM").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        debug!("Loading ROM from path: {:?}", path);
-                    }
-                }
-
-                if ui.button("Controller Config").clicked() {
-                    self.show_controller_config = !self.show_controller_config
-                }
-
-                ui.separator();
-
-                ui.add_sized(
-                    [40.0, ui.available_height()],
-                    egui::Label::new(format!("UI FPS: {:.0}", self.avg_framerate)),
-                );
-
-                ui.add_sized(
-                    [40.0, ui.available_height()],
-                    egui::Label::new(format!("UI FPS: {:.0}", self.avg_framerate)),
-                );
-            });
-        });
-    }
-
-    pub fn ui_draw_center_panel(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add(
-                Image::from_texture(SizedTexture::from_handle(&self.screen_texture))
-                    .shrink_to_fit(),
-            );
-        });
-    }
-
-    pub fn ui_draw_bottom_panel(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                if ui
-                    .add(egui::Button::image(Image::new(match self.is_paused {
-                        true => include_image!("assets/play.svg"),
-                        false => include_image!("assets/pause.svg"),
-                    })))
-                    .clicked()
-                {
-                    self.is_paused = !self.is_paused;
-                }
-
-                ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0));
-            });
-        });
-    }
-
-    pub fn ui_draw_controller_config(&mut self, ctx: &egui::Context) {
+    fn controller_config(&mut self, ctx: &egui::Context) {
         ctx.show_viewport_immediate(
             ViewportId::from_hash_of("controller_config"),
-            ViewportBuilder::default().with_inner_size([500.0, 500.0]),
-            |ctx, _class| {
+            ViewportBuilder::default()
+                .with_inner_size([400.0, 400.0])
+                .with_title("Configure Controllers"),
+            |ctx: &egui::Context, _class: egui::ViewportClass| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     egui::Grid::new("controller_config_grid").show(ui, |ui| {
-                        if ctx.input(|ui| ui.focused) {
+                        if ctx.input(|ui: &egui::InputState| ui.focused) {
                             self.input_manager.get_pressed_input(ctx);
                         }
 
@@ -114,8 +218,21 @@ impl App {
                             self.input_manager.held_input.iter().next().copied();
 
                         ui.label("");
-                        ui.image(include_image!("assets/keyboard.svg"));
-                        ui.image(include_image!("assets/gamepad.svg"));
+                        ui.scope(|ui| {
+                            ui.style_mut().visuals.widgets.noninteractive.bg_stroke =
+                                egui::Stroke::NONE;
+                            ui.group(|ui| {
+                                ui.add_sized(
+                                    [40.0, 40.0],
+                                    egui::Image::new(include_image!("assets/keyboard.svg")),
+                                );
+                                ui.allocate_space(egui::vec2(10.0, 1.0));
+                            });
+                        });
+                        ui.add_sized(
+                            [40.0, 40.0],
+                            egui::Image::new(include_image!("assets/gamepad.svg")),
+                        );
                         ui.end_row();
 
                         define_key_mapping!(self, ui, input: maybe_input, key: up);
@@ -143,7 +260,7 @@ impl App {
                         egui::ComboBox::from_id_salt("controller_select")
                             .selected_text(self.input_manager.selected_controllers.0.map_or(
                                 "None",
-                                |con| {
+                                |con: uuid::Uuid| -> &str {
                                     self.input_manager
                                         .controller_input_mapping
                                         .get(&con)
@@ -175,7 +292,7 @@ impl App {
                     });
                 });
 
-                if ctx.input(|i| i.viewport().close_requested()) {
+                if ctx.input(|i: &egui::InputState| i.viewport().close_requested()) {
                     self.show_controller_config = false;
                 }
             },

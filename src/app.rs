@@ -7,8 +7,8 @@ use crate::{
     prelude::*,
 };
 use eframe::{
-    egui::{self, Color32, ColorImage, TextureOptions},
     CreationContext, Storage,
+    egui::{self, Color32, ColorImage, TextureOptions},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -40,17 +40,20 @@ impl Default for AppConfig {
 
 /// Main application struct holding all state/context
 pub struct App {
-    // UI states
+    // States
     pub show_controller_config: bool,
     pub is_paused: bool,
+    pub should_exit: bool,
+    pub show_reset_app_data: bool,
+    pub do_reset_app_data: Option<bool>,
+    #[cfg(debug_assertions)]
+    pub do_debug_visuals: bool,
 
-    // App data
-    /// Managment struct for controller and keyboard inputs
+    // Data
     pub input_manager: InputManager,
     pub screen_texture: egui::TextureHandle,
 
-    // Misc values
-    /// Last UI update frametime
+    // Misc
     last_frametime: Instant,
     pub avg_framerate: f64,
     pub avg_frametime: f64,
@@ -65,39 +68,54 @@ impl App {
 
         egui_extras::install_image_loaders(&cc.egui_ctx);
 
+        cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
+
+        #[cfg(debug_assertions)]
+        cc.egui_ctx.style_mut(|style: &mut egui::Style| {
+            style.debug.show_resize = false;
+            style.debug.show_expand_height = false;
+            style.debug.show_expand_width = false;
+            style.debug.debug_on_hover_with_all_modifiers = false;
+        });
+
         let screen_texture: egui::TextureHandle = cc.egui_ctx.load_texture(
             "nes",
             ColorImage::new([256, 240], vec![Color32::BLACK; 256 * 240]),
             TextureOptions::NEAREST,
         );
-        let state: AppConfig = Self::read_config(cc.storage);
+        let config: AppConfig = Self::read_config(cc.storage);
 
         debug!("Finished initializing app");
         App {
-            // UI states
+            // States
             show_controller_config: false,
             is_paused: false,
+            should_exit: false,
+            show_reset_app_data: false,
+            do_reset_app_data: None,
+            #[cfg(debug_assertions)]
+            do_debug_visuals: false,
 
-            // App data
-            input_manager: InputManager::new(state),
+            // Data
+            input_manager: InputManager::new(&config),
             screen_texture,
 
-            // Misc values
+            // Misc
             last_frametime: Instant::now(),
             avg_framerate: 0.0,
             avg_frametime: 0.0,
             frametimes: Vec::with_capacity(120),
             frametimes_index: 0,
-            volume: 0.0,
+            volume: config.volume,
         }
     }
 
-    fn read_config(storage: Option<&'_ dyn Storage>) -> AppConfig {
+    pub fn read_config(storage: Option<&'_ dyn Storage>) -> AppConfig {
         match storage {
             Some(storage) => match storage.get_string(APP_CONFIG_KEY) {
                 Some(string) => {
                     info!("Using previously saved app config");
-                    serde_json::from_str(&string).unwrap_or_else(|_| {
+                    serde_json::from_str(&string).unwrap_or_else(|_| -> AppConfig {
                         error!("Failed to decode app config, using default values");
                         AppConfig::default()
                     })
@@ -108,13 +126,27 @@ impl App {
                 }
             },
             None => {
-                error!("Failed to get eframe storage when trying to read app config, using default values");
+                error!(
+                    "Failed to get eframe storage when trying to read app config, using default values"
+                );
                 AppConfig::default()
             }
         }
     }
 
-    pub fn save_config(&self, storage: Option<&mut dyn Storage>) {
+    pub fn refresh_config(&mut self, storage: Option<&'_ dyn Storage>) {
+        let config: AppConfig = Self::read_config(storage);
+        self.input_manager = InputManager::new(&config);
+        self.volume = config.volume;
+    }
+
+    pub fn delete_config() {
+        if let Err(e) = std::fs::remove_file(crate::PERSISTENT_DATA_PATH) {
+            error!("Failed to delete app config: {}", e);
+        }
+    }
+
+    pub fn save_config<'s>(&self, storage: Option<&mut (dyn Storage + 's)>) {
         match storage {
             Some(storage) => {
                 let state: AppConfig = AppConfig {
@@ -125,8 +157,9 @@ impl App {
                 };
                 match serde_json::to_string(&state) {
                     Ok(config) => {
-                        info!("Saving app config...");
+                        // info!("Saving app config...");
                         storage.set_string(APP_CONFIG_KEY, config);
+                        storage.flush();
                         info!("Saved app config");
                     }
                     Err(e) => error!("Failed to serialize app config: {}", e),
@@ -138,9 +171,24 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
         let frametime: Duration = self.last_frametime.elapsed();
         self.last_frametime = Instant::now();
+
+        ctx.request_repaint();
+
+        if self.should_exit {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            ctx.request_discard("exit");
+            return;
+        }
+
+        if self.do_reset_app_data == Some(true) {
+            Self::delete_config();
+            self.refresh_config(frame.storage());
+            self.save_config(frame.storage_mut());
+            self.do_reset_app_data = Some(false);
+        }
 
         // Even if a frame took a full year, it will still have
         // an accuracy of at least 0.001 miliseconds (1 microsecond)
@@ -160,15 +208,7 @@ impl eframe::App for App {
             self.input_manager.get_pressed_input(ctx);
         }
 
-        self.ui_draw_top_panel(ctx);
-        self.ui_draw_bottom_panel(ctx);
-        self.ui_draw_center_panel(ctx);
-
-        if self.show_controller_config {
-            self.ui_draw_controller_config(ctx);
-        }
-
-        ctx.request_repaint();
+        self.draw_ui(ctx);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

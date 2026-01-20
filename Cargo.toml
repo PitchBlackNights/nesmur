@@ -1,6 +1,6 @@
 [package]
 name = "nesmur"
-edition = "2021"
+edition = "2024"
 version = "2.0.0-dev.2"
 authors = ["PitchBlackNights <pitchblacknights@proton.me>"]
 repository = "https://github.com/pitchblacknights/nesmur"
@@ -13,18 +13,22 @@ env_logger = "0.11.8"
 log = "0.4.29"
 colored = "3.1.1"
 clap = { version = "4.5.54", features = ["cargo", "derive"] }
-# crossbeam = "0.8.4"
+
 eframe = { version = "0.33.3", features = ["persistence"] }
-egui_extras = { version = "0.33.3", features = ["image", "svg"]}
-image = { version = "0.25.9", features = ["png"] }
+egui = { version = "*", features = ["callstack"] }
+egui_extras = { version = "*", features = ["image", "svg"]}
+image = "0.25.9"
 rfd = "0.17.2"
-anyhow = "1.0.100"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
-typetag = "0.2.21"
-dyn-clone = "1.0.20"
+
 gilrs = { version = "0.11.1", features = ["serde-serialize"] }
 uuid = { version = "1.19.0" , features = ["serde"]}
+
+# typetag = "0.2.21"
+# dyn-clone = "1.0.20"
+anyhow = "1.0.100"
+# crossbeam = "0.8.4"
 
 [build-dependencies]
 vergen-git2 = { version = "9.1.0", features = ["build", "cargo", "rustc", "si", "emit_and_set"]}

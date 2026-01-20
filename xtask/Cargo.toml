@@ -8,8 +8,8 @@ license = "MIT"
 publish = false
 
 [dependencies]
-warp = { version = "0.4.2", features = ["websocket", "server"] }
-tokio = { version = "1.47.1", features = ["macros", "sync"] }
-notify = "8.2.0"
-futures-util = "0.3.31"
-webbrowser = "1.0.5"
+warp = { version = "0.4", features = ["websocket", "server"] }
+tokio = { version = "1.49", features = ["macros", "sync"] }
+notify = "8.2"
+futures-util = "0.3"
+webbrowser = "1.0"

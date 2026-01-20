@@ -27,24 +27,27 @@
    inkscape:deskcolor="#d1d1d1"
    showgrid="false"
    inkscape:zoom="1.1248609"
-   inkscape:cx="389.82599"
-   inkscape:cy="389.38149"
+   inkscape:cx="308.92709"
+   inkscape:cy="374.2685"
    inkscape:window-width="1920"
    inkscape:window-height="1057"
    inkscape:window-x="-8"
    inkscape:window-y="-8"
    inkscape:window-maximized="1"
-   inkscape:current-layer="Capa_1" />
+   inkscape:current-layer="g49" />
 <g
    id="g49"
    transform="matrix(0.84968899,0,0,0.83370419,58.594862,64.826176)">
 	<g
-   id="_x37__12_">
+   id="_x37__12_"
+   style="fill:#ffffff;fill-opacity:1">
 		<g
-   id="g46">
+   id="g46"
+   style="fill:#ffffff;fill-opacity:1">
 			<path
    d="M 679.503,349.728 151.09,9.181 C 119.742,-7.703 83.832,-5.951 83.832,54.688 v 670.58 c 0,55.408 38.525,64.17 67.258,45.506 L 679.532,430.227 c 21.723,-22.252 21.723,-58.274 -0.029,-80.499 z"
-   id="path44" />
+   id="path44"
+   style="fill:#ffffff;fill-opacity:1" />
 		</g>
 	</g>
 </g>

@@ -2,3 +2,4 @@
 /third_party/roms/*.nes
 /docs/rustdocs
 /nes/tests/logs/nestest.log
+*.ron
