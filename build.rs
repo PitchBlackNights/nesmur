@@ -63,9 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     writeln!(
         &mut file,
-        "use std::collections::HashMap;
-        use std::sync::LazyLock;
-        pub static ENV_VARS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| HashMap::from({:?}));",
+        "pub static ENV_VARS: ::std::sync::LazyLock<::std::collections::HashMap<&'static str, &'static str>> = ::std::sync::LazyLock::new(|| ::std::collections::HashMap::from({:?}));",
         hashmap_values
     )
     .unwrap();
