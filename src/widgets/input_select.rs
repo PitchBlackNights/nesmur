@@ -72,10 +72,10 @@ impl<'a> Widget for InputSelect<'a> {
             })
         {
             listening = false;
-            if let Some(si) = self.stored_input {
-                if let Some(pressed_input) = self.pressed_input {
-                    *si = pressed_input;
-                }
+            if let Some(si) = self.stored_input
+                && let Some(pressed_input) = self.pressed_input
+            {
+                *si = pressed_input;
             }
             response.mark_changed();
         }

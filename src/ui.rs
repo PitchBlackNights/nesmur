@@ -68,10 +68,10 @@ impl App {
         ui.menu_button("File", |ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
-            if ui.button("Load ROM").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    debug!("Loading ROM from path: {:?}", path);
-                }
+            if ui.button("Load ROM").clicked()
+                && let Some(path) = rfd::FileDialog::new().pick_file()
+            {
+                debug!("Loading ROM from path: {:?}", path);
             }
             ui.separator();
 

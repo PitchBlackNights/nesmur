@@ -7,6 +7,8 @@ pub const CHR_ROM_PAGE_SIZE: usize = 8_192; // 8 KiB
 
 macro_rules! opt_debug {
     ($fmt:literal, $($arg:expr),+ $(,)?) => {{
+        // It's not unnecessary, clippy.
+        #[allow(clippy::unnecessary_unwrap)]
         if true $( && $arg.is_some() )+ {
             log::log!(log::Level::Debug, $fmt, $($arg.as_ref().unwrap()),+);
         }

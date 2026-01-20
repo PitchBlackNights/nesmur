@@ -55,14 +55,14 @@ pub fn init_logger(verbose_level: u8) {
     let log_filters: &Vec<LogFilter> =
         &LOG_FILTERS[(verbose_level as usize).min(LOG_FILTERS.len() - 1)];
     let module_filters: Vec<LogFilter> =
-        LogFilter::collect_by_type(&log_filters, FilterType::Module);
+        LogFilter::collect_by_type(log_filters, FilterType::Module);
     let target_filters: HashMap<&str, LevelFilter> =
-        LogFilter::collect_by_type(&log_filters, FilterType::Target)
+        LogFilter::collect_by_type(log_filters, FilterType::Target)
             .iter()
             .map(|filter: &LogFilter| (filter.filter(), filter.level()))
             .collect();
     let thread_filters: HashMap<&str, LevelFilter> =
-        LogFilter::collect_by_type(&log_filters, FilterType::Thread)
+        LogFilter::collect_by_type(log_filters, FilterType::Thread)
             .iter()
             .map(|filter| (filter.filter(), filter.level()))
             .collect();
