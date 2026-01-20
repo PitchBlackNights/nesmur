@@ -33,8 +33,8 @@
   - [X] Start switch
   - [ ] Reach parity
     - [X] Start + Pause
-				- [X] Show UI FPS + FT
-				- [ ] Hook it up to the (legacy) NES Manager
+      - [X] Show UI FPS + FT
+      - [ ] Hook it up to the (legacy) NES Manager
     - [ ] Show emulator screen
     - [ ] Show NES State + FPS + FT
     - [ ] Stepping
