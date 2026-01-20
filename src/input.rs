@@ -45,14 +45,6 @@ pub enum InputType {
     Controller,
 }
 
-// nes_keymap.insert(KeyCode::ArrowDown, (1, JoypadButton::DOWN));
-// nes_keymap.insert(KeyCode::ArrowUp, (1, JoypadButton::UP));
-// nes_keymap.insert(KeyCode::ArrowRight, (1, JoypadButton::RIGHT));
-// nes_keymap.insert(KeyCode::ArrowLeft, (1, JoypadButton::LEFT));
-// nes_keymap.insert(KeyCode::Space, (1, JoypadButton::SELECT));
-// nes_keymap.insert(KeyCode::Enter, (1, JoypadButton::START));
-// nes_keymap.insert(KeyCode::KeyA, (1, JoypadButton::BUTTON_A));
-// nes_keymap.insert(KeyCode::KeyS, (1, JoypadButton::BUTTON_B));
 #[derive(Debug, Copy, Clone, Default, Serialize, Deserialize)]
 pub struct InputMapping {
     pub up: Input,
@@ -75,6 +67,22 @@ pub struct ControllerConfig {
 }
 
 pub struct NesButtonState {
+
+impl InputMapping {
+    pub fn default_keyboard() -> Self {
+        InputMapping {
+            up: Input::Key(egui::Key::ArrowUp),
+            down: Input::Key(egui::Key::ArrowDown),
+            left: Input::Key(egui::Key::ArrowLeft),
+            right: Input::Key(egui::Key::ArrowRight),
+            b: Input::Key(egui::Key::S),
+            a: Input::Key(egui::Key::A),
+            start: Input::Key(egui::Key::Enter),
+            select: Input::Key(egui::Key::Space),
+            ..Default::default()
+        }
+    }
+}
     pub up: bool,
     pub down: bool,
     pub left: bool,

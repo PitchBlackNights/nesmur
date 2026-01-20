@@ -31,7 +31,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         AppConfig {
             volume: 1.0,
-            keyboard_input_mapping: (InputMapping::default(), InputMapping::default()),
+            keyboard_input_mapping: (InputMapping::default_keyboard(), InputMapping::default()),
             controller_input_mapping: HashMap::new(),
             selected_controllers: (None, None),
         }
