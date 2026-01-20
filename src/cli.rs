@@ -18,11 +18,11 @@ static LONG_VERSION: LazyLock<String> = LazyLock::new(|| -> String {
 static SHORT_VERSION: LazyLock<String> = LazyLock::new(|| format!("v{}", clap::crate_version!()));
 
 fn parse_verbose(s: &str) -> Result<u8, String> {
-    let mut n: u8 = s.parse().unwrap();
-    // If 'debug_assertions' are enabled, then force verbose to be at least '1'
-    if cfg!(debug_assertions) {
-        n = std::cmp::max(1, n);
-    }
+    let n: u8 = s.parse().unwrap();
+    // // If 'debug_assertions' are enabled, then force verbose to be at least '1'
+    // if cfg!(debug_assertions) {
+    //     n = std::cmp::max(1, n);
+    // }
     Ok(n)
 }
 

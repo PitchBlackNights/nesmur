@@ -3,7 +3,7 @@ use log::info;
 use nesmur::{app::App, cli::Cli, setup};
 
 fn main() -> eframe::Result<()> {
-    let _cli: Cli = setup::setup_logger_and_cli();
+    let _cli: Cli = setup::initial_setup();
     info!("Starting Nesmur...");
 
     let options: eframe::NativeOptions = eframe::NativeOptions {

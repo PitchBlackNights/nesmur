@@ -8,6 +8,7 @@ pub mod prelude {
 }
 pub mod app;
 pub mod input;
+pub mod logging;
 pub mod ui;
 pub mod widgets;
 
