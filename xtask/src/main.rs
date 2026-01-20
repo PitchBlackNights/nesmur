@@ -39,19 +39,23 @@ async fn main() {
 
     if docs {
         if docs_gen {
-            println!("Generating docs...");
             if fs::exists(CUSTOM_DOCS_PATH).unwrap() {
+                println!("Copying old docs...");
                 move_dir_recursive(Path::new(CUSTOM_DOCS_PATH), Path::new(CARGO_DOCS_PATH))
                     .unwrap();
             }
 
+            println!("Generating docs...");
             std::process::Command::new("cargo")
                 .current_dir(ROOT_PATH)
                 .arg("sys-gen-docs")
-                .output()
+                .spawn()
+                .expect("Failed to start `cargo sys-gen-docs`")
+                .wait()
                 .expect("Cargo failed to generate docs");
 
             if fs::exists(CARGO_DOCS_PATH).unwrap() {
+                println!("Copying new docs...");
                 move_dir_recursive(Path::new(CARGO_DOCS_PATH), Path::new(CUSTOM_DOCS_PATH))
                     .unwrap();
             }

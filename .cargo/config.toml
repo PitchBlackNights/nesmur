@@ -2,14 +2,16 @@
 # `nestool` doesn't need testing
 test-all = ["test", "-p", "nesmur", "-p", "nes"]
 test-nes = ["test", "-p", "nes"]
-test-main = ["test", "-p", "nesmur"]
+test-gui = ["test", "-p", "nesmur"]
 
-fmt-all = ["fmt", "-p", "nesmur", "-p", "nes", "-p", "xtask"]
 fmt-nes = ["fmt", "-p", "nes"]
-fmt-main = ["fmt", "-p", "nesmur"]
+fmt-gui = ["fmt", "-p", "nesmur"]
 fmt-xtask = ["fmt", "-p", "xtask"]
 
-sys-gen-docs = ["doc", "--no-deps", "--workspace", "--document-private-items"]
+sys-gen-docs = ["doc", "--no-deps", "--workspace", "--document-private-items", "-Zrustdoc-map"]
 docs = ["xtask", "docs"]
 
 xtask = ["run", "-p", "xtask", "-q", "--"]
+
+[doc.extern-map.registries]
+crates-io = "https://docs.rs/"
