@@ -129,7 +129,7 @@ impl App {
         let nes_manager: crate::nes_manager::NESManager =
             crate::nes_manager::NESManager::new(screen_texture);
 
-        let config: AppConfig = Self::read_config(frame.storage());
+        let config: AppConfig = AppConfig::default();
         let input_manager: InputManager = InputManager::new(&config);
 
         self.show_controller_config = false;
