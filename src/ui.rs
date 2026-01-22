@@ -1,6 +1,6 @@
-use crate::{app::App, input::Input, prelude::*};
+use crate::{app::App, events::AppEvent, input::Input, prelude::*};
 use egui::{
-    Image, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture, Ui
+    Image, Ui, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture,
 };
 
 impl App {
@@ -67,7 +67,7 @@ impl App {
                     .pick_file()
             {
                 debug!("Loading ROM from path: {:?}", path);
-                self.request_nes_event.push(crate::NESEvent::Start(path));
+                self.new_event(AppEvent::NES(crate::NESEvent::Start(path)));
             }
             ui.separator();
 
@@ -83,7 +83,7 @@ impl App {
             ui.separator();
 
             if ui.button("Exit").clicked() {
-                self.should_exit = true;
+                self.new_event(AppEvent::Exit);
             }
         });
     }
@@ -100,15 +100,18 @@ impl App {
                 );
                 ui.separator();
 
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui: &mut Ui| {
-                    if ui.button("No").clicked() {
-                        ui.close_kind(egui::UiKind::Window);
-                    }
+                ui.with_layout(
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui: &mut Ui| {
+                        if ui.button("No").clicked() {
+                            ui.close_kind(egui::UiKind::Window);
+                        }
 
-                    if ui.button("Yes").clicked() {
-                        self.do_reset_app_data = Some(true);
-                    }
-                });
+                        if ui.button("Yes").clicked() {
+                            self.do_reset_app_data = Some(true);
+                        }
+                    },
+                );
 
                 match self.do_reset_app_data {
                     Some(true) => {
@@ -136,7 +139,7 @@ impl App {
                     )
                     .clicked()
                 {
-                    self.request_nes_event.push(crate::NESEvent::Stop);
+                    self.new_event(AppEvent::NES(crate::NESEvent::Stop))
                 }
 
                 if ui
@@ -152,8 +155,8 @@ impl App {
                 {
                     self.is_paused = !self.is_paused;
                     match self.is_paused {
-                        true => self.request_nes_event.push(crate::NESEvent::Pause),
-                        false => self.request_nes_event.push(crate::NESEvent::Resume),
+                        true => self.new_event(AppEvent::NES(crate::NESEvent::Pause)),
+                        false => self.new_event(AppEvent::NES(crate::NESEvent::Resume)),
                     };
                 }
 

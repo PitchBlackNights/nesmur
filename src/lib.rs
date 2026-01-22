@@ -9,6 +9,7 @@ pub mod prelude {
 pub mod app;
 #[cfg(debug_assertions)]
 pub mod debug;
+pub mod events;
 pub mod input;
 pub mod logging;
 pub mod ui;

@@ -1,5 +1,6 @@
 use crate::{
     INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH, PERSISTENT_DATA_PATH,
+    events::{AppEvent, AppEventQueue},
     input::{ControllerConfig, InputManager, InputMapping},
     prelude::*,
 };
@@ -38,18 +39,16 @@ pub struct App {
     // States
     pub show_controller_config: bool,
     pub is_paused: bool,
-    pub should_exit: bool,
     pub show_reset_app_data: bool,
     pub do_reset_app_data: Option<bool>,
     #[cfg(debug_assertions)]
     pub debug: crate::debug::DebugOptions,
-    pub request_nes_event: Vec<crate::NESEvent>,
 
     // Data
     pub input_manager: InputManager,
-    // pub screen_texture: egui::TextureHandle,
     pub nes_manager: crate::nes_manager::NESManager,
     pub nes_state: crate::NESState,
+    events: AppEventQueue,
 
     // Misc
     last_frametime: Instant,
@@ -83,18 +82,17 @@ impl App {
             // States
             show_controller_config: false,
             is_paused: false,
-            should_exit: false,
             show_reset_app_data: false,
             do_reset_app_data: None,
             #[cfg(debug_assertions)]
             debug: crate::debug::DebugOptions::new(),
-            request_nes_event: vec![],
 
             // Data
             input_manager,
             // screen_texture,
             nes_manager,
             nes_state: crate::NESState::Stopped,
+            events: AppEventQueue::new(),
 
             // Misc
             last_frametime: Instant::now(),
@@ -136,15 +134,14 @@ impl App {
 
         self.show_controller_config = false;
         self.is_paused = false;
-        self.should_exit = false;
         #[cfg(debug_assertions)]
         {
             self.debug = crate::debug::DebugOptions::new();
         }
-        self.request_nes_event = vec![];
         self.input_manager = input_manager;
         self.nes_manager = nes_manager;
         self.nes_state = crate::NESState::Stopped;
+        self.events = AppEventQueue::new();
         self.volume = config.volume;
 
         self.save_config(frame.storage_mut());
@@ -224,6 +221,77 @@ impl App {
         self.avg_frametime = self.frametimes.iter().sum::<f64>() / self.frametimes.len() as f64;
         self.avg_framerate = 1000.0 / self.avg_frametime;
     }
+
+    pub fn new_event(&mut self, event: AppEvent) {
+        self.events.push(event);
+    }
+
+    fn handle_events(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.events.is_empty() {
+            return;
+        }
+        trace!("Handling {} app events", self.events.len());
+
+        while let Some(event) = self.events.pull() {
+            use crate::events::AppEvent::*;
+
+            trace!("Handling event: {:?}", event);
+
+            match event {
+                Exit => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    ctx.request_discard("exit");
+                }
+
+                NES(crate::NESEvent::Start(rom_path)) => {
+                    if self.nes_state != crate::NESState::Stopped {
+                        error!(
+                            "Tried to start nes when in a non-stopped state: {:?}",
+                            self.nes_state
+                        );
+                        return;
+                    }
+                    self.nes_manager.start_nes(rom_path);
+                    self.nes_manager
+                        .connect_device(1, nes::input_device::NESDeviceType::Joypad);
+                    self.nes_state = crate::NESState::Running;
+                }
+                NES(crate::NESEvent::Stop) => {
+                    if self.nes_state == crate::NESState::Stopped {
+                        error!("Tried to stop nes when it is already stopped");
+                        return;
+                    }
+                    self.nes_manager.stop_nes();
+                    self.nes_state = crate::NESState::Stopped;
+                    self.is_paused = false;
+                }
+                NES(crate::NESEvent::Pause) => {
+                    if self.nes_state != crate::NESState::Running {
+                        error!(
+                            "Tried to pause nes when it a non-running state: {:?}",
+                            self.nes_state
+                        );
+                        return;
+                    }
+                    self.nes_manager.pause();
+                    self.nes_state = crate::NESState::Paused;
+                }
+                NES(crate::NESEvent::Resume) => {
+                    if self.nes_state != crate::NESState::Paused {
+                        error!(
+                            "Tried to resume nes when it a non-paused state: {:?}",
+                            self.nes_state
+                        );
+                        return;
+                    }
+                    self.nes_manager.resume();
+                    self.nes_state = crate::NESState::Running;
+                }
+
+                e => warn!("Unhandled app event: {:?}", e),
+            }
+        }
+    }
 }
 
 impl eframe::App for App {
@@ -231,14 +299,11 @@ impl eframe::App for App {
         self.update_frametimes();
         ctx.request_repaint();
 
+        self.handle_events(ctx, frame);
+        self.nes_manager.handle_nes_messages();
+
         #[cfg(debug_assertions)]
         self.debug.update(ctx);
-
-        if self.should_exit {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            ctx.request_discard("exit");
-            return;
-        }
 
         if self.do_reset_app_data == Some(true) {
             self.reset_app(ctx, frame);
@@ -253,65 +318,10 @@ impl eframe::App for App {
         if self.input_manager.pause_pressed() {
             self.is_paused = !self.is_paused;
             match self.is_paused {
-                true => self.request_nes_event.push(crate::NESEvent::Pause),
-                false => self.request_nes_event.push(crate::NESEvent::Resume),
+                true => self.new_event(AppEvent::NES(crate::NESEvent::Pause)),
+                false => self.new_event(AppEvent::NES(crate::NESEvent::Resume)),
             };
         }
-
-        if !self.request_nes_event.is_empty() {
-            for event in self.request_nes_event.drain(..) {
-                debug!("New NES Event: {:?}", event);
-                match event {
-                    crate::NESEvent::Start(path) => {
-                        if self.nes_state != crate::NESState::Stopped {
-                            error!(
-                                "Tried to start nes when in a non-stopped state: {:?}",
-                                self.nes_state
-                            );
-                            return;
-                        }
-                        self.nes_manager.start_nes(path);
-                        self.nes_manager
-                            .connect_device(1, nes::input_device::NESDeviceType::Joypad);
-                        self.nes_state = crate::NESState::Running;
-                    }
-                    crate::NESEvent::Stop => {
-                        if self.nes_state == crate::NESState::Stopped {
-                            error!("Tried to stop nes when it is already stopped");
-                            return;
-                        }
-                        self.nes_manager.stop_nes();
-                        self.nes_state = crate::NESState::Stopped;
-                        self.is_paused = false;
-                    }
-                    crate::NESEvent::Pause => {
-                        if self.nes_state != crate::NESState::Running {
-                            error!(
-                                "Tried to pause nes when it a non-running state: {:?}",
-                                self.nes_state
-                            );
-                            return;
-                        }
-                        self.nes_manager.pause();
-                        self.nes_state = crate::NESState::Paused;
-                    }
-                    crate::NESEvent::Resume => {
-                        if self.nes_state != crate::NESState::Paused {
-                            error!(
-                                "Tried to resume nes when it a non-paused state: {:?}",
-                                self.nes_state
-                            );
-                            return;
-                        }
-                        self.nes_manager.resume();
-                        self.nes_state = crate::NESState::Running;
-                    }
-                    e => warn!("ignored requested nes event: {:?}", e),
-                }
-            }
-        }
-
-        self.nes_manager.handle_nes_messages();
 
         self.draw_ui(ctx);
     }
