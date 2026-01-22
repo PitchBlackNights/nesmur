@@ -86,4 +86,30 @@ impl DebugOptions {
                 });
         }
     }
+
+    pub fn ui(&mut self, ui: &mut Ui) {
+        // ui.checkbox(&mut self.visuals.show_resize, "Show resize");
+        // ui.checkbox(&mut self.visuals.show_expanded_height, "Show expanded height");
+        // ui.checkbox(&mut self.visuals.show_expanded_width, "Show expanded width");
+        // ui.checkbox(&mut self.visuals.debug_hover, "Debug hover");
+        // ui.separator();
+
+        if ui.button("Reset egui").clicked() {}
+
+        if ui.button("Settings").clicked() {
+            self.show_settings = true;
+        }
+        if ui.button("Inspection").clicked() {
+            self.show_inspection = true;
+        }
+        if ui.button("Textures").clicked() {
+            self.show_textures = true;
+        }
+        if ui.button("Loaders").clicked() {
+            self.show_loaders = true;
+        }
+        if ui.button("Memory").clicked() {
+            self.show_memory = true;
+        }
+    }
 }

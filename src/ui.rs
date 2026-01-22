@@ -29,8 +29,10 @@ impl App {
             menu::MenuBar::new().ui(ui, |ui: &mut Ui| {
                 self.menu_bar_file(ui);
                 #[cfg(debug_assertions)]
-                self.menu_bar_debug(ui);
-
+                ui.menu_button("Debug", |ui: &mut Ui| {
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                    self.debug.ui(ui);
+                });
                 ui.separator();
 
                 ui.add_sized(
@@ -55,35 +57,6 @@ impl App {
         });
     }
 
-    #[cfg(debug_assertions)]
-    fn menu_bar_debug(&mut self, ui: &mut Ui) {
-        ui.menu_button("Debug", |ui: &mut Ui| {
-            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-
-            // ui.checkbox(&mut self.debug.visuals.show_resize, "Show resize");
-            // ui.checkbox(&mut self.debug.visuals.show_expanded_height, "Show expanded height");
-            // ui.checkbox(&mut self.debug.visuals.show_expanded_width, "Show expanded width");
-            // ui.checkbox(&mut self.debug.visuals.debug_hover, "Debug hover");
-            // ui.separator();
-
-            if ui.button("Settings").clicked() {
-                self.debug.show_settings = true;
-            }
-            if ui.button("Inspection").clicked() {
-                self.debug.show_inspection = true;
-            }
-            if ui.button("Textures").clicked() {
-                self.debug.show_textures = true;
-            }
-            if ui.button("Loaders").clicked() {
-                self.debug.show_loaders = true;
-            }
-            if ui.button("Memory").clicked() {
-                self.debug.show_memory = true;
-            }
-        });
-    }
-
     fn menu_bar_file(&mut self, ui: &mut Ui) {
         ui.menu_button("File", |ui: &mut Ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
@@ -102,8 +75,6 @@ impl App {
                 if ui.button("Controllers").clicked() {
                     self.show_controller_config = !self.show_controller_config
                 }
-
-                ui.button("Stuff").clicked();
             });
 
             if ui.button("Reset app data").clicked() {
