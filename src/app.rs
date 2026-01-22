@@ -1,6 +1,6 @@
 use crate::{
     INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH, PERSISTENT_DATA_PATH,
-    events::{AppEvent, AppEventQueue},
+    events::{AppEvent, AppEventQueue, ResetTarget},
     input::{ControllerConfig, InputManager, InputMapping},
     prelude::*,
 };
@@ -226,7 +226,7 @@ impl App {
         self.events.push(event);
     }
 
-    fn handle_events(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn handle_events(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.events.is_empty() {
             return;
         }
@@ -238,6 +238,28 @@ impl App {
             trace!("Handling event: {:?}", event);
 
             match event {
+                ResetData(ResetTarget::Everything) => self.reset_app(ctx, frame),
+                ResetData(ResetTarget::Egui) => {
+                    Self::delete_config();
+                    ctx.memory_mut(|mem: &mut egui::Memory| *mem = Default::default());
+                    ctx.forget_all_images();
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+                        INITIAL_SIZE_WIDTH,
+                        INITIAL_SIZE_HEIGHT,
+                    )));
+                    egui_extras::install_image_loaders(ctx);
+
+                    let screen_texture: egui::TextureHandle = ctx.load_texture(
+                        "nes",
+                        ColorImage::new([256, 240], vec![Color32::BLACK; 256 * 240]),
+                        TextureOptions::NEAREST,
+                    );
+                    self.nes_manager.screen_texture = screen_texture;
+
+                    self.save_config(frame.storage_mut());
+                    frame.storage_mut().unwrap().flush();
+                }
+
                 Exit => {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     ctx.request_discard("exit");
@@ -304,11 +326,6 @@ impl eframe::App for App {
 
         #[cfg(debug_assertions)]
         self.debug.update(ctx);
-
-        if self.do_reset_app_data == Some(true) {
-            self.reset_app(ctx, frame);
-            self.do_reset_app_data = Some(false);
-        }
 
         if ctx.input(|ui: &egui::InputState| ui.focused) {
             self.input_manager.get_pressed_input(ctx);

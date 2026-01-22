@@ -3,7 +3,14 @@ use std::collections::VecDeque;
 #[derive(Debug)]
 pub enum AppEvent {
     NES(crate::NESEvent),
+    ResetData(ResetTarget),
     Exit,
+}
+
+#[derive(Debug)]
+pub enum ResetTarget {
+    Everything,
+    Egui,
 }
 
 pub struct AppEventQueue {

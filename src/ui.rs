@@ -2,6 +2,7 @@ use crate::{app::App, events::AppEvent, input::Input, prelude::*};
 use egui::{
     Image, Ui, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture,
 };
+use crate::events::ResetTarget;
 
 impl App {
     pub fn draw_ui(&mut self, ctx: &egui::Context) {
@@ -20,7 +21,9 @@ impl App {
         }
 
         if self.show_reset_app_data {
-            self.reset_app_data(ctx);
+            let mut show: bool = self.show_reset_app_data.clone();
+            self.reset_app_data(ctx, &mut show);
+            self.show_reset_app_data = show;
         }
     }
 
@@ -31,6 +34,12 @@ impl App {
                 #[cfg(debug_assertions)]
                 ui.menu_button("Debug", |ui: &mut Ui| {
                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
+                    if ui.button("Reset egui").clicked() {
+                        self.new_event(AppEvent::ResetData(ResetTarget::Egui));
+                    }
+                    ui.separator();
+
                     self.debug.ui(ui);
                 });
                 ui.separator();
@@ -88,9 +97,9 @@ impl App {
         });
     }
 
-    fn reset_app_data(&mut self, ctx: &egui::Context) {
+    fn reset_app_data(&mut self, ctx: &egui::Context, show: &mut bool) {
         egui::Window::new("Are you sure?")
-            .open(&mut self.show_reset_app_data)
+            .open(show)
             .collapsible(false)
             .resizable(false)
             .fixed_size([210.0, 72.0])
@@ -108,23 +117,11 @@ impl App {
                         }
 
                         if ui.button("Yes").clicked() {
-                            self.do_reset_app_data = Some(true);
+                            self.new_event(AppEvent::ResetData(ResetTarget::Everything));
+                            ui.close_kind(egui::UiKind::Window);
                         }
                     },
                 );
-
-                match self.do_reset_app_data {
-                    Some(true) => {
-                        ui.separator();
-                        ui.label("Resetting app data...");
-                        ui.label(format!("{:?}", self.do_reset_app_data));
-                    }
-                    Some(false) => {
-                        self.do_reset_app_data = None;
-                        ui.close_kind(egui::UiKind::Window);
-                    }
-                    None => {}
-                }
             });
     }
 
