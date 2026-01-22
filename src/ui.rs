@@ -1,8 +1,12 @@
-use crate::{app::App, events::AppEvent, input::Input, prelude::*};
+use crate::{
+    app::App,
+    events::{AppEvent, ResetTarget},
+    input::Input,
+    prelude::*,
+};
 use egui::{
     Image, Ui, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture,
 };
-use crate::events::ResetTarget;
 
 impl App {
     pub fn draw_ui(&mut self, ctx: &egui::Context) {
