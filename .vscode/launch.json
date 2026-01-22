@@ -11,7 +11,7 @@
                 "--target",
                 "x86_64-pc-windows-gnu",
                 "--profile",
-                "dev",
+                "debugger",
             ],
             "cwd": "${workspaceFolder}",
             "problemMatcher": "$rustc",
