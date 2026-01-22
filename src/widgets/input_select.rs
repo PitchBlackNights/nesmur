@@ -29,13 +29,21 @@ impl<'a> InputSelect<'a> {
 
 impl<'a> Widget for InputSelect<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let text_layout: Arc<egui::Galley> = ui.painter().layout_no_wrap(
-            self.stored_input
-                .as_ref()
-                .map_or("".to_owned(), |input: &&mut Input| input.to_string()),
-            FontId::monospace(11.0),
-            Color32::WHITE,
-        );
+        let text: String = self
+            .stored_input
+            .as_ref()
+            .map_or("".to_owned(), |input: &&mut Input| input.to_string());
+        let text_font: FontId = if let Some(font) = &ui.style().override_font_id {
+            font.clone()
+        } else if let Some(style) = &ui.style().override_text_style {
+            style.resolve(ui.style())
+        } else {
+            egui::TextStyle::Button.resolve(ui.style())
+        };
+
+        let text_layout: Arc<egui::Galley> =
+            ui.painter()
+                .layout_no_wrap(text.clone(), text_font.clone(), Color32::WHITE);
 
         let (rect, mut response) = ui.allocate_exact_size(
             Vec2 {
@@ -46,7 +54,6 @@ impl<'a> Widget for InputSelect<'a> {
         );
 
         let state_id: egui::Id = ui.id().with(self.unique_id);
-
         let mut listening: bool = ui
             .ctx()
             .data(|x: &egui::util::IdTypeMap| x.get_temp::<bool>(state_id).unwrap_or(false));
@@ -81,7 +88,8 @@ impl<'a> Widget for InputSelect<'a> {
         ui.data_mut(|data: &mut egui::util::IdTypeMap| data.insert_temp(state_id, listening));
 
         if ui.is_rect_visible(rect) {
-            let visuals: egui::style::WidgetVisuals = ui.style().interact_selectable(&response, listening);
+            let visuals: egui::style::WidgetVisuals =
+                ui.style().interact_selectable(&response, listening);
             ui.painter().rect(
                 rect,
                 3.0,
@@ -91,8 +99,11 @@ impl<'a> Widget for InputSelect<'a> {
             );
 
             let offset_pos: Vec2 = rect.center() - text_layout.rect.center();
+            let text: Arc<egui::Galley> =
+                ui.painter()
+                    .layout_no_wrap(text, text_font, visuals.text_color());
             ui.painter()
-                .galley(offset_pos.to_pos2(), text_layout, Color32::WHITE);
+                .galley(offset_pos.to_pos2(), text, visuals.text_color());
         }
         response
     }

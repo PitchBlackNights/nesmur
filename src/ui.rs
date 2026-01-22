@@ -240,6 +240,8 @@ impl App {
             |ctx: &egui::Context, _class: egui::ViewportClass| {
                 egui::CentralPanel::default().show(ctx, |ui: &mut Ui| {
                     egui::Grid::new("controller_config_grid").show(ui, |ui: &mut Ui| {
+                        let text_color: egui::Color32 = ui.style().visuals.text_color();
+
                         if ctx.input(|ui: &egui::InputState| ui.focused) {
                             self.input_manager.get_pressed_input(ctx);
                         }
@@ -254,14 +256,15 @@ impl App {
                             ui.group(|ui: &mut Ui| {
                                 ui.add_sized(
                                     [40.0, 40.0],
-                                    egui::Image::new(include_image!("assets/keyboard.svg")),
+                                    egui::Image::new(include_image!("assets/keyboard.svg"))
+                                        .tint(text_color),
                                 );
                                 ui.allocate_space(egui::vec2(10.0, 1.0));
                             });
                         });
                         ui.add_sized(
                             [40.0, 40.0],
-                            egui::Image::new(include_image!("assets/gamepad.svg")),
+                            egui::Image::new(include_image!("assets/gamepad.svg")).tint(text_color),
                         );
                         ui.end_row();
 
