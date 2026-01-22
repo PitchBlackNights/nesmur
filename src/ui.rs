@@ -5,14 +5,7 @@ use egui::{
 
 impl App {
     pub fn draw_ui(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            menu::MenuBar::new().ui(ui, |ui| {
-                self.menu_bar_file_menu(ui);
-                ui.separator();
-                self.menu_bar_perf_stats(ui);
-            });
-        });
-
+        self.menu_bar(ctx);
         self.bottom_panel(ctx);
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -29,6 +22,98 @@ impl App {
         if self.show_reset_app_data {
             self.reset_app_data(ctx);
         }
+    }
+
+    fn menu_bar(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            menu::MenuBar::new().ui(ui, |ui| {
+                self.menu_bar_file(ui);
+                #[cfg(debug_assertions)]
+                self.menu_bar_debug(ui);
+
+                ui.separator();
+
+
+                ui.add_sized(
+                    [72.0, ui.available_height()],
+                    egui::Label::new(format!("UI FPS: {:.0}", self.avg_framerate)),
+                );
+                ui.add_sized(
+                    [95.0, ui.available_height()],
+                    egui::Label::new(format!("UI FT: {:.2} ms", self.avg_frametime)),
+                );
+                ui.separator();
+
+                ui.add_sized(
+                    [83.0, ui.available_height()],
+                    egui::Label::new(format!("NES FPS: {:.0}", self.nes_manager.framerate)),
+                );
+                ui.add_sized(
+                    [106.0, ui.available_height()],
+                    egui::Label::new(format!("NES FT: {:.2} ms", self.nes_manager.frametime)),
+                );
+            });
+        });
+    }
+
+    #[cfg(debug_assertions)]
+    fn menu_bar_debug(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("Debug", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
+            // ui.checkbox(&mut self.debug.visuals.show_resize, "Show resize");
+            // ui.checkbox(&mut self.debug.visuals.show_expanded_height, "Show expanded height");
+            // ui.checkbox(&mut self.debug.visuals.show_expanded_width, "Show expanded width");
+            // ui.checkbox(&mut self.debug.visuals.debug_hover, "Debug hover");
+            // ui.separator();
+
+            if ui.button("Settings").clicked() {
+                self.debug.show_settings = true;
+            }
+            if ui.button("Inspection").clicked() {
+                self.debug.show_inspection = true;
+            }
+            if ui.button("Textures").clicked() {
+                self.debug.show_textures = true;
+            }
+            if ui.button("Loaders").clicked() {
+                self.debug.show_loaders = true;
+            }
+            if ui.button("Memory").clicked() {
+                self.debug.show_memory = true;
+            }
+        });
+    }
+
+    fn menu_bar_file(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("File", |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
+            if ui.button("Load ROM").clicked()
+                && let Some(path) = rfd::FileDialog::new().pick_file()
+            {
+                debug!("Loading ROM from path: {:?}", path);
+                self.request_nes_event.push(crate::NESEvent::Start(path));
+            }
+            ui.separator();
+
+            ui.menu_button("Preferences", |ui| {
+                if ui.button("Controllers").clicked() {
+                    self.show_controller_config = !self.show_controller_config
+                }
+
+                ui.button("Stuff").clicked();
+            });
+
+            if ui.button("Reset app data").clicked() {
+                self.show_reset_app_data = true;
+            }
+            ui.separator();
+
+            if ui.button("Exit").clicked() {
+                self.should_exit = true;
+            }
+        });
     }
 
     fn reset_app_data(&mut self, ctx: &egui::Context) {
@@ -68,74 +153,6 @@ impl App {
                     None => {}
                 }
             });
-    }
-
-    fn menu_bar_file_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("File", |ui| {
-            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-
-            if ui.button("Load ROM").clicked()
-                && let Some(path) = rfd::FileDialog::new().pick_file()
-            {
-                debug!("Loading ROM from path: {:?}", path);
-                self.request_nes_event.push(crate::NESEvent::Start(path));
-            }
-            ui.separator();
-
-            ui.menu_button("Preferences", |ui| {
-                if ui.button("Controllers").clicked() {
-                    self.show_controller_config = !self.show_controller_config
-                }
-
-                ui.button("Stuff").clicked();
-            });
-
-            if ui.button("Reset app data").clicked() {
-                self.show_reset_app_data = true;
-            }
-            ui.separator();
-
-            #[cfg(debug_assertions)]
-            self.menu_bar_file_menu_debugging(ui);
-
-            if ui.button("Exit").clicked() {
-                self.should_exit = true;
-            }
-        });
-    }
-
-    #[cfg(debug_assertions)]
-    fn menu_bar_file_menu_debugging(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.do_debug_visuals, "Debug Visuals");
-        ui.ctx().style_mut(|style: &mut egui::Style| {
-            style.debug.show_resize = self.do_debug_visuals;
-            style.debug.show_expand_height = self.do_debug_visuals;
-            style.debug.show_expand_width = self.do_debug_visuals;
-            style.debug.debug_on_hover_with_all_modifiers = self.do_debug_visuals;
-        });
-        ui.separator();
-    }
-
-    fn menu_bar_perf_stats(&mut self, ui: &mut egui::Ui) {
-        ui.add_sized(
-            [72.0, ui.available_height()],
-            egui::Label::new(format!("UI FPS: {:.0}", self.avg_framerate)),
-        );
-        ui.add_sized(
-            [95.0, ui.available_height()],
-            egui::Label::new(format!("UI FT: {:.2} ms", self.avg_frametime)),
-        );
-
-        ui.separator();
-
-        ui.add_sized(
-            [83.0, ui.available_height()],
-            egui::Label::new(format!("NES FPS: {:.0}", self.nes_manager.framerate)),
-        );
-        ui.add_sized(
-            [106.0, ui.available_height()],
-            egui::Label::new(format!("NES FT: {:.2} ms", self.nes_manager.frametime)),
-        );
     }
 
     fn bottom_panel(&mut self, ctx: &egui::Context) {

@@ -41,7 +41,7 @@ pub struct App {
     pub show_reset_app_data: bool,
     pub do_reset_app_data: Option<bool>,
     #[cfg(debug_assertions)]
-    pub do_debug_visuals: bool,
+    pub debug: crate::debug::DebugOptions,
     pub request_nes_event: Vec<crate::NESEvent>,
 
     // Data
@@ -64,16 +64,7 @@ impl App {
         debug!("Initializing app...");
 
         egui_extras::install_image_loaders(&cc.egui_ctx);
-
         cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
-
-        #[cfg(debug_assertions)]
-        cc.egui_ctx.style_mut(|style: &mut egui::Style| {
-            style.debug.show_resize = false;
-            style.debug.show_expand_height = false;
-            style.debug.show_expand_width = false;
-            style.debug.debug_on_hover_with_all_modifiers = false;
-        });
 
         let screen_texture: egui::TextureHandle = cc.egui_ctx.load_texture(
             "nes",
@@ -95,7 +86,7 @@ impl App {
             show_reset_app_data: false,
             do_reset_app_data: None,
             #[cfg(debug_assertions)]
-            do_debug_visuals: false,
+            debug: crate::debug::DebugOptions::new(),
             request_nes_event: vec![],
 
             // Data
@@ -194,15 +185,12 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.update_frametimes();
         ctx.request_repaint();
 
-        if ctx.input(|i| i.viewport().close_requested()) {
-            if self.nes_state != crate::NESState::Stopped {
-                self.nes_manager.stop_nes();
-            }
-        }
+        #[cfg(debug_assertions)]
+        self.debug.update(ctx);
 
         if self.should_exit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -217,7 +205,7 @@ impl eframe::App for App {
             self.do_reset_app_data = Some(false);
         }
 
-        if ctx.input(|ui| ui.focused) {
+        if ctx.input(|ui: &egui::InputState| ui.focused) {
             self.input_manager.get_pressed_input(ctx);
             self.update_nes_buttons();
         }
@@ -290,5 +278,11 @@ impl eframe::App for App {
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         self.save_config(Some(storage));
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        if self.nes_state != crate::NESState::Stopped {
+            self.nes_manager.stop_nes();
+        }
     }
 }

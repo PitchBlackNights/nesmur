@@ -11,6 +11,8 @@ pub mod input;
 pub mod logging;
 pub mod ui;
 pub mod widgets;
+#[cfg(debug_assertions)]
+pub mod debug;
 
 mod temp;
 pub use self::temp::*;
