@@ -1,3 +1,5 @@
+use egui::Ui;
+
 pub struct DebugVisuals {
     pub show_resize: bool,
     pub show_expanded_height: bool,
@@ -43,7 +45,7 @@ impl DebugOptions {
             egui::Window::new("Settings")
                 .open(&mut self.show_settings)
                 .vscroll(true)
-                .show(ctx, |ui| {
+                .show(ctx, |ui: &mut Ui| {
                     ctx.settings_ui(ui);
                 });
         }
@@ -52,7 +54,7 @@ impl DebugOptions {
             egui::Window::new("Inspection")
                 .open(&mut self.show_inspection)
                 .vscroll(true)
-                .show(ctx, |ui| {
+                .show(ctx, |ui: &mut Ui| {
                     ctx.inspection_ui(ui);
                 });
         }
@@ -61,7 +63,7 @@ impl DebugOptions {
             egui::Window::new("Textures")
                 .open(&mut self.show_textures)
                 .vscroll(true)
-                .show(ctx, |ui| {
+                .show(ctx, |ui: &mut Ui| {
                     ctx.texture_ui(ui);
                 });
         }
@@ -70,7 +72,7 @@ impl DebugOptions {
             egui::Window::new("Loaders")
                 .open(&mut self.show_loaders)
                 .vscroll(true)
-                .show(ctx, |ui| {
+                .show(ctx, |ui: &mut Ui| {
                     ctx.loaders_ui(ui);
                 });
         }
@@ -79,7 +81,7 @@ impl DebugOptions {
             egui::Window::new("Memory")
                 .open(&mut self.show_memory)
                 .vscroll(true)
-                .show(ctx, |ui| {
+                .show(ctx, |ui: &mut Ui| {
                     ctx.memory_ui(ui);
                 });
         }

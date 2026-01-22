@@ -10,7 +10,7 @@ use std::{
     thread::{self, Thread},
 };
 
-static LOG_FILTERS: LazyLock<Vec<Vec<LogFilter>>> = LazyLock::new(|| {
+static LOG_FILTERS: LazyLock<Vec<Vec<LogFilter>>> = LazyLock::new(|| -> Vec<Vec<LogFilter>> {
     vec![
         // verbose = 0
         vec![],
@@ -64,7 +64,7 @@ pub fn init_logger(verbose_level: u8) {
     let thread_filters: HashMap<&str, LevelFilter> =
         LogFilter::collect_by_type(log_filters, FilterType::Thread)
             .iter()
-            .map(|filter| (filter.filter(), filter.level()))
+            .map(|filter: &LogFilter| (filter.filter(), filter.level()))
             .collect();
 
     // println!("LOG_FILTERS[{}] = {:#?};", (verbose_level as usize).min(LOG_FILTERS.len() - 1), log_filters);

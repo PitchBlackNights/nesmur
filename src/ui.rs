@@ -1,6 +1,6 @@
 use crate::{app::App, input::Input, prelude::*};
 use egui::{
-    Image, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture,
+    Image, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture, Ui
 };
 
 impl App {
@@ -8,7 +8,7 @@ impl App {
         self.menu_bar(ctx);
         self.bottom_panel(ctx);
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show(ctx, |ui: &mut Ui| {
             ui.add(
                 Image::from_texture(SizedTexture::from_handle(&self.nes_manager.screen_texture))
                     .shrink_to_fit(),
@@ -25,8 +25,8 @@ impl App {
     }
 
     fn menu_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            menu::MenuBar::new().ui(ui, |ui| {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui: &mut Ui| {
+            menu::MenuBar::new().ui(ui, |ui: &mut Ui| {
                 self.menu_bar_file(ui);
                 #[cfg(debug_assertions)]
                 self.menu_bar_debug(ui);
@@ -56,8 +56,8 @@ impl App {
     }
 
     #[cfg(debug_assertions)]
-    fn menu_bar_debug(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("Debug", |ui| {
+    fn menu_bar_debug(&mut self, ui: &mut Ui) {
+        ui.menu_button("Debug", |ui: &mut Ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
             // ui.checkbox(&mut self.debug.visuals.show_resize, "Show resize");
@@ -84,8 +84,8 @@ impl App {
         });
     }
 
-    fn menu_bar_file(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("File", |ui| {
+    fn menu_bar_file(&mut self, ui: &mut Ui) {
+        ui.menu_button("File", |ui: &mut Ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
             if ui.button("Load ROM").clicked()
@@ -98,7 +98,7 @@ impl App {
             }
             ui.separator();
 
-            ui.menu_button("Preferences", |ui| {
+            ui.menu_button("Preferences", |ui: &mut Ui| {
                 if ui.button("Controllers").clicked() {
                     self.show_controller_config = !self.show_controller_config
                 }
@@ -123,13 +123,13 @@ impl App {
             .collapsible(false)
             .resizable(false)
             .fixed_size([210.0, 72.0])
-            .show(ctx, |ui| {
+            .show(ctx, |ui: &mut Ui| {
                 ui.label(
                     "This will reset ALL app data & settings, including any unsaved NES data.",
                 );
                 ui.separator();
 
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui: &mut Ui| {
                     if ui.button("No").clicked() {
                         ui.close_kind(egui::UiKind::Window);
                     }
@@ -155,8 +155,8 @@ impl App {
     }
 
     fn bottom_panel(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui: &mut Ui| {
+            ui.horizontal_centered(|ui: &mut Ui| {
                 if ui
                     .add_enabled(
                         self.nes_state != crate::NESState::Stopped,
@@ -238,8 +238,8 @@ impl App {
                 .with_inner_size([400.0, 400.0])
                 .with_title("Configure Controllers"),
             |ctx: &egui::Context, _class: egui::ViewportClass| {
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    egui::Grid::new("controller_config_grid").show(ui, |ui| {
+                egui::CentralPanel::default().show(ctx, |ui: &mut Ui| {
+                    egui::Grid::new("controller_config_grid").show(ui, |ui: &mut Ui| {
                         if ctx.input(|ui: &egui::InputState| ui.focused) {
                             self.input_manager.get_pressed_input(ctx);
                         }
@@ -248,10 +248,10 @@ impl App {
                             self.input_manager.held_input.iter().next().copied();
 
                         ui.label("");
-                        ui.scope(|ui| {
+                        ui.scope(|ui: &mut Ui| {
                             ui.style_mut().visuals.widgets.noninteractive.bg_stroke =
                                 egui::Stroke::NONE;
-                            ui.group(|ui| {
+                            ui.group(|ui: &mut Ui| {
                                 ui.add_sized(
                                     [40.0, 40.0],
                                     egui::Image::new(include_image!("assets/keyboard.svg")),
@@ -299,7 +299,7 @@ impl App {
                                         .as_str()
                                 },
                             ))
-                            .show_ui(ui, |ui| {
+                            .show_ui(ui, |ui: &mut Ui| {
                                 ui.selectable_value(
                                     &mut self.input_manager.selected_controllers.0,
                                     None,
@@ -308,7 +308,7 @@ impl App {
                                 for (uuid, controller_config) in
                                     self.input_manager.controller_input_mapping.iter()
                                 {
-                                    ui.horizontal(|ui| {
+                                    ui.horizontal(|ui: &mut Ui| {
                                         ui.selectable_value(
                                             &mut self.input_manager.selected_controllers.0,
                                             Some(*uuid),

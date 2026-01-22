@@ -122,7 +122,7 @@ impl InputManager {
                 .selected_controllers
                 .0
                 .map(|c: Uuid| self.controller_input_mapping.get(&c).unwrap())
-                .is_some_and(|c: &ControllerConfig| {
+                .is_some_and(|c: &ControllerConfig| -> bool {
                     self.pressed_input.contains(&c.input_mapping.pause)
                 })
     }
@@ -233,7 +233,7 @@ impl InputManager {
             );
         }
 
-        ctx.input(|input_state| {
+        ctx.input(|input_state: &egui::InputState| {
             for event in input_state.events.iter() {
                 match event {
                     egui::Event::Key {

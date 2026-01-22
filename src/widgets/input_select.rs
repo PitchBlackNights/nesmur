@@ -1,5 +1,6 @@
 use crate::input::{Input, InputType};
 use egui::{Color32, FontId, Response, Ui, Vec2, Widget};
+use std::sync::Arc;
 
 const SPACING: f32 = 8.0;
 
@@ -28,10 +29,10 @@ impl<'a> InputSelect<'a> {
 
 impl<'a> Widget for InputSelect<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let text_layout = ui.painter().layout_no_wrap(
+        let text_layout: Arc<egui::Galley> = ui.painter().layout_no_wrap(
             self.stored_input
                 .as_ref()
-                .map_or("".to_owned(), |input| input.to_string()),
+                .map_or("".to_owned(), |input: &&mut Input| input.to_string()),
             FontId::monospace(11.0),
             Color32::WHITE,
         );
@@ -44,11 +45,11 @@ impl<'a> Widget for InputSelect<'a> {
             egui::Sense::click(),
         );
 
-        let state_id = ui.id().with(self.unique_id);
+        let state_id: egui::Id = ui.id().with(self.unique_id);
 
-        let mut listening = ui
+        let mut listening: bool = ui
             .ctx()
-            .data(|x| x.get_temp::<bool>(state_id).unwrap_or(false));
+            .data(|x: &egui::util::IdTypeMap| x.get_temp::<bool>(state_id).unwrap_or(false));
 
         if !listening && response.clicked() {
             listening = true;
@@ -57,12 +58,12 @@ impl<'a> Widget for InputSelect<'a> {
             && (response.clicked_elsewhere()
                 || self
                     .pressed_input
-                    .is_some_and(|b| b == Input::Key(egui::Key::Escape)))
+                    .is_some_and(|b: Input| b == Input::Key(egui::Key::Escape)))
         {
             listening = false;
             response.mark_changed();
         } else if listening
-            && self.pressed_input.is_some_and(|i| {
+            && self.pressed_input.is_some_and(|i: Input| -> bool {
                 (self.input_type == InputType::Keyboard && matches!(i, Input::Key(_)))
                     || (self.input_type == InputType::Controller
                         && matches!(i, Input::ControllerAxis(_, _) | Input::ControllerButton(_)))
@@ -77,10 +78,10 @@ impl<'a> Widget for InputSelect<'a> {
             response.mark_changed();
         }
 
-        ui.data_mut(|data| data.insert_temp(state_id, listening));
+        ui.data_mut(|data: &mut egui::util::IdTypeMap| data.insert_temp(state_id, listening));
 
         if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact_selectable(&response, listening);
+            let visuals: egui::style::WidgetVisuals = ui.style().interact_selectable(&response, listening);
             ui.painter().rect(
                 rect,
                 3.0,
@@ -89,7 +90,7 @@ impl<'a> Widget for InputSelect<'a> {
                 egui::StrokeKind::Middle,
             );
 
-            let offset_pos = rect.center() - text_layout.rect.center();
+            let offset_pos: Vec2 = rect.center() - text_layout.rect.center();
             ui.painter()
                 .galley(offset_pos.to_pos2(), text_layout, Color32::WHITE);
         }
