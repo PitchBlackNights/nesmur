@@ -45,9 +45,9 @@
     - [X] Hook it up to the (legacy) NES Manager
   - [ ] In-app Controller Configuration
     - [X] Keyboard rebinding
-    - [ ] Support for physical controllers
-    - [ ] Support for up to 2 NES controllers (digital)
-    - [ ] Hook it up to the (legacy) NES Manager
+    - [X] Support for physical controllers
+    - [ ] Support for up to 2 emulated NES controllers
+    - [X] Hook it up to the (legacy) NES Manager
   - [ ] Memory Debugger (inspiration: [ocornut/imgui_club - imgui_memory_editor](https://github.com/ocornut/imgui_club/blob/main/imgui_memory_editor/imgui_memory_editor.h))
   - [ ] CPU Debugger ([example format](https://html-preview.github.io/?url=https://github.com/PitchBlackNights/nesmur/blob/main/docs/future_dev/cpu_debugger_example.html))
     - [ ] Intructions Debugger

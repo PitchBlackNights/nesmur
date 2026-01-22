@@ -224,7 +224,8 @@ impl InputManager {
         }
 
         for (_id, gamepad) in self.gilrs.gamepads() {
-            let _ = self.controller_input_mapping.insert(
+            // TODO: Remove `try_insert` and replace with code that only inserts when a new gamepad is detected
+            let _ = self.controller_input_mapping.try_insert(
                 Uuid::from_slice(&gamepad.uuid()).unwrap(),
                 ControllerConfig {
                     name: gamepad.name().to_owned(),

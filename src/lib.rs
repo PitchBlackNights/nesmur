@@ -1,5 +1,7 @@
 //! Main library file for nesmur
 
+#![feature(map_try_insert)]
+
 pub mod cli;
 pub mod setup;
 pub mod prelude {
