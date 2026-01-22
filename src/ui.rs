@@ -123,11 +123,10 @@ impl App {
             .resizable(false)
             .fixed_size([210.0, 72.0])
             .show(ctx, |ui| {
-                ui.label("This will reset ALL app data/settings.");
+                ui.label("This will reset ALL app data & settings, including any unsaved NES data.");
                 ui.separator();
 
-                ui.allocate_ui_with_layout(
-                    egui::vec2(60.0, 18.0),
+                ui.with_layout(
                     egui::Layout::left_to_right(egui::Align::Center),
                     |ui| {
                         if ui.button("No").clicked() {

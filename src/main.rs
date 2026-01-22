@@ -1,4 +1,4 @@
-use nesmur::{PERSISTENT_DATA_PATH, app::App, cli::Cli, prelude::*, setup};
+use nesmur::{PERSISTENT_DATA_PATH, app::App, cli::Cli, prelude::*, setup, INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH};
 use std::path::PathBuf;
 
 fn main() -> eframe::Result<()> {
@@ -6,7 +6,7 @@ fn main() -> eframe::Result<()> {
     info!("Starting Nesmur...");
 
     let options: eframe::NativeOptions = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([550.0, 567.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH]),
         persistence_path: Some(PathBuf::from(PERSISTENT_DATA_PATH)),
         ..Default::default()
     };

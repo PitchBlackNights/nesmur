@@ -1,6 +1,5 @@
 use crate::{
-    input::{ControllerConfig, InputManager, InputMapping},
-    prelude::*,
+    INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH, PERSISTENT_DATA_PATH, input::{ControllerConfig, InputManager, InputMapping}, prelude::*
 };
 use eframe::{CreationContext, Storage};
 use egui::{Color32, ColorImage, TextureOptions};
@@ -64,7 +63,7 @@ impl App {
         debug!("Initializing app...");
 
         egui_extras::install_image_loaders(&cc.egui_ctx);
-        cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
+        // cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
 
         let screen_texture: egui::TextureHandle = cc.egui_ctx.load_texture(
             "nes",
@@ -105,6 +104,53 @@ impl App {
         }
     }
 
+    fn reset_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        debug!("Resetting app data...");
+
+        if self.nes_state != crate::NESState::Stopped {
+            self.nes_manager.stop_nes();
+        }
+        Self::delete_config();
+        ctx.memory_mut(|mem: &mut egui::Memory| *mem = Default::default());
+        ctx.forget_all_images();
+        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+            INITIAL_SIZE_HEIGHT,
+            INITIAL_SIZE_WIDTH,
+        )));
+
+        egui_extras::install_image_loaders(&ctx);
+        // ctx.set_theme(egui::ThemePreference::Dark);
+
+        let screen_texture: egui::TextureHandle = ctx.load_texture(
+            "nes",
+            ColorImage::new([256, 240], vec![Color32::BLACK; 256 * 240]),
+            TextureOptions::NEAREST,
+        );
+        let nes_manager: crate::nes_manager::NESManager =
+            crate::nes_manager::NESManager::new(screen_texture);
+
+        let config: AppConfig = Self::read_config(frame.storage());
+        let input_manager: InputManager = InputManager::new(&config);
+
+        self.show_controller_config = false;
+        self.is_paused = false;
+        self.should_exit = false;
+        #[cfg(debug_assertions)]
+        {
+            self.debug = crate::debug::DebugOptions::new();
+        }
+        self.request_nes_event = vec![];
+        self.input_manager = input_manager;
+        self.nes_manager = nes_manager;
+        self.nes_state = crate::NESState::Stopped;
+        self.volume = config.volume;
+
+        self.save_config(frame.storage_mut());
+        frame.storage_mut().unwrap().flush();
+
+        debug!("Finished resetting app data");
+    }
+
     fn read_config(storage: Option<&'_ dyn Storage>) -> AppConfig {
         match storage {
             Some(storage) => match storage.get_string(APP_CONFIG_KEY) {
@@ -129,14 +175,8 @@ impl App {
         }
     }
 
-    fn refresh_config(&mut self, storage: Option<&'_ dyn Storage>) {
-        let config: AppConfig = Self::read_config(storage);
-        self.input_manager = InputManager::new(&config);
-        self.volume = config.volume;
-    }
-
     fn delete_config() {
-        if let Err(e) = std::fs::remove_file(crate::PERSISTENT_DATA_PATH) {
+        if let Err(e) = std::fs::remove_file(PERSISTENT_DATA_PATH) {
             error!("Failed to delete app config: {}", e);
         }
     }
@@ -199,9 +239,7 @@ impl eframe::App for App {
         }
 
         if self.do_reset_app_data == Some(true) {
-            Self::delete_config();
-            self.refresh_config(frame.storage());
-            self.save_config(frame.storage_mut());
+            self.reset_app(ctx, frame);
             self.do_reset_app_data = Some(false);
         }
 
