@@ -21,5 +21,5 @@ pub use self::temp::*;
 include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
 pub const PERSISTENT_DATA_PATH: &str = "./app_data.ron";
-pub const INITIAL_SIZE_HEIGHT: f32 = 550.0;
-pub const INITIAL_SIZE_WIDTH: f32 = 567.0;
+pub const INITIAL_SIZE_HEIGHT: f32 = 600.0;
+pub const INITIAL_SIZE_WIDTH: f32 = 592.0;

@@ -114,8 +114,8 @@ impl App {
         ctx.memory_mut(|mem: &mut egui::Memory| *mem = Default::default());
         ctx.forget_all_images();
         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
-            INITIAL_SIZE_HEIGHT,
             INITIAL_SIZE_WIDTH,
+            INITIAL_SIZE_HEIGHT,
         )));
 
         egui_extras::install_image_loaders(ctx);

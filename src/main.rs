@@ -10,12 +10,12 @@ fn main() -> eframe::Result<()> {
 
     let options: eframe::NativeOptions = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH]),
+            .with_inner_size([INITIAL_SIZE_WIDTH, INITIAL_SIZE_HEIGHT]),
         persistence_path: Some(PathBuf::from(PERSISTENT_DATA_PATH)),
         ..Default::default()
     };
     let ret: Result<(), eframe::Error> = eframe::run_native(
-        "nesmur",
+        "NESMUR",
         options,
         Box::new(|cc: &eframe::CreationContext<'_>| Ok(Box::new(App::new(cc)))),
     );
