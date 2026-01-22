@@ -29,19 +29,20 @@
 - [ ] Completely rework ThreadCom (maybe own crate), or remove it entirely
 - [ ] Create a system to automatically test graphical roms
 - [ ] Add proper error handling (specifically to frontend)
-- [ ] Switch to egui/eframe
+- [X] Switch to egui/eframe
   - [X] Start switch
-  - [ ] Reach parity
+  - [X] Reach parity
     - [X] Start + Pause
       - [X] Show UI FPS + FT
-      - [ ] Hook it up to the (legacy) NES Manager
-    - [ ] Show emulator screen
-    - [ ] Show NES State + FPS + FT
-    - [ ] Stepping
+      - [X] Hook it up to the (legacy) NES Manager
+    - [X] Show emulator screen
+    - [X] Show NES State + FPS + FT
+    - [X] ~~Stepping~~ (Will implement with CPU Debugger)
+    - [X] Controls
 - [ ] Implement these GUI features
-  - [ ] Loading ROMs within the app itself, instead of hardcoding the ROM path
+  - [X] Loading ROMs within the app itself, instead of hardcoding the ROM path
     - [X] Add "Load ROM" button + file dialog
-    - [ ] Hook it up to the (legacy) NES Manager
+    - [X] Hook it up to the (legacy) NES Manager
   - [ ] In-app Controller Configuration
     - [X] Keyboard rebinding
     - [ ] Support for physical controllers
@@ -51,8 +52,9 @@
   - [ ] CPU Debugger ([example format](https://html-preview.github.io/?url=https://github.com/PitchBlackNights/nesmur/blob/main/docs/future_dev/cpu_debugger_example.html))
     - [ ] Intructions Debugger
     - [ ] Code Names/Symbols ([example format](./docs/future_dev/symbols_example.toml))
+    - [ ] Instruction stepping
   - [ ] PPU Nametable Viewer
-  - [ ] PPU Tile Viewer
+  - [ ] PPU Tile Viewerqf
   - [ ] PPU Sprite Viewer
   - [ ] APU Status Viewer
   - [ ] APU Sound Visualizer

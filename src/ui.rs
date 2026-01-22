@@ -1,6 +1,6 @@
 use crate::{app::App, input::Input, prelude::*};
-use eframe::egui::{
-    self, Image, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture,
+use egui::{
+    Image, ViewportBuilder, ViewportId, containers::menu, include_image, load::SizedTexture,
 };
 
 impl App {
@@ -14,7 +14,13 @@ impl App {
         });
 
         self.bottom_panel(ctx);
-        self.center_panel(ctx);
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add(
+                Image::from_texture(SizedTexture::from_handle(&self.nes_manager.screen_texture))
+                    .shrink_to_fit(),
+            );
+        });
 
         if self.show_controller_config {
             self.controller_config(ctx);
@@ -72,6 +78,7 @@ impl App {
                 && let Some(path) = rfd::FileDialog::new().pick_file()
             {
                 debug!("Loading ROM from path: {:?}", path);
+                self.request_nes_event.push(crate::NESEvent::Start(path));
             }
             ui.separator();
 
@@ -123,28 +130,31 @@ impl App {
 
         ui.add_sized(
             [83.0, ui.available_height()],
-            egui::Label::new(format!("NES FPS: {:.0}", self.avg_framerate)),
+            egui::Label::new(format!("NES FPS: {:.0}", self.nes_manager.framerate)),
         );
         ui.add_sized(
             [106.0, ui.available_height()],
-            egui::Label::new(format!("NES FT: {:.2} ms", self.avg_frametime)),
+            egui::Label::new(format!("NES FT: {:.2} ms", self.nes_manager.frametime)),
         );
-    }
-
-    fn center_panel(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add(
-                Image::from_texture(SizedTexture::from_handle(&self.screen_texture))
-                    .shrink_to_fit(),
-            );
-        });
     }
 
     fn bottom_panel(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
                 if ui
-                    .add(
+                    .add_enabled(
+                        self.nes_state != crate::NESState::Stopped,
+                        egui::Button::image(Image::new(include_image!("assets/stop.svg")))
+                        .image_tint_follows_text_color(true)
+                    )
+                    .clicked()
+                {
+                    self.request_nes_event.push(crate::NESEvent::Stop);
+                }
+
+                if ui
+                    .add_enabled(
+                        self.nes_state != crate::NESState::Stopped,
                         egui::Button::image(Image::new(match self.is_paused {
                             true => include_image!("assets/play.svg"),
                             false => include_image!("assets/pause.svg"),
@@ -154,6 +164,10 @@ impl App {
                     .clicked()
                 {
                     self.is_paused = !self.is_paused;
+                    match self.is_paused {
+                        true => self.request_nes_event.push(crate::NESEvent::Pause),
+                        false => self.request_nes_event.push(crate::NESEvent::Resume),
+                    };
                 }
 
                 ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));

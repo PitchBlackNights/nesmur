@@ -1,15 +1,9 @@
-//! Main entry point and window/context management for NESMUR emulator
-//!
-//! Handles initialization, event loop, OpenGL, ImGUI, and NES state
-
 use crate::{
     input::{ControllerConfig, InputManager, InputMapping},
     prelude::*,
 };
-use eframe::{
-    CreationContext, Storage,
-    egui::{self, Color32, ColorImage, TextureOptions},
-};
+use eframe::{CreationContext, Storage};
+use egui::{Color32, ColorImage, TextureOptions};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -48,10 +42,13 @@ pub struct App {
     pub do_reset_app_data: Option<bool>,
     #[cfg(debug_assertions)]
     pub do_debug_visuals: bool,
+    pub request_nes_event: Vec<crate::NESEvent>,
 
     // Data
     pub input_manager: InputManager,
-    pub screen_texture: egui::TextureHandle,
+    // pub screen_texture: egui::TextureHandle,
+    pub nes_manager: crate::nes_manager::NESManager,
+    pub nes_state: crate::NESState,
 
     // Misc
     last_frametime: Instant,
@@ -83,7 +80,11 @@ impl App {
             ColorImage::new([256, 240], vec![Color32::BLACK; 256 * 240]),
             TextureOptions::NEAREST,
         );
+        let nes_manager: crate::nes_manager::NESManager =
+            crate::nes_manager::NESManager::new(screen_texture);
+
         let config: AppConfig = Self::read_config(cc.storage);
+        let input_manager: InputManager = InputManager::new(&config);
 
         debug!("Finished initializing app");
         App {
@@ -95,10 +96,13 @@ impl App {
             do_reset_app_data: None,
             #[cfg(debug_assertions)]
             do_debug_visuals: false,
+            request_nes_event: vec![],
 
             // Data
-            input_manager: InputManager::new(&config),
-            screen_texture,
+            input_manager,
+            // screen_texture,
+            nes_manager,
+            nes_state: crate::NESState::Stopped,
 
             // Misc
             last_frametime: Instant::now(),
@@ -110,7 +114,7 @@ impl App {
         }
     }
 
-    pub fn read_config(storage: Option<&'_ dyn Storage>) -> AppConfig {
+    fn read_config(storage: Option<&'_ dyn Storage>) -> AppConfig {
         match storage {
             Some(storage) => match storage.get_string(APP_CONFIG_KEY) {
                 Some(string) => {
@@ -134,19 +138,19 @@ impl App {
         }
     }
 
-    pub fn refresh_config(&mut self, storage: Option<&'_ dyn Storage>) {
+    fn refresh_config(&mut self, storage: Option<&'_ dyn Storage>) {
         let config: AppConfig = Self::read_config(storage);
         self.input_manager = InputManager::new(&config);
         self.volume = config.volume;
     }
 
-    pub fn delete_config() {
+    fn delete_config() {
         if let Err(e) = std::fs::remove_file(crate::PERSISTENT_DATA_PATH) {
             error!("Failed to delete app config: {}", e);
         }
     }
 
-    pub fn save_config<'s>(&self, storage: Option<&mut (dyn Storage + 's)>) {
+    fn save_config<'s>(&self, storage: Option<&mut (dyn Storage + 's)>) {
         match storage {
             Some(storage) => {
                 let state: AppConfig = AppConfig {
@@ -168,27 +172,10 @@ impl App {
             None => error!("Failed to get eframe storage when trying to save app config"),
         }
     }
-}
 
-impl eframe::App for App {
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+    fn update_frametimes(&mut self) {
         let frametime: Duration = self.last_frametime.elapsed();
         self.last_frametime = Instant::now();
-
-        ctx.request_repaint();
-
-        if self.should_exit {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            ctx.request_discard("exit");
-            return;
-        }
-
-        if self.do_reset_app_data == Some(true) {
-            Self::delete_config();
-            self.refresh_config(frame.storage());
-            self.save_config(frame.storage_mut());
-            self.do_reset_app_data = Some(false);
-        }
 
         // Even if a frame took a full year, it will still have
         // an accuracy of at least 0.001 miliseconds (1 microsecond)
@@ -203,10 +190,100 @@ impl eframe::App for App {
         // cumulative frametime is longer than something like 999 trillion years
         self.avg_frametime = self.frametimes.iter().sum::<f64>() / self.frametimes.len() as f64;
         self.avg_framerate = 1000.0 / self.avg_frametime;
+    }
+}
+
+impl eframe::App for App {
+    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+        self.update_frametimes();
+        ctx.request_repaint();
+
+        if ctx.input(|i| i.viewport().close_requested()) {
+            if self.nes_state != crate::NESState::Stopped {
+                self.nes_manager.stop_nes();
+            }
+        }
+
+        if self.should_exit {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            ctx.request_discard("exit");
+            return;
+        }
+
+        if self.do_reset_app_data == Some(true) {
+            Self::delete_config();
+            self.refresh_config(frame.storage());
+            self.save_config(frame.storage_mut());
+            self.do_reset_app_data = Some(false);
+        }
 
         if ctx.input(|ui| ui.focused) {
             self.input_manager.get_pressed_input(ctx);
+            self.update_nes_buttons();
         }
+
+        if self.input_manager.pause_pressed() {
+            self.is_paused = !self.is_paused;
+            match self.is_paused {
+                true => self.request_nes_event.push(crate::NESEvent::Pause),
+                false => self.request_nes_event.push(crate::NESEvent::Resume),
+            };
+        }
+
+        if self.request_nes_event.len() > 0 {
+            for event in self.request_nes_event.drain(..) {
+                debug!("New NES Event: {:?}", event);
+                match event {
+                    crate::NESEvent::Start(path) => {
+                        if self.nes_state != crate::NESState::Stopped {
+                            error!(
+                                "Tried to start nes when in a non-stopped state: {:?}",
+                                self.nes_state
+                            );
+                            return;
+                        }
+                        self.nes_manager.start_nes(path);
+                        self.nes_manager
+                            .connect_device(1, nes::input_device::NESDeviceType::Joypad);
+                        self.nes_state = crate::NESState::Running;
+                    }
+                    crate::NESEvent::Stop => {
+                        if self.nes_state == crate::NESState::Stopped {
+                            error!("Tried to stop nes when it is already stopped");
+                            return;
+                        }
+                        self.nes_manager.stop_nes();
+                        self.nes_state = crate::NESState::Stopped;
+                        self.is_paused = false;
+                    }
+                    crate::NESEvent::Pause => {
+                        if self.nes_state != crate::NESState::Running {
+                            error!(
+                                "Tried to pause nes when it a non-running state: {:?}",
+                                self.nes_state
+                            );
+                            return;
+                        }
+                        self.nes_manager.pause();
+                        self.nes_state = crate::NESState::Paused;
+                    }
+                    crate::NESEvent::Resume => {
+                        if self.nes_state != crate::NESState::Paused {
+                            error!(
+                                "Tried to resume nes when it a non-paused state: {:?}",
+                                self.nes_state
+                            );
+                            return;
+                        }
+                        self.nes_manager.resume();
+                        self.nes_state = crate::NESState::Running;
+                    }
+                    e => warn!("ignored requested nes event: {:?}", e),
+                }
+            }
+        }
+
+        self.nes_manager.handle_nes_messages();
 
         self.draw_ui(ctx);
     }
@@ -215,33 +292,3 @@ impl eframe::App for App {
         self.save_config(Some(storage));
     }
 }
-
-// /// Main event loop and window event handling
-// impl ApplicationHandler<NesmurEvent> for Nesmur {
-//     /// Handle window events (redraw, keyboard, resize, close, etc)
-//     fn window_event(
-//         &mut self,
-//         event_loop: &ActiveEventLoop,
-//         window_id: WindowId,
-//         event: WindowEvent,
-//     ) {
-//         match event {
-//             WindowEvent::KeyboardInput {
-//                 event:
-//                     KeyEvent {
-//                         physical_key: PhysicalKey::Code(key_code),
-//                         state,
-//                         ..
-//                     },
-//                 ..
-//             } => {
-//                 // Handle NES joypad button presses from keyboard
-//                 if let Some((port, button)) = self.nes_keymap.get(&key_code) {
-//                     let pressed: bool = state == ElementState::Pressed;
-//                     // self.nes_manager
-//                     //     .update_device_button(*port, Box::new(*button), pressed);
-//                 }
-//             }
-//         }
-//     }
-// }

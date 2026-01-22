@@ -1,8 +1,5 @@
 use crate::input::{Input, InputType};
-use eframe::{
-    egui,
-    egui::{Color32, FontId, Response, Ui, Vec2, Widget},
-};
+use egui::{Color32, FontId, Response, Ui, Vec2, Widget};
 
 const SPACING: f32 = 8.0;
 

@@ -1,5 +1,4 @@
-use crate::app::AppConfig;
-use eframe::egui;
+use crate::app::{App, AppConfig};
 use gilrs::Gilrs;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -116,6 +115,83 @@ impl InputManager {
         }
     }
 
+    pub fn pause_pressed(&self) -> bool {
+        if self
+            .pressed_input
+            .contains(&self.keyboard_input_mapping.0.pause)
+            || self
+                .selected_controllers
+                .0
+                .map(|c: Uuid| self.controller_input_mapping.get(&c).unwrap())
+                .is_some_and(|c: &ControllerConfig| {
+                    self.pressed_input.contains(&c.input_mapping.pause)
+                })
+        {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_button_state(&self) -> NesButtonState {
+        let k_con1: InputMapping = self.keyboard_input_mapping.0;
+        let c_con1: Option<&ControllerConfig> = self
+            .selected_controllers
+            .0
+            .map(|c: Uuid| self.controller_input_mapping.get(&c).unwrap());
+
+        NesButtonState {
+            up: k_con1
+                .up
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.up)
+                }),
+            down: k_con1
+                .down
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.down)
+                }),
+            left: k_con1
+                .left
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.left)
+                }),
+            right: k_con1
+                .right
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.right)
+                }),
+            b: k_con1
+                .b
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.b)
+                }),
+            a: k_con1
+                .a
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.a)
+                }),
+            start: k_con1
+                .start
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.start)
+                }),
+            select: k_con1
+                .select
+                .specified_and(|i: Input| self.held_input.contains(&i))
+                || c_con1.is_some_and(|c: &ControllerConfig| -> bool {
+                    self.held_input.contains(&c.input_mapping.select)
+                }),
+        }
+    }
+
     pub fn get_pressed_input(&mut self, ctx: &egui::Context) {
         // TODO: Only process selected controller with UUID
         self.pressed_input.clear();
@@ -186,5 +262,33 @@ impl InputManager {
                 }
             }
         });
+    }
+}
+
+impl App {
+    pub fn update_nes_buttons(&self) {
+        use nes::input_device::joypad::JoypadButton;
+
+        let button_state: NesButtonState = self.input_manager.get_button_state();
+
+        self.nes_manager
+            .update_device_button(0, Box::new(JoypadButton::UP), button_state.up);
+        self.nes_manager
+            .update_device_button(0, Box::new(JoypadButton::DOWN), button_state.down);
+        self.nes_manager
+            .update_device_button(0, Box::new(JoypadButton::LEFT), button_state.left);
+        self.nes_manager
+            .update_device_button(0, Box::new(JoypadButton::RIGHT), button_state.right);
+        self.nes_manager
+            .update_device_button(0, Box::new(JoypadButton::BUTTON_A), button_state.a);
+        self.nes_manager
+            .update_device_button(0, Box::new(JoypadButton::BUTTON_B), button_state.b);
+        self.nes_manager.update_device_button(
+            0,
+            Box::new(JoypadButton::SELECT),
+            button_state.select,
+        );
+        self.nes_manager
+            .update_device_button(0, Box::new(JoypadButton::START), button_state.start);
     }
 }

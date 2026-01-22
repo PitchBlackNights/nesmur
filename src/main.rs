@@ -1,4 +1,3 @@
-use eframe::egui;
 use nesmur::{PERSISTENT_DATA_PATH, app::App, cli::Cli, prelude::*, setup};
 use std::path::PathBuf;
 
