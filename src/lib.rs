@@ -7,12 +7,12 @@ pub mod prelude {
     pub use log::{debug, error, info, trace, warn};
 }
 pub mod app;
+#[cfg(debug_assertions)]
+pub mod debug;
 pub mod input;
 pub mod logging;
 pub mod ui;
 pub mod widgets;
-#[cfg(debug_assertions)]
-pub mod debug;
 
 mod temp;
 pub use self::temp::*;

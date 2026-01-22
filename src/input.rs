@@ -116,8 +116,7 @@ impl InputManager {
     }
 
     pub fn pause_pressed(&self) -> bool {
-        if self
-            .pressed_input
+        self.pressed_input
             .contains(&self.keyboard_input_mapping.0.pause)
             || self
                 .selected_controllers
@@ -126,11 +125,6 @@ impl InputManager {
                 .is_some_and(|c: &ControllerConfig| {
                     self.pressed_input.contains(&c.input_mapping.pause)
                 })
-        {
-            true
-        } else {
-            false
-        }
     }
 
     pub fn get_button_state(&self) -> NesButtonState {

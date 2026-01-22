@@ -33,7 +33,6 @@ impl App {
 
                 ui.separator();
 
-
                 ui.add_sized(
                     [72.0, ui.available_height()],
                     egui::Label::new(format!("UI FPS: {:.0}", self.avg_framerate)),
@@ -125,21 +124,20 @@ impl App {
             .resizable(false)
             .fixed_size([210.0, 72.0])
             .show(ctx, |ui| {
-                ui.label("This will reset ALL app data & settings, including any unsaved NES data.");
+                ui.label(
+                    "This will reset ALL app data & settings, including any unsaved NES data.",
+                );
                 ui.separator();
 
-                ui.with_layout(
-                    egui::Layout::left_to_right(egui::Align::Center),
-                    |ui| {
-                        if ui.button("No").clicked() {
-                            ui.close_kind(egui::UiKind::Window);
-                        }
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    if ui.button("No").clicked() {
+                        ui.close_kind(egui::UiKind::Window);
+                    }
 
-                        if ui.button("Yes").clicked() {
-                            self.do_reset_app_data = Some(true);
-                        }
-                    },
-                );
+                    if ui.button("Yes").clicked() {
+                        self.do_reset_app_data = Some(true);
+                    }
+                });
 
                 match self.do_reset_app_data {
                     Some(true) => {
@@ -163,7 +161,7 @@ impl App {
                     .add_enabled(
                         self.nes_state != crate::NESState::Stopped,
                         egui::Button::image(Image::new(include_image!("assets/stop.svg")))
-                        .image_tint_follows_text_color(true)
+                            .image_tint_follows_text_color(true),
                     )
                     .clicked()
                 {

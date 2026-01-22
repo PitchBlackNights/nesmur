@@ -1,5 +1,7 @@
 use crate::{
-    INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH, PERSISTENT_DATA_PATH, input::{ControllerConfig, InputManager, InputMapping}, prelude::*
+    INITIAL_SIZE_HEIGHT, INITIAL_SIZE_WIDTH, PERSISTENT_DATA_PATH,
+    input::{ControllerConfig, InputManager, InputMapping},
+    prelude::*,
 };
 use eframe::{CreationContext, Storage};
 use egui::{Color32, ColorImage, TextureOptions};
@@ -118,7 +120,7 @@ impl App {
             INITIAL_SIZE_WIDTH,
         )));
 
-        egui_extras::install_image_loaders(&ctx);
+        egui_extras::install_image_loaders(ctx);
         // ctx.set_theme(egui::ThemePreference::Dark);
 
         let screen_texture: egui::TextureHandle = ctx.load_texture(
@@ -256,7 +258,7 @@ impl eframe::App for App {
             };
         }
 
-        if self.request_nes_event.len() > 0 {
+        if !self.request_nes_event.is_empty() {
             for event in self.request_nes_event.drain(..) {
                 debug!("New NES Event: {:?}", event);
                 match event {
