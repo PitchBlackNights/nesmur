@@ -33,6 +33,12 @@ crossbeam = "0.8.4"
 [build-dependencies]
 vergen-git2 = { version = "9.1.0", features = ["build", "cargo", "rustc", "si", "emit_and_set"]}
 
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+lto = "fat"
+
 [workspace]
 members = ["nes", "xtask"]
 
